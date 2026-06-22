@@ -6,31 +6,32 @@
 <title>ObentōPet — Controle de Entregas</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #FDF8F2; }
-  input:focus, textarea:focus, select:focus { outline: 2px solid #B8825A; outline-offset: 1px; }
-  button:focus-visible { outline: 2px solid #B8825A; outline-offset: 2px; }
-  button { font-family: inherit; cursor: pointer; }
-  ::-webkit-scrollbar { width: 8px; }
-  ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #FDF8F2; }
+input:focus, textarea:focus, select:focus { outline: 2px solid #B8825A; outline-offset: 1px; }
+button { font-family: inherit; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
-
+<script>
 const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A";
-
 const auth = {
   async signIn(email, password) {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error_description || data.msg || "Erro ao entrar");
@@ -39,18 +40,23 @@ const auth = {
   async signOut(token) {
     await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
       method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${token}` }
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${token}`
+      }
     });
   },
   async getUser(token) {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${token}` }
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${token}`
+      }
     });
     if (!r.ok) return null;
     return r.json();
   }
 };
-
 function makeDb(token) {
   const headers = {
     "apikey": SUPABASE_KEY,
@@ -60,36 +66,50 @@ function makeDb(token) {
   };
   return {
     async get(table, params = "") {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, { headers });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
+        headers
+      });
       if (!r.ok) return [];
       return r.json();
     },
     async upsert(table, data) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
         method: "POST",
-        headers: { ...headers, "Prefer": "resolution=merge-duplicates,return=representation" },
+        headers: {
+          ...headers,
+          "Prefer": "resolution=merge-duplicates,return=representation"
+        },
         body: JSON.stringify(data)
       });
       return r.ok;
     },
     async delete(table, filter) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, { method: "DELETE", headers });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+        method: "DELETE",
+        headers
+      });
       return r.ok;
     },
     async insert(table, data) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-        method: "POST", headers, body: JSON.stringify(data)
+        method: "POST",
+        headers,
+        body: JSON.stringify(data)
       });
       return r.ok;
     }
   };
 }
-
 const todayISO = () => new Date().toISOString().split("T")[0];
-const weekdayNames = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-const weekdayShort = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
-function dateToISO(d) { return d.toISOString().split("T")[0]; }
-function formatDateBR(iso) { const [y,m,d] = iso.split("-"); return `${d}/${m}`; }
+const weekdayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const weekdayShort = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+function dateToISO(d) {
+  return d.toISOString().split("T")[0];
+}
+function formatDateBR(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
 function addDays(iso, days) {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
@@ -103,88 +123,589 @@ function getOccurrencesInRange(client, startISO, endISO) {
     if (client.nextDate && client.nextDate >= startISO && client.nextDate <= endISO) out.push(client.nextDate);
     return out;
   }
-  const intervalDays = { semanal: 7, quinzenal: 14 }[client.frequency];
+  const intervalDays = {
+    semanal: 7,
+    quinzenal: 14
+  }[client.frequency];
   if (!client.nextDate) return out;
   if (client.frequency === "mensal") {
     let cursor = new Date(client.nextDate + "T00:00:00");
-    while (cursor > start) { const p = new Date(cursor); p.setMonth(p.getMonth()-1); cursor = p; }
+    while (cursor > start) {
+      const p = new Date(cursor);
+      p.setMonth(p.getMonth() - 1);
+      cursor = p;
+    }
     while (cursor <= end) {
       if (cursor >= start) out.push(dateToISO(cursor));
-      const n = new Date(cursor); n.setMonth(n.getMonth()+1); cursor = n;
+      const n = new Date(cursor);
+      n.setMonth(n.getMonth() + 1);
+      cursor = n;
     }
     return out;
   }
   let cursor = client.nextDate;
   while (cursor > startISO) cursor = addDays(cursor, -intervalDays);
-  while (cursor <= endISO) { if (cursor >= startISO) out.push(cursor); cursor = addDays(cursor, intervalDays); }
+  while (cursor <= endISO) {
+    if (cursor >= startISO) out.push(cursor);
+    cursor = addDays(cursor, intervalDays);
+  }
   return out;
 }
-const frequencyLabel = { semanal:"Semanal", quinzenal:"Quinzenal", mensal:"Mensal", avulsa:"Avulsa" };
-const statusConfig = {
-  preparando: { label:"Preparando", color:"#B8825A", icon:"Clock" },
-  a_caminho:  { label:"A caminho",  color:"#3E7CB1", icon:"Truck" },
-  entregue:   { label:"Entregue",   color:"#5C8A5C", icon:"Check" },
+const frequencyLabel = {
+  semanal: "Semanal",
+  quinzenal: "Quinzenal",
+  mensal: "Mensal",
+  avulsa: "Avulsa"
 };
+const statusConfig = {
+  preparando: {
+    label: "Preparando",
+    color: "#B8825A"
+  },
+  a_caminho: {
+    label: "A caminho",
+    color: "#3E7CB1"
+  },
+  entregue: {
+    label: "Entregue",
+    color: "#5C8A5C"
+  }
+};
+const {
+  useState,
+  useEffect,
+  useMemo,
+  createElement: h
+} = React;
 
-function Icon({ name, size=16, color, style }) {
-  const map = { Plus:lucide.Plus, Check:lucide.Check, Clock:lucide.Clock, Truck:lucide.Truck, PawPrint:lucide.PawPrint, MapPin:lucide.MapPin, X:lucide.X, Search:lucide.Search, ChevronLeft:lucide.ChevronLeft, ChevronRight:lucide.ChevronRight, Trash2:lucide.Trash2, Edit3:lucide.Edit3, Package:lucide.Package, ArrowDownCircle:lucide.ArrowDownCircle, ArrowUpCircle:lucide.ArrowUpCircle, AlertTriangle:lucide.AlertTriangle, LogOut:lucide.LogOut, Eye:lucide.Eye, EyeOff:lucide.EyeOff };
-  const Comp = map[name];
+// SVG Icons
+const Icons = {
+  PawPrint: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('circle', {
+    cx: 11,
+    cy: 4,
+    r: 2
+  }), h('circle', {
+    cx: 18,
+    cy: 8,
+    r: 2
+  }), h('circle', {
+    cx: 20,
+    cy: 16,
+    r: 2
+  }), h('path', {
+    d: "M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"
+  })),
+  Plus: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M5 12h14"
+  }), h('path', {
+    d: "M12 5v14"
+  })),
+  Check: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M20 6 9 17l-5-5"
+  })),
+  Clock: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 13,
+    height: 13,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('circle', {
+    cx: 12,
+    cy: 12,
+    r: 10
+  }), h('polyline', {
+    points: "12 6 12 12 16 14"
+  })),
+  Truck: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 13,
+    height: 13,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"
+  }), h('path', {
+    d: "M15 18H9"
+  }), h('path', {
+    d: "M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"
+  }), h('circle', {
+    cx: 17,
+    cy: 18,
+    r: 2
+  }), h('circle', {
+    cx: 7,
+    cy: 18,
+    r: 2
+  })),
+  MapPin: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 13,
+    height: 13,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"
+  }), h('circle', {
+    cx: 12,
+    cy: 10,
+    r: 3
+  })),
+  Search: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('circle', {
+    cx: 11,
+    cy: 11,
+    r: 8
+  }), h('path', {
+    d: "m21 21-4.3-4.3"
+  })),
+  X: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M18 6 6 18"
+  }), h('path', {
+    d: "m6 6 12 12"
+  })),
+  ChevronLeft: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "m15 18-6-6 6-6"
+  })),
+  ChevronRight: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "m9 18 6-6-6-6"
+  })),
+  Trash2: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M3 6h18"
+  }), h('path', {
+    d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
+  }), h('path', {
+    d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
+  })),
+  Edit3: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M12 20h9"
+  }), h('path', {
+    d: "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
+  })),
+  Package: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 14,
+    height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "m7.5 4.27 9 5.15"
+  }), h('path', {
+    d: "M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+  }), h('path', {
+    d: "m3.3 7 8.7 5 8.7-5"
+  }), h('path', {
+    d: "M12 22V12"
+  })),
+  ArrowUp: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('circle', {
+    cx: 12,
+    cy: 12,
+    r: 10
+  }), h('path', {
+    d: "m16 12-4-4-4 4"
+  }), h('path', {
+    d: "M12 16V8"
+  })),
+  ArrowDown: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('circle', {
+    cx: 12,
+    cy: 12,
+    r: 10
+  }), h('path', {
+    d: "m8 12 4 4 4-4"
+  }), h('path', {
+    d: "M12 8v8"
+  })),
+  AlertTriangle: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 13,
+    height: 13,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+  }), h('path', {
+    d: "M12 9v4"
+  }), h('path', {
+    d: "M12 17h.01"
+  })),
+  LogOut: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+  }), h('polyline', {
+    points: "16 17 21 12 16 7"
+  }), h('line', {
+    x1: 21,
+    y1: 12,
+    x2: 9,
+    y2: 12
+  })),
+  Eye: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"
+  }), h('circle', {
+    cx: 12,
+    cy: 12,
+    r: 3
+  })),
+  EyeOff: () => h('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, h('path', {
+    d: "M9.88 9.88a3 3 0 1 0 4.24 4.24"
+  }), h('path', {
+    d: "M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"
+  }), h('path', {
+    d: "M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"
+  }), h('line', {
+    x1: 2,
+    y1: 2,
+    x2: 22,
+    y2: 22
+  }))
+};
+function Icon({
+  name,
+  size,
+  color,
+  style: st
+}) {
+  const Comp = Icons[name];
   if (!Comp) return null;
-  return React.createElement(Comp, { size, color, style, strokeWidth: 2.5 });
+  return h('span', {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      color: color || 'currentColor',
+      ...st
+    }
+  }, h(Comp));
 }
-
-const { useState, useEffect, useMemo } = React;
-
-function LoginScreen({ onLogin }) {
+function LoginScreen({
+  onLogin
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const handleLogin = async () => {
-    if (!email.trim() || !password) { setError("Preencha email e senha."); return; }
-    setLoading(true); setError("");
+    if (!email.trim() || !password) {
+      setError("Preencha email e senha.");
+      return;
+    }
+    setLoading(true);
+    setError("");
     try {
       const data = await auth.signIn(email.trim(), password);
       onLogin(data.access_token, data.user);
     } catch (e) {
       setError("Email ou senha incorretos.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
-  return (
-    <div style={{ minHeight:"100vh", background:"#FDF8F2", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
-      <div style={{ width:"100%", maxWidth:360 }}>
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:36 }}>
-          <div style={{ width:56, height:56, borderRadius:16, background:"#B8825A", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:14 }}>
-            <Icon name="PawPrint" size={28} color="#FBF1E8" />
-          </div>
-          <h1 style={{ margin:0, fontSize:22, fontWeight:800, color:"#3E332A" }}>ObentōPet</h1>
-          <p style={{ margin:"4px 0 0", fontSize:13.5, color:"#A89A8C", fontWeight:500 }}>Controle de Entregas</p>
-        </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            <label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>Email</label>
-            <input type="email" style={{ border:"1px solid #E8DDD0", borderRadius:11, padding:"12px 14px", fontSize:15, background:"#FFF", color:"#3E332A" }} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()} />
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            <label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>Senha</label>
-            <div style={{ position:"relative" }}>
-              <input type={showPass?"text":"password"} style={{ border:"1px solid #E8DDD0", borderRadius:11, padding:"12px 44px 12px 14px", fontSize:15, background:"#FFF", color:"#3E332A", width:"100%" }} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()} />
-              <button onClick={()=>setShowPass(s=>!s)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", padding:0, display:"flex", alignItems:"center" }}>
-                <Icon name={showPass?"EyeOff":"Eye"} size={18} color="#A89A8C" />
-              </button>
-            </div>
-          </div>
-          {error && <p style={{ color:"#C0594B", fontSize:13, margin:0, textAlign:"center" }}>{error}</p>}
-          <button onClick={handleLogin} disabled={loading} style={{ background:loading?"#D9CBBC":"#B8825A", color:"#FFF7EF", border:"none", borderRadius:11, padding:"14px", fontSize:15.5, fontWeight:700, marginTop:4 }}>
-            {loading?"Entrando…":"Entrar"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return h('div', {
+    style: {
+      minHeight: "100vh",
+      background: "#FDF8F2",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24
+    }
+  }, h('div', {
+    style: {
+      width: "100%",
+      maxWidth: 360
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      marginBottom: 36
+    }
+  }, h('div', {
+    style: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      background: "#B8825A",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
+      color: "#FBF1E8"
+    }
+  }, h(Icons.PawPrint)), h('h1', {
+    style: {
+      margin: 0,
+      fontSize: 22,
+      fontWeight: 800,
+      color: "#3E332A"
+    }
+  }, "ObentōPet"), h('p', {
+    style: {
+      margin: "4px 0 0",
+      fontSize: 13.5,
+      color: "#A89A8C",
+      fontWeight: 500
+    }
+  }, "Controle de Entregas")), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, "Email"), h('input', {
+    type: "email",
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 11,
+      padding: "12px 14px",
+      fontSize: 15,
+      background: "#FFF",
+      color: "#3E332A"
+    },
+    placeholder: "seu@email.com",
+    value: email,
+    onChange: e => setEmail(e.target.value),
+    onKeyDown: e => e.key === "Enter" && handleLogin()
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, "Senha"), h('div', {
+    style: {
+      position: "relative"
+    }
+  }, h('input', {
+    type: showPass ? "text" : "password",
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 11,
+      padding: "12px 44px 12px 14px",
+      fontSize: 15,
+      background: "#FFF",
+      color: "#3E332A",
+      width: "100%"
+    },
+    placeholder: "••••••••",
+    value: password,
+    onChange: e => setPassword(e.target.value),
+    onKeyDown: e => e.key === "Enter" && handleLogin()
+  }), h('button', {
+    onClick: () => setShowPass(s => !s),
+    style: {
+      position: "absolute",
+      right: 12,
+      top: "50%",
+      transform: "translateY(-50%)",
+      background: "none",
+      border: "none",
+      padding: 0,
+      display: "flex",
+      alignItems: "center",
+      color: "#A89A8C",
+      cursor: "pointer"
+    }
+  }, h(showPass ? Icons.EyeOff : Icons.Eye)))), error && h('p', {
+    style: {
+      color: "#C0594B",
+      fontSize: 13,
+      margin: 0,
+      textAlign: "center"
+    }
+  }, error), h('button', {
+    onClick: handleLogin,
+    disabled: loading,
+    style: {
+      background: loading ? "#D9CBBC" : "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 11,
+      padding: "14px",
+      fontSize: 15.5,
+      fontWeight: 700,
+      marginTop: 4,
+      cursor: "pointer"
+    }
+  }, loading ? "Entrando…" : "Entrar"))));
 }
-
 function App() {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -192,31 +713,60 @@ function App() {
     const saved = localStorage.getItem("obentopet_token");
     if (saved) {
       auth.getUser(saved).then(user => {
-        if (user) setSession({ token: saved, user });
+        if (user) setSession({
+          token: saved,
+          user
+        });
         setAuthChecked(true);
       }).catch(() => setAuthChecked(true));
-    } else { setAuthChecked(true); }
+    } else setAuthChecked(true);
   }, []);
   const handleLogin = (token, user) => {
     localStorage.setItem("obentopet_token", token);
-    setSession({ token, user });
+    setSession({
+      token,
+      user
+    });
   };
   const handleLogout = async () => {
     if (session) await auth.signOut(session.token);
     localStorage.removeItem("obentopet_token");
     setSession(null);
   };
-  if (!authChecked) return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#FDF8F2", gap:12 }}>
-      <Icon name="PawPrint" size={32} color="#B8825A" />
-      <p style={{ color:"#A89A8C", fontSize:14, margin:0 }}>Carregando…</p>
-    </div>
-  );
-  if (!session) return <LoginScreen onLogin={handleLogin} />;
-  return <MainApp token={session.token} user={session.user} onLogout={handleLogout} />;
+  if (!authChecked) return h('div', {
+    style: {
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#FDF8F2",
+      gap: 12
+    }
+  }, h('div', {
+    style: {
+      color: "#B8825A"
+    }
+  }, h(Icons.PawPrint)), h('p', {
+    style: {
+      color: "#A89A8C",
+      fontSize: 14,
+      margin: 0
+    }
+  }, "Carregando…"));
+  if (!session) return h(LoginScreen, {
+    onLogin: handleLogin
+  });
+  return h(MainApp, {
+    token: session.token,
+    user: session.user,
+    onLogout: handleLogout
+  });
 }
-
-function MainApp({ token, user, onLogout }) {
+function MainApp({
+  token,
+  onLogout
+}) {
   const db = useMemo(() => makeDb(token), [token]);
   const [clients, setClients] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -231,57 +781,126 @@ function MainApp({ token, user, onLogout }) {
   const [shelfProducts, setShelfProducts] = useState([]);
   const [shelfStockLog, setShelfStockLog] = useState({});
   const [deliveryDeduction, setDeliveryDeduction] = useState({});
-
   useEffect(() => {
     (async () => {
       const cls = await db.get("clients", "?select=*&order=tutor.asc");
-      setClients(cls.map(r => ({ id:r.id, tutor:r.tutor, dog:r.dog, address:r.address, frequency:r.frequency, nextDate:r.next_date, units:r.units, notes:r.notes||"" })));
+      setClients(cls.map(r => ({
+        id: r.id,
+        tutor: r.tutor,
+        dog: r.dog,
+        address: r.address,
+        frequency: r.frequency,
+        nextDate: r.next_date,
+        units: r.units,
+        notes: r.notes || ""
+      })));
       const sl = await db.get("status_log", "?select=*");
-      const slMap = {}; sl.forEach(r => { slMap[r.key] = r.status; }); setStatusLog(slMap);
+      const slMap = {};
+      sl.forEach(r => {
+        slMap[r.key] = r.status;
+      });
+      setStatusLog(slMap);
       const ss = await db.get("subscriber_stock", "?select=*");
-      const ssMap = {}; ss.forEach(r => { ssMap[r.client_id] = r.balance; }); setSubscriberStock(ssMap);
+      const ssMap = {};
+      ss.forEach(r => {
+        ssMap[r.client_id] = r.balance;
+      });
+      setSubscriberStock(ssMap);
       const ssl = await db.get("subscriber_stock_log", "?select=*&order=ts.desc");
-      const sslMap = {}; ssl.forEach(r => { if(!sslMap[r.client_id])sslMap[r.client_id]=[]; sslMap[r.client_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts}); }); setSubscriberStockLog(sslMap);
+      const sslMap = {};
+      ssl.forEach(r => {
+        if (!sslMap[r.client_id]) sslMap[r.client_id] = [];
+        sslMap[r.client_id].push({
+          date: r.date,
+          amount: r.amount,
+          reason: r.reason,
+          ts: r.ts
+        });
+      });
+      setSubscriberStockLog(sslMap);
       const sp = await db.get("shelf_products", "?select=*&order=name.asc");
-      setShelfProducts(sp.map(r => ({ id:r.id, name:r.name, balance:r.balance })));
+      setShelfProducts(sp.map(r => ({
+        id: r.id,
+        name: r.name,
+        balance: r.balance
+      })));
       const spl = await db.get("shelf_stock_log", "?select=*&order=ts.desc");
-      const splMap = {}; spl.forEach(r => { if(!splMap[r.product_id])splMap[r.product_id]=[]; splMap[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts}); }); setShelfStockLog(splMap);
+      const splMap = {};
+      spl.forEach(r => {
+        if (!splMap[r.product_id]) splMap[r.product_id] = [];
+        splMap[r.product_id].push({
+          date: r.date,
+          amount: r.amount,
+          reason: r.reason,
+          ts: r.ts
+        });
+      });
+      setShelfStockLog(splMap);
       const dd = await db.get("delivery_deduction", "?select=*");
-      const ddMap = {}; dd.forEach(r => { ddMap[r.key]={productId:r.product_id,amount:r.amount}; }); setDeliveryDeduction(ddMap);
+      const ddMap = {};
+      dd.forEach(r => {
+        ddMap[r.key] = {
+          productId: r.product_id,
+          amount: r.amount
+        };
+      });
+      setDeliveryDeduction(ddMap);
       setLoaded(true);
     })();
   }, []);
-
   useEffect(() => {
     if (!loaded) return;
-    clients.filter(c=>c.frequency!=="avulsa").forEach(c => {
+    clients.filter(c => c.frequency !== "avulsa").forEach(c => {
       if (!(c.id in subscriberStock)) {
-        db.upsert("subscriber_stock", { client_id: c.id, balance: 0 });
-        setSubscriberStock(prev => ({ ...prev, [c.id]: 0 }));
+        db.upsert("subscriber_stock", {
+          client_id: c.id,
+          balance: 0
+        });
+        setSubscriberStock(prev => ({
+          ...prev,
+          [c.id]: 0
+        }));
       }
     });
   }, [clients, loaded]);
-
   const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
-
   const setStatus = (clientId, date, status, deduction) => {
     const key = `${clientId}|${date}`;
     const wasEntregue = getStatus(clientId, date) === "entregue";
     const willBeEntregue = status === "entregue";
     const client = clients.find(c => c.id === clientId);
-    setStatusLog(prev => ({ ...prev, [key]: status }));
-    db.upsert("status_log", { key, status });
+    setStatusLog(prev => ({
+      ...prev,
+      [key]: status
+    }));
+    db.upsert("status_log", {
+      key,
+      status
+    });
     if (!client) return;
     if (client.frequency === "avulsa") {
       if (!wasEntregue && willBeEntregue && deduction?.productId) {
         applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
-        setDeliveryDeduction(prev => ({ ...prev, [key]: deduction }));
-        db.upsert("delivery_deduction", { key, product_id: deduction.productId, amount: deduction.amount });
+        setDeliveryDeduction(prev => ({
+          ...prev,
+          [key]: deduction
+        }));
+        db.upsert("delivery_deduction", {
+          key,
+          product_id: deduction.productId,
+          amount: deduction.amount
+        });
       }
       if (wasEntregue && !willBeEntregue) {
         const prev = deliveryDeduction[key];
         if (prev?.productId) applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
-        setDeliveryDeduction(p => { const n={...p}; delete n[key]; return n; });
+        setDeliveryDeduction(p => {
+          const n = {
+            ...p
+          };
+          delete n[key];
+          return n;
+        });
         db.delete("delivery_deduction", `key=eq.${encodeURIComponent(key)}`);
       }
     } else {
@@ -290,247 +909,906 @@ function MainApp({ token, user, onLogout }) {
       if (wasEntregue && !willBeEntregue) applySubscriberDelta(clientId, amount, date, "Estorno (status revertido)");
     }
   };
-
   const applySubscriberDelta = (clientId, delta, date, reason) => {
     setSubscriberStock(prev => {
-      const newBal = (prev[clientId]||0) + delta;
-      db.upsert("subscriber_stock", { client_id: clientId, balance: newBal });
-      return { ...prev, [clientId]: newBal };
+      const newBal = (prev[clientId] || 0) + delta;
+      db.upsert("subscriber_stock", {
+        client_id: clientId,
+        balance: newBal
+      });
+      return {
+        ...prev,
+        [clientId]: newBal
+      };
     });
-    const entry = { client_id: clientId, date, amount: delta, reason, ts: Date.now() };
-    db.insert("subscriber_stock_log", entry);
+    db.insert("subscriber_stock_log", {
+      client_id: clientId,
+      date,
+      amount: delta,
+      reason,
+      ts: Date.now()
+    });
     setSubscriberStockLog(prev => {
       const entries = prev[clientId] ? [...prev[clientId]] : [];
-      entries.unshift({ date, amount: delta, reason, ts: entry.ts });
-      return { ...prev, [clientId]: entries.slice(0, 100) };
+      entries.unshift({
+        date,
+        amount: delta,
+        reason
+      });
+      return {
+        ...prev,
+        [clientId]: entries.slice(0, 100)
+      };
     });
   };
-
   const applyShelfDelta = (productId, delta, date, reason) => {
     setShelfProducts(prev => prev.map(p => {
       if (p.id !== productId) return p;
       const newBal = p.balance + delta;
-      db.upsert("shelf_products", { id: p.id, name: p.name, balance: newBal });
-      return { ...p, balance: newBal };
+      db.upsert("shelf_products", {
+        id: p.id,
+        name: p.name,
+        balance: newBal
+      });
+      return {
+        ...p,
+        balance: newBal
+      };
     }));
-    const entry = { product_id: productId, date, amount: delta, reason, ts: Date.now() };
-    db.insert("shelf_stock_log", entry);
+    db.insert("shelf_stock_log", {
+      product_id: productId,
+      date,
+      amount: delta,
+      reason,
+      ts: Date.now()
+    });
     setShelfStockLog(prev => {
       const entries = prev[productId] ? [...prev[productId]] : [];
-      entries.unshift({ date, amount: delta, reason, ts: entry.ts });
-      return { ...prev, [productId]: entries.slice(0, 100) };
+      entries.unshift({
+        date,
+        amount: delta,
+        reason
+      });
+      return {
+        ...prev,
+        [productId]: entries.slice(0, 100)
+      };
     });
   };
-
-  const addSubscriberProduction = (clientId, amount) => { if (amount > 0) applySubscriberDelta(clientId, amount, todayISO(), "Produção da semana"); };
-  const addShelfProduct = (name) => { const id="p"+Date.now(); db.upsert("shelf_products",{id,name,balance:0}); setShelfProducts(prev=>[...prev,{id,name,balance:0}]); };
-  const addShelfStockEntry = (productId, amount) => { if (amount > 0) applyShelfDelta(productId, amount, todayISO(), "Entrada de estoque"); };
-  const deleteShelfProduct = (productId) => { db.delete("shelf_products",`id=eq.${productId}`); setShelfProducts(prev=>prev.filter(p=>p.id!==productId)); };
-
-  const saveClient = (data) => {
-    if (editingClient) {
-      const updated = { ...editingClient, ...data };
-      db.upsert("clients", { id:updated.id, tutor:updated.tutor, dog:updated.dog, address:updated.address, frequency:updated.frequency, next_date:updated.nextDate, units:updated.units, notes:updated.notes });
-      setClients(prev => prev.map(c => c.id===editingClient.id ? updated : c));
-    } else {
-      const id = "c"+Date.now();
-      const newClient = { ...data, id };
-      db.upsert("clients", { id, tutor:data.tutor, dog:data.dog, address:data.address, frequency:data.frequency, next_date:data.nextDate, units:data.units, notes:data.notes });
-      setClients(prev => [...prev, newClient]);
-    }
-    setShowForm(false); setEditingClient(null);
+  const addSubscriberProduction = (clientId, amount) => {
+    if (amount > 0) applySubscriberDelta(clientId, amount, todayISO(), "Produção da semana");
   };
-
-  const deleteClient = (id) => { db.delete("clients",`id=eq.${id}`); setClients(prev=>prev.filter(c=>c.id!==id)); };
-
+  const addShelfProduct = name => {
+    const id = "p" + Date.now();
+    db.upsert("shelf_products", {
+      id,
+      name,
+      balance: 0
+    });
+    setShelfProducts(prev => [...prev, {
+      id,
+      name,
+      balance: 0
+    }]);
+  };
+  const addShelfStockEntry = (productId, amount) => {
+    if (amount > 0) applyShelfDelta(productId, amount, todayISO(), "Entrada de estoque");
+  };
+  const deleteShelfProduct = productId => {
+    db.delete("shelf_products", `id=eq.${productId}`);
+    setShelfProducts(prev => prev.filter(p => p.id !== productId));
+  };
+  const saveClient = data => {
+    if (editingClient) {
+      const updated = {
+        ...editingClient,
+        ...data
+      };
+      db.upsert("clients", {
+        id: updated.id,
+        tutor: updated.tutor,
+        dog: updated.dog,
+        address: updated.address,
+        frequency: updated.frequency,
+        next_date: updated.nextDate,
+        units: updated.units,
+        notes: updated.notes
+      });
+      setClients(prev => prev.map(c => c.id === editingClient.id ? updated : c));
+    } else {
+      const id = "c" + Date.now();
+      db.upsert("clients", {
+        id,
+        tutor: data.tutor,
+        dog: data.dog,
+        address: data.address,
+        frequency: data.frequency,
+        next_date: data.nextDate,
+        units: data.units,
+        notes: data.notes
+      });
+      setClients(prev => [...prev, {
+        ...data,
+        id
+      }]);
+    }
+    setShowForm(false);
+    setEditingClient(null);
+  };
+  const deleteClient = id => {
+    db.delete("clients", `id=eq.${id}`);
+    setClients(prev => prev.filter(c => c.id !== id));
+  };
   const weekStart = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() + weekOffset*7); d.setDate(d.getDate()-d.getDay()); return dateToISO(d);
+    const d = new Date();
+    d.setDate(d.getDate() + weekOffset * 7);
+    d.setDate(d.getDate() - d.getDay());
+    return dateToISO(d);
   }, [weekOffset]);
-  const weekDays = useMemo(() => Array.from({length:7},(_,i)=>addDays(weekStart,i)), [weekStart]);
+  const weekDays = useMemo(() => Array.from({
+    length: 7
+  }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const todayDeliveries = useMemo(() => {
-    const t = todayISO(); const items = [];
-    clients.forEach(c => { getOccurrencesInRange(c,t,t).forEach(()=>items.push({client:c,date:t})); });
-    return items.sort((a,b)=>a.client.tutor.localeCompare(b.client.tutor));
+    const t = todayISO();
+    const items = [];
+    clients.forEach(c => {
+      getOccurrencesInRange(c, t, t).forEach(() => items.push({
+        client: c,
+        date: t
+      }));
+    });
+    return items.sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
   }, [clients]);
   const weekDeliveries = useMemo(() => {
-    const map = {}; weekDays.forEach(d=>(map[d]=[]));
-    clients.forEach(c => { getOccurrencesInRange(c,weekDays[0],weekDays[6]).forEach(d=>{if(map[d])map[d].push(c);}); });
-    Object.keys(map).forEach(d=>map[d].sort((a,b)=>a.tutor.localeCompare(b.tutor)));
+    const map = {};
+    weekDays.forEach(d => map[d] = []);
+    clients.forEach(c => {
+      getOccurrencesInRange(c, weekDays[0], weekDays[6]).forEach(d => {
+        if (map[d]) map[d].push(c);
+      });
+    });
+    Object.keys(map).forEach(d => map[d].sort((a, b) => a.tutor.localeCompare(b.tutor)));
     return map;
   }, [clients, weekDays]);
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return clients;
-    return clients.filter(c=>c.tutor.toLowerCase().includes(q)||c.dog.toLowerCase().includes(q)||c.address.toLowerCase().includes(q));
+    return clients.filter(c => c.tutor.toLowerCase().includes(q) || c.dog.toLowerCase().includes(q) || c.address.toLowerCase().includes(q));
   }, [clients, search]);
-
-  if (!loaded) return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#FDF8F2", gap:12 }}>
-      <Icon name="PawPrint" size={32} color="#B8825A" /><p style={{ color:"#A89A8C", fontSize:14, margin:0 }}>Carregando dados…</p>
-    </div>
-  );
-
-  return (
-    <div style={{ minHeight:"100vh", background:"#FDF8F2", color:"#3E332A", paddingBottom:40 }}>
-      <header style={{ background:"#3E332A", position:"sticky", top:0, zIndex:10 }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 20px 14px", flexWrap:"wrap", gap:12 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:36, height:36, borderRadius:10, background:"#B8825A", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="PawPrint" size={20} color="#FBF1E8" /></div>
-            <div><h1 style={{ margin:0, fontSize:18, fontWeight:700, color:"#FBF1E8" }}>ObentōPet</h1><p style={{ margin:0, fontSize:12, color:"#C9BBA8", fontWeight:500 }}>Controle de Entregas</p></div>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <button onClick={()=>{setEditingClient(null);setShowForm(true);}} style={{ display:"flex", alignItems:"center", gap:6, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:10, padding:"9px 14px", fontSize:13.5, fontWeight:600 }}><Icon name="Plus" size={18} color="#FFF7EF" /> Novo cliente</button>
-            <button onClick={onLogout} title="Sair" style={{ width:36, height:36, background:"rgba(255,255,255,0.08)", border:"none", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="LogOut" size={16} color="#C9BBA8" /></button>
-          </div>
-        </div>
-        <nav style={{ display:"flex", gap:4, padding:"0 16px" }}>
-          {[["hoje","Hoje"],["semana","Semana"],["clientes","Clientes"],["estoque","Estoque"]].map(([key,label])=>(
-            <button key={key} onClick={()=>setView(key)} style={{ background:"transparent", border:"none", color:view===key?"#FBF1E8":"#9C8E7E", padding:"10px 14px", fontSize:14, fontWeight:600, borderBottom:view===key?"2px solid #B8825A":"2px solid transparent" }}>{label}</button>
-          ))}
-        </nav>
-      </header>
-      <main style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px" }}>
-        {view==="hoje"&&<TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts} />}
-        {view==="semana"&&<WeekView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts} />}
-        {view==="clientes"&&<ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient} />}
-        {view==="estoque"&&<StockView clients={clients} subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog} shelfProducts={shelfProducts} shelfStockLog={shelfStockLog} onAddSubscriberProduction={addSubscriberProduction} onAddShelfProduct={addShelfProduct} onAddShelfStockEntry={addShelfStockEntry} onDeleteShelfProduct={deleteShelfProduct} />}
-      </main>
-      {showForm&&<ClientFormModal initial={editingClient} onClose={()=>{setShowForm(false);setEditingClient(null);}} onSave={saveClient} />}
-    </div>
-  );
+  if (!loaded) return h('div', {
+    style: {
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#FDF8F2",
+      gap: 12
+    }
+  }, h('div', {
+    style: {
+      color: "#B8825A"
+    }
+  }, h(Icons.PawPrint)), h('p', {
+    style: {
+      color: "#A89A8C",
+      fontSize: 14,
+      margin: 0
+    }
+  }, "Carregando dados…"));
+  const tabs = [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"]];
+  return h('div', {
+    style: {
+      minHeight: "100vh",
+      background: "#FDF8F2",
+      color: "#3E332A",
+      paddingBottom: 40
+    }
+  }, h('header', {
+    style: {
+      background: "#3E332A",
+      position: "sticky",
+      top: 0,
+      zIndex: 10
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "18px 20px 14px",
+      flexWrap: "wrap",
+      gap: 12
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, h('div', {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      background: "#B8825A",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#FBF1E8"
+    }
+  }, h(Icons.PawPrint)), h('div', null, h('h1', {
+    style: {
+      margin: 0,
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#FBF1E8"
+    }
+  }, "ObentōPet"), h('p', {
+    style: {
+      margin: 0,
+      fontSize: 12,
+      color: "#C9BBA8",
+      fontWeight: 500
+    }
+  }, "Controle de Entregas"))), h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, h('button', {
+    onClick: () => {
+      setEditingClient(null);
+      setShowForm(true);
+    },
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 10,
+      padding: "9px 14px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      cursor: "pointer"
+    }
+  }, h(Icons.Plus), " Novo cliente"), h('button', {
+    onClick: onLogout,
+    style: {
+      width: 36,
+      height: 36,
+      background: "rgba(255,255,255,0.08)",
+      border: "none",
+      borderRadius: 10,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#C9BBA8",
+      cursor: "pointer"
+    }
+  }, h(Icons.LogOut)))), h('nav', {
+    style: {
+      display: "flex",
+      gap: 4,
+      padding: "0 16px"
+    }
+  }, tabs.map(([key, label]) => h('button', {
+    key,
+    onClick: () => setView(key),
+    style: {
+      background: "transparent",
+      border: "none",
+      color: view === key ? "#FBF1E8" : "#9C8E7E",
+      padding: "10px 14px",
+      fontSize: 14,
+      fontWeight: 600,
+      borderBottom: view === key ? "2px solid #B8825A" : "2px solid transparent",
+      cursor: "pointer"
+    }
+  }, label)))), h('main', {
+    style: {
+      maxWidth: 640,
+      margin: "0 auto",
+      padding: "20px 16px"
+    }
+  }, view === "hoje" && h(TodayView, {
+    items: todayDeliveries,
+    getStatus,
+    setStatus,
+    shelfProducts
+  }), view === "semana" && h(WeekView, {
+    weekDays,
+    weekDeliveries,
+    weekOffset,
+    setWeekOffset,
+    getStatus,
+    setStatus,
+    shelfProducts
+  }), view === "clientes" && h(ClientsView, {
+    clients: filteredClients,
+    search,
+    setSearch,
+    onEdit: c => {
+      setEditingClient(c);
+      setShowForm(true);
+    },
+    onDelete: deleteClient
+  }), view === "estoque" && h(StockView, {
+    clients,
+    subscriberStock,
+    subscriberStockLog,
+    shelfProducts,
+    shelfStockLog,
+    onAddSubscriberProduction: addSubscriberProduction,
+    onAddShelfProduct: addShelfProduct,
+    onAddShelfStockEntry: addShelfStockEntry,
+    onDeleteShelfProduct: deleteShelfProduct
+  })), showForm && h(ClientFormModal, {
+    initial: editingClient,
+    onClose: () => {
+      setShowForm(false);
+      setEditingClient(null);
+    },
+    onSave: saveClient
+  }));
 }
-
-function TodayView({ items, getStatus, setStatus, shelfProducts }) {
+function TodayView({
+  items,
+  getStatus,
+  setStatus,
+  shelfProducts
+}) {
   const t = todayISO();
   const d = new Date(t + "T00:00:00");
-  const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`;
-  return (
-    <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-        <h2 style={{ margin:0, fontSize:19, fontWeight:700, color:"#3E332A", textTransform:"capitalize" }}>{label}</h2>
-        <span style={{ background:"#F1E6D8", color:"#8A6A48", fontSize:12.5, fontWeight:600, padding:"4px 10px", borderRadius:20 }}>{items.length} entrega{items.length!==1?"s":""}</span>
-      </div>
-      {items.length===0?<EmptyState text="Nenhuma entrega marcada para hoje." />:(
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {items.map(({client,date})=><DeliveryCard key={client.id+date} client={client} status={getStatus(client.id,date)} onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)} shelfProducts={shelfProducts} />)}
-        </div>
-      )}
-    </div>
-  );
+  const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", {
+    month: "long"
+  })}`;
+  return h('div', null, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, h('h2', {
+    style: {
+      margin: 0,
+      fontSize: 19,
+      fontWeight: 700,
+      color: "#3E332A",
+      textTransform: "capitalize"
+    }
+  }, label), h('span', {
+    style: {
+      background: "#F1E6D8",
+      color: "#8A6A48",
+      fontSize: 12.5,
+      fontWeight: 600,
+      padding: "4px 10px",
+      borderRadius: 20
+    }
+  }, `${items.length} entrega${items.length !== 1 ? "s" : ""}`)), items.length === 0 ? h(EmptyState, {
+    text: "Nenhuma entrega marcada para hoje."
+  }) : h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, items.map(({
+    client,
+    date
+  }) => h(DeliveryCard, {
+    key: client.id + date,
+    client,
+    status: getStatus(client.id, date),
+    onStatusChange: (s, ded) => setStatus(client.id, date, s, ded),
+    shelfProducts
+  }))));
 }
-
-function WeekView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts }) {
+function WeekView({
+  weekDays,
+  weekDeliveries,
+  weekOffset,
+  setWeekOffset,
+  getStatus,
+  setStatus,
+  shelfProducts
+}) {
   const [activeDay, setActiveDay] = useState(null);
   const t = todayISO();
-  const activeDate = activeDay||(weekDays.includes(t)?t:weekDays[0]);
-  return (
-    <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14 }}>
-        <button onClick={()=>setWeekOffset(w=>w-1)} style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="ChevronLeft" size={18} color="#3E332A" /></button>
-        <span style={{ fontSize:14, fontWeight:700, color:"#3E332A", minWidth:110, textAlign:"center" }}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</span>
-        <button onClick={()=>setWeekOffset(w=>w+1)} style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="ChevronRight" size={18} color="#3E332A" /></button>
-      </div>
-      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:2 }}>
-        {weekDays.map((d,i)=>{
-          const count=weekDeliveries[d]?.length||0,isToday=d===t,isActive=d===activeDate;
-          return <button key={d} onClick={()=>setActiveDay(d)} style={{ flex:"1 0 auto", minWidth:44, background:isActive?"#3E332A":"#FFF", border:isToday&&!isActive?"1.5px solid #B8825A":"1px solid #EFE4D6", borderRadius:11, padding:"8px 4px 10px", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-            <span style={{ fontSize:10, fontWeight:700, color:"#9C8E7E" }}>{weekdayShort[i]}</span>
-            <span style={{ fontSize:15, fontWeight:700, color:isActive?"#FBF1E8":"#3E332A" }}>{d.split("-")[2]}</span>
-            {count>0&&<span style={{ width:5, height:5, borderRadius:3, background:isActive?"#FBF1E8":"#B8825A", marginTop:1 }} />}
-          </button>;
-        })}
-      </div>
-      <div style={{ marginTop:20 }}>
-        {(weekDeliveries[activeDate]||[]).length===0?<EmptyState text="Nenhuma entrega marcada para este dia." />:(
-          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            {weekDeliveries[activeDate].map(client=><DeliveryCard key={client.id+activeDate} client={client} status={getStatus(client.id,activeDate)} onStatusChange={(s,ded)=>setStatus(client.id,activeDate,s,ded)} shelfProducts={shelfProducts} />)}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const activeDate = activeDay || (weekDays.includes(t) ? t : weekDays[0]);
+  return h('div', null, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 14,
+      marginBottom: 14
+    }
+  }, h('button', {
+    onClick: () => setWeekOffset(w => w - 1),
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 8,
+      width: 32,
+      height: 32,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer"
+    }
+  }, h(Icons.ChevronLeft)), h('span', {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#3E332A",
+      minWidth: 110,
+      textAlign: "center"
+    }
+  }, `${formatDateBR(weekDays[0])} – ${formatDateBR(weekDays[6])}`), h('button', {
+    onClick: () => setWeekOffset(w => w + 1),
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 8,
+      width: 32,
+      height: 32,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer"
+    }
+  }, h(Icons.ChevronRight))), h('div', {
+    style: {
+      display: "flex",
+      gap: 6,
+      overflowX: "auto",
+      paddingBottom: 2
+    }
+  }, weekDays.map((d, i) => {
+    const count = weekDeliveries[d]?.length || 0,
+      isToday = d === t,
+      isActive = d === activeDate;
+    return h('button', {
+      key: d,
+      onClick: () => setActiveDay(d),
+      style: {
+        flex: "1 0 auto",
+        minWidth: 44,
+        background: isActive ? "#3E332A" : "#FFF",
+        border: isToday && !isActive ? "1.5px solid #B8825A" : "1px solid #EFE4D6",
+        borderRadius: 11,
+        padding: "8px 4px 10px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 3,
+        cursor: "pointer"
+      }
+    }, h('span', {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#9C8E7E"
+      }
+    }, weekdayShort[i]), h('span', {
+      style: {
+        fontSize: 15,
+        fontWeight: 700,
+        color: isActive ? "#FBF1E8" : "#3E332A"
+      }
+    }, d.split("-")[2]), count > 0 && h('span', {
+      style: {
+        width: 5,
+        height: 5,
+        borderRadius: 3,
+        background: isActive ? "#FBF1E8" : "#B8825A",
+        marginTop: 1
+      }
+    }));
+  })), h('div', {
+    style: {
+      marginTop: 20
+    }
+  }, (weekDeliveries[activeDate] || []).length === 0 ? h(EmptyState, {
+    text: "Nenhuma entrega marcada para este dia."
+  }) : h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, weekDeliveries[activeDate].map(client => h(DeliveryCard, {
+    key: client.id + activeDate,
+    client,
+    status: getStatus(client.id, activeDate),
+    onStatusChange: (s, ded) => setStatus(client.id, activeDate, s, ded),
+    shelfProducts
+  })))));
 }
-
-function DeliveryCard({ client, status, onStatusChange, shelfProducts }) {
+function DeliveryCard({
+  client,
+  status,
+  onStatusChange,
+  shelfProducts
+}) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
-  const [selectedAmount, setSelectedAmount] = useState(String(client.units||1));
-  const isAvulsa = client.frequency==="avulsa";
-  const handleStatusClick = (key) => { if(key==="entregue"&&isAvulsa&&status!=="entregue"){setPickerOpen(true);return;} onStatusChange(key); };
-  const confirmAvulsaDelivery = () => { const amount=parseInt(selectedAmount,10); if(!selectedProduct||!amount||amount<1)return; onStatusChange("entregue",{productId:selectedProduct,amount}); setPickerOpen(false); };
-  return (
-    <div style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 }}>
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:32, height:32, borderRadius:9, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="PawPrint" size={14} color="#B8825A" /></div>
-          <div><div style={{ fontSize:15.5, fontWeight:700, color:"#3E332A" }}>{client.dog}</div><div style={{ fontSize:13, color:"#8A7A6C", marginTop:1 }}>{client.tutor}</div></div>
-        </div>
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5 }}>
-          <span style={{ fontSize:11.5, fontWeight:600, color:"#8A6A48", background:"#F6EEE3", padding:"4px 9px", borderRadius:8, whiteSpace:"nowrap" }}>{frequencyLabel[client.frequency]}</span>
-          {client.units?<span style={{ fontSize:11.5, fontWeight:700, color:"#3E7CB1", background:"#EAF2F8", padding:"4px 9px", borderRadius:8, whiteSpace:"nowrap" }}>{client.units} {client.units===1?"unidade":"unidades"}</span>:null}
-        </div>
-      </div>
-      <div style={{ display:"flex", gap:6, fontSize:12.5, color:"#7A6C5E", marginTop:10, lineHeight:1.4 }}>
-        <Icon name="MapPin" size={13} color="#A89A8C" style={{ flexShrink:0, marginTop:2 }} /><span>{client.address}</span>
-      </div>
-      {pickerOpen?(
-        <div style={{ marginTop:12, background:"#FBF8F4", border:"1px solid #EFE4D6", borderRadius:11, padding:12 }}>
-          <p style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C", margin:"0 0 8px" }}>Qual produto sai do estoque?</p>
-          {shelfProducts.length===0?<p style={{ fontSize:12.5, color:"#C0594B", margin:0 }}>Nenhum produto cadastrado em Estoque ainda.</p>:(
-            <select style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", width:"100%" }} value={selectedProduct} onChange={e=>setSelectedProduct(e.target.value)}>
-              <option value="">Selecione um produto…</option>
-              {shelfProducts.map(p=><option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
-            </select>
-          )}
-          <div style={{ display:"flex", gap:8, marginTop:8 }}>
-            <input type="number" min="1" style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", flex:1 }} value={selectedAmount} onChange={e=>setSelectedAmount(e.target.value)} placeholder="Qtd" />
-            <button style={{ flex:1, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:9, padding:"9px 10px", fontSize:13, fontWeight:700 }} onClick={confirmAvulsaDelivery} disabled={!selectedProduct}>Confirmar</button>
-            <button style={{ background:"#EFE4D6", color:"#8A7A6C", border:"none", borderRadius:9, padding:"9px 14px", fontSize:13, fontWeight:600 }} onClick={()=>setPickerOpen(false)}>Cancelar</button>
-          </div>
-        </div>
-      ):(
-        <div style={{ display:"flex", gap:6, marginTop:12 }}>
-          {Object.entries(statusConfig).map(([key,conf])=>{
-            const active=status===key;
-            return <button key={key} onClick={()=>handleStatusClick(key)} style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:5, border:`1.5px solid ${active?conf.color:"#E8DDD0"}`, borderRadius:9, padding:"8px 6px", fontSize:12, fontWeight:600, background:active?conf.color:"#FFF7EF", color:active?"#FFF7EF":"#8A7A6C" }}><Icon name={conf.icon} size={13} color={active?"#FFF7EF":"#8A7A6C"} />{conf.label}</button>;
-          })}
-        </div>
-      )}
-    </div>
-  );
+  const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
+  const isAvulsa = client.frequency === "avulsa";
+  const handleStatusClick = key => {
+    if (key === "entregue" && isAvulsa && status !== "entregue") {
+      setPickerOpen(true);
+      return;
+    }
+    onStatusChange(key);
+  };
+  const confirmAvulsaDelivery = () => {
+    const amount = parseInt(selectedAmount, 10);
+    if (!selectedProduct || !amount || amount < 1) return;
+    onStatusChange("entregue", {
+      productId: selectedProduct,
+      amount
+    });
+    setPickerOpen(false);
+  };
+  const statusEntries = Object.entries(statusConfig);
+  return h('div', {
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 14,
+      padding: 14
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 8
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, h('div', {
+    style: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      background: "#FBF1E8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#B8825A"
+    }
+  }, h(Icons.PawPrint)), h('div', null, h('div', {
+    style: {
+      fontSize: 15.5,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, client.dog), h('div', {
+    style: {
+      fontSize: 13,
+      color: "#8A7A6C",
+      marginTop: 1
+    }
+  }, client.tutor))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 5
+    }
+  }, h('span', {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: "#8A6A48",
+      background: "#F6EEE3",
+      padding: "4px 9px",
+      borderRadius: 8,
+      whiteSpace: "nowrap"
+    }
+  }, frequencyLabel[client.frequency]), client.units && h('span', {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: "#3E7CB1",
+      background: "#EAF2F8",
+      padding: "4px 9px",
+      borderRadius: 8,
+      whiteSpace: "nowrap"
+    }
+  }, `${client.units} ${client.units === 1 ? "unidade" : "unidades"}`))), h('div', {
+    style: {
+      display: "flex",
+      gap: 6,
+      fontSize: 12.5,
+      color: "#7A6C5E",
+      marginTop: 10,
+      lineHeight: 1.4,
+      alignItems: "flex-start"
+    }
+  }, h('span', {
+    style: {
+      color: "#A89A8C",
+      flexShrink: 0,
+      marginTop: 2
+    }
+  }, h(Icons.MapPin)), h('span', null, client.address)), pickerOpen ? h('div', {
+    style: {
+      marginTop: 12,
+      background: "#FBF8F4",
+      border: "1px solid #EFE4D6",
+      borderRadius: 11,
+      padding: 12
+    }
+  }, h('p', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C",
+      margin: "0 0 8px"
+    }
+  }, "Qual produto sai do estoque?"), shelfProducts.length === 0 ? h('p', {
+    style: {
+      fontSize: 12.5,
+      color: "#C0594B",
+      margin: 0
+    }
+  }, "Nenhum produto cadastrado em Estoque ainda.") : h('select', {
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A",
+      width: "100%"
+    },
+    value: selectedProduct,
+    onChange: e => setSelectedProduct(e.target.value)
+  }, h('option', {
+    value: ""
+  }, "Selecione um produto…"), shelfProducts.map(p => h('option', {
+    key: p.id,
+    value: p.id
+  }, `${p.name} (saldo: ${p.balance})`))), h('div', {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginTop: 8
+    }
+  }, h('input', {
+    type: "number",
+    min: "1",
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A",
+      flex: 1
+    },
+    value: selectedAmount,
+    onChange: e => setSelectedAmount(e.target.value),
+    placeholder: "Qtd"
+  }), h('button', {
+    style: {
+      flex: 1,
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 10px",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    },
+    onClick: confirmAvulsaDelivery,
+    disabled: !selectedProduct
+  }, "Confirmar"), h('button', {
+    style: {
+      background: "#EFE4D6",
+      color: "#8A7A6C",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 14px",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: "pointer"
+    },
+    onClick: () => setPickerOpen(false)
+  }, "Cancelar"))) : h('div', {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginTop: 12
+    }
+  }, statusEntries.map(([key, conf]) => {
+    const active = status === key;
+    return h('button', {
+      key,
+      onClick: () => handleStatusClick(key),
+      style: {
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 5,
+        border: `1.5px solid ${active ? conf.color : "#E8DDD0"}`,
+        borderRadius: 9,
+        padding: "8px 6px",
+        fontSize: 12,
+        fontWeight: 600,
+        background: active ? conf.color : "#FFF7EF",
+        color: active ? "#FFF7EF" : "#8A7A6C",
+        cursor: "pointer"
+      }
+    }, key === "preparando" && h(Icons.Clock), key === "a_caminho" && h(Icons.Truck), key === "entregue" && h(Icons.Check), conf.label);
+  })));
 }
-
-function ClientsView({ clients, search, setSearch, onEdit, onDelete }) {
+function ClientsView({
+  clients,
+  search,
+  setSearch,
+  onEdit,
+  onDelete
+}) {
   const [confirmDelete, setConfirmDelete] = useState(null);
-  return (
-    <div>
-      <div style={{ display:"flex", alignItems:"center", gap:8, background:"#FFF", border:"1px solid #EFE4D6", borderRadius:11, padding:"10px 12px", marginBottom:16 }}>
-        <Icon name="Search" size={16} color="#A89A8C" /><input style={{ border:"none", outline:"none", fontSize:14, flex:1, background:"transparent", color:"#3E332A" }} placeholder="Buscar por tutor, cão ou endereço…" value={search} onChange={e=>setSearch(e.target.value)} />
-      </div>
-      {clients.length===0?<EmptyState text="Nenhum cliente cadastrado ainda." />:(
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {clients.map(c=>(
-            <div key={c.id} style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:12, display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ width:32, height:32, borderRadius:9, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="PawPrint" size={14} color="#B8825A" /></div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:15.5, fontWeight:700, color:"#3E332A" }}>{c.dog}</div>
-                <div style={{ fontSize:13, color:"#8A7A6C", marginTop:1 }}>{c.tutor}</div>
-                <div style={{ fontSize:11.5, color:"#A89A8C", marginTop:3 }}>{frequencyLabel[c.frequency]} · próxima: {formatDateBR(c.nextDate)}{c.units?` · ${c.units} ${c.units===1?"unidade":"unidades"}`:""}</div>
-              </div>
-              <div style={{ display:"flex", gap:6 }}>
-                <button style={{ width:30, height:30, borderRadius:8, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" }} onClick={()=>onEdit(c)}><Icon name="Edit3" size={15} color="#8A7A6C" /></button>
-                {confirmDelete===c.id?<button style={{ width:30, height:30, borderRadius:8, border:"none", background:"#C0594B", display:"flex", alignItems:"center", justifyContent:"center" }} onClick={()=>{onDelete(c.id);setConfirmDelete(null);}}><Icon name="Check" size={15} color="#FFF" /></button>
-                :<button style={{ width:30, height:30, borderRadius:8, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" }} onClick={()=>setConfirmDelete(c.id)}><Icon name="Trash2" size={15} color="#8A7A6C" /></button>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return h('div', null, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 11,
+      padding: "10px 12px",
+      marginBottom: 16
+    }
+  }, h('span', {
+    style: {
+      color: "#A89A8C"
+    }
+  }, h(Icons.Search)), h('input', {
+    style: {
+      border: "none",
+      outline: "none",
+      fontSize: 14,
+      flex: 1,
+      background: "transparent",
+      color: "#3E332A"
+    },
+    placeholder: "Buscar por tutor, cão ou endereço…",
+    value: search,
+    onChange: e => setSearch(e.target.value)
+  })), clients.length === 0 ? h(EmptyState, {
+    text: "Nenhum cliente cadastrado ainda."
+  }) : h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, clients.map(c => h('div', {
+    key: c.id,
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 14,
+      padding: 12,
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, h('div', {
+    style: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      background: "#FBF1E8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#B8825A"
+    }
+  }, h(Icons.PawPrint)), h('div', {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, h('div', {
+    style: {
+      fontSize: 15.5,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, c.dog), h('div', {
+    style: {
+      fontSize: 13,
+      color: "#8A7A6C",
+      marginTop: 1
+    }
+  }, c.tutor), h('div', {
+    style: {
+      fontSize: 11.5,
+      color: "#A89A8C",
+      marginTop: 3
+    }
+  }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`)), h('div', {
+    style: {
+      display: "flex",
+      gap: 6
+    }
+  }, h('button', {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      border: "1px solid #EFE4D6",
+      background: "#FBF8F4",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#8A7A6C",
+      cursor: "pointer"
+    },
+    onClick: () => onEdit(c)
+  }, h(Icons.Edit3)), confirmDelete === c.id ? h('button', {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      border: "none",
+      background: "#C0594B",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#FFF",
+      cursor: "pointer"
+    },
+    onClick: () => {
+      onDelete(c.id);
+      setConfirmDelete(null);
+    }
+  }, h(Icons.Check)) : h('button', {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      border: "1px solid #EFE4D6",
+      background: "#FBF8F4",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#8A7A6C",
+      cursor: "pointer"
+    },
+    onClick: () => setConfirmDelete(c.id)
+  }, h(Icons.Trash2)))))));
 }
-
-function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct }) {
+function StockView({
+  clients,
+  subscriberStock,
+  subscriberStockLog,
+  shelfProducts,
+  shelfStockLog,
+  onAddSubscriberProduction,
+  onAddShelfProduct,
+  onAddShelfStockEntry,
+  onDeleteShelfProduct
+}) {
   const [tab, setTab] = useState("assinantes");
   const [expandedClient, setExpandedClient] = useState(null);
   const [productionInputs, setProductionInputs] = useState({});
@@ -538,146 +1816,795 @@ function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [newProductName, setNewProductName] = useState("");
   const [stockInputs, setStockInputs] = useState({});
-  const subscribers = clients.filter(c=>c.frequency!=="avulsa");
-  return (
-    <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}><h2 style={{ margin:0, fontSize:19, fontWeight:700, color:"#3E332A" }}>Estoque</h2></div>
-      <div style={{ display:"flex", gap:6, marginBottom:16, background:"#F1E6D8", padding:4, borderRadius:12 }}>
-        {[["assinantes","Assinantes"],["avulsos","Avulsos (prateleira)"]].map(([key,label])=>(
-          <button key={key} onClick={()=>setTab(key)} style={{ flex:1, background:tab===key?"#FFF":"transparent", border:"none", borderRadius:9, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:tab===key?"#3E332A":"#8A7A6C", boxShadow:tab===key?"0 1px 2px rgba(62,51,42,0.08)":"none" }}>{label}</button>
-        ))}
-      </div>
-      {tab==="assinantes"&&(subscribers.length===0?<EmptyState text="Nenhum cliente assinante cadastrado ainda." />:(
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {subscribers.map(c=>{
-            const balance=subscriberStock[c.id]??0,isLow=balance<=(c.units||0),log=subscriberStockLog[c.id]||[],expanded=expandedClient===c.id;
-            return (
-              <div key={c.id} style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 }}>
-                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}><div style={{ width:32, height:32, borderRadius:9, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="PawPrint" size={14} color="#B8825A" /></div><div><div style={{ fontSize:15.5, fontWeight:700, color:"#3E332A" }}>{c.dog}</div><div style={{ fontSize:13, color:"#8A7A6C", marginTop:1 }}>{c.tutor}</div></div></div>
-                  <div style={{ textAlign:"right" }}><div style={{ fontSize:22, fontWeight:800, lineHeight:1, color:isLow?"#C0594B":"#3E332A" }}>{balance}</div><div style={{ fontSize:10.5, color:"#A89A8C", marginTop:2, fontWeight:600 }}>em estoque</div></div>
-                </div>
-                {isLow&&<div style={{ display:"flex", alignItems:"center", gap:6, background:"#FBEAE6", color:"#A8412F", fontSize:12, fontWeight:600, padding:"7px 10px", borderRadius:9, marginTop:10 }}><Icon name="AlertTriangle" size={13} color="#C0594B" /><span>Saldo baixo para a próxima entrega ({c.units||0} un.)</span></div>}
-                <div style={{ display:"flex", gap:8, marginTop:12 }}>
-                  <input type="number" min="1" style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", flex:1 }} placeholder="Unidades produzidas" value={productionInputs[c.id]||""} onChange={e=>setProductionInputs(p=>({...p,[c.id]:e.target.value}))} />
-                  <button style={{ display:"flex", alignItems:"center", gap:4, background:"#3E332A", color:"#FBF1E8", border:"none", borderRadius:10, padding:"0 14px", fontSize:12.5, fontWeight:600, whiteSpace:"nowrap" }} onClick={()=>{const a=parseInt(productionInputs[c.id],10);if(a>0){onAddSubscriberProduction(c.id,a);setProductionInputs(p=>({...p,[c.id]:""}));}}}><Icon name="Plus" size={14} color="#FBF1E8" />Adicionar</button>
-                </div>
-                <button style={{ background:"transparent", border:"none", color:"#B8825A", fontSize:12.5, fontWeight:600, padding:"10px 0 0", textAlign:"left" }} onClick={()=>setExpandedClient(expanded?null:c.id)}>{expanded?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
-                {expanded&&<div style={{ marginTop:8, borderTop:"1px solid #F1E6D8", paddingTop:8, display:"flex", flexDirection:"column", gap:8 }}>{log.length===0?<p style={{ fontSize:12.5, color:"#A89A8C", margin:0 }}>Sem movimentações ainda.</p>:log.map((e,i)=><HistoryRow key={i} entry={e} />)}</div>}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-      {tab==="avulsos"&&(<>
-        <div style={{ marginBottom:14 }}>
-          {showNewProduct?(
-            <div style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:12 }}>
-              <input style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", width:"100%" }} placeholder="Nome do produto (ex: Biscoito Natural 200g)" value={newProductName} onChange={e=>setNewProductName(e.target.value)} autoFocus />
-              <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                <button style={{ flex:1, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:9, padding:"9px 10px", fontSize:13, fontWeight:700 }} onClick={()=>{if(newProductName.trim()){onAddShelfProduct(newProductName.trim());setNewProductName("");setShowNewProduct(false);}}}>Salvar</button>
-                <button style={{ background:"#EFE4D6", color:"#8A7A6C", border:"none", borderRadius:9, padding:"9px 14px", fontSize:13, fontWeight:600 }} onClick={()=>setShowNewProduct(false)}>Cancelar</button>
-              </div>
-            </div>
-          ):(
-            <button style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", background:"#FFF", border:"1.5px dashed #D9CBBC", borderRadius:12, padding:"12px", fontSize:13.5, fontWeight:600, color:"#B8825A" }} onClick={()=>setShowNewProduct(true)}><Icon name="Plus" size={16} color="#B8825A" />Cadastrar produto de prateleira</button>
-          )}
-        </div>
-        {shelfProducts.length===0?<EmptyState text="Nenhum produto de prateleira cadastrado ainda." />:(
-          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-            {shelfProducts.map(p=>{
-              const log=shelfStockLog[p.id]||[],expanded=expandedProduct===p.id,isLow=p.balance<=0;
-              return (
-                <div key={p.id} style={{ background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 }}>
-                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}><div style={{ width:32, height:32, borderRadius:9, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="Package" size={14} color="#B8825A" /></div><div style={{ fontSize:15.5, fontWeight:700, color:"#3E332A" }}>{p.name}</div></div>
-                    <div style={{ textAlign:"right" }}><div style={{ fontSize:22, fontWeight:800, lineHeight:1, color:isLow?"#C0594B":"#3E332A" }}>{p.balance}</div><div style={{ fontSize:10.5, color:"#A89A8C", marginTop:2, fontWeight:600 }}>em estoque</div></div>
-                  </div>
-                  {isLow&&<div style={{ display:"flex", alignItems:"center", gap:6, background:"#FBEAE6", color:"#A8412F", fontSize:12, fontWeight:600, padding:"7px 10px", borderRadius:9, marginTop:10 }}><Icon name="AlertTriangle" size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
-                  <div style={{ display:"flex", gap:8, marginTop:12 }}>
-                    <input type="number" min="1" style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", flex:1 }} placeholder="Unidades a adicionar" value={stockInputs[p.id]||""} onChange={e=>setStockInputs(prev=>({...prev,[p.id]:e.target.value}))} />
-                    <button style={{ display:"flex", alignItems:"center", gap:4, background:"#3E332A", color:"#FBF1E8", border:"none", borderRadius:10, padding:"0 14px", fontSize:12.5, fontWeight:600, whiteSpace:"nowrap" }} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(prev=>({...prev,[p.id]:""}));}}}><Icon name="Plus" size={14} color="#FBF1E8" />Adicionar</button>
-                  </div>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                    <button style={{ background:"transparent", border:"none", color:"#B8825A", fontSize:12.5, fontWeight:600, padding:"10px 0 0", textAlign:"left" }} onClick={()=>setExpandedProduct(expanded?null:p.id)}>{expanded?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
-                    <button style={{ width:26, height:26, borderRadius:7, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" }} onClick={()=>onDeleteShelfProduct(p.id)}><Icon name="Trash2" size={13} color="#A89A8C" /></button>
-                  </div>
-                  {expanded&&<div style={{ marginTop:8, borderTop:"1px solid #F1E6D8", paddingTop:8, display:"flex", flexDirection:"column", gap:8 }}>{log.length===0?<p style={{ fontSize:12.5, color:"#A89A8C", margin:0 }}>Sem movimentações ainda.</p>:log.map((e,i)=><HistoryRow key={i} entry={e} />)}</div>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </>)}
-    </div>
-  );
+  const subscribers = clients.filter(c => c.frequency !== "avulsa");
+  return h('div', null, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, h('h2', {
+    style: {
+      margin: 0,
+      fontSize: 19,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Estoque")), h('div', {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginBottom: 16,
+      background: "#F1E6D8",
+      padding: 4,
+      borderRadius: 12
+    }
+  }, [["assinantes", "Assinantes"], ["avulsos", "Avulsos (prateleira)"]].map(([key, label]) => h('button', {
+    key,
+    onClick: () => setTab(key),
+    style: {
+      flex: 1,
+      background: tab === key ? "#FFF" : "transparent",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: tab === key ? "#3E332A" : "#8A7A6C",
+      boxShadow: tab === key ? "0 1px 2px rgba(62,51,42,0.08)" : "none",
+      cursor: "pointer"
+    }
+  }, label))), tab === "assinantes" && (subscribers.length === 0 ? h(EmptyState, {
+    text: "Nenhum cliente assinante cadastrado ainda."
+  }) : h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, subscribers.map(c => {
+    const balance = subscriberStock[c.id] ?? 0,
+      isLow = balance <= (c.units || 0),
+      log = subscriberStockLog[c.id] || [],
+      expanded = expandedClient === c.id;
+    return h('div', {
+      key: c.id,
+      style: {
+        background: "#FFF",
+        border: "1px solid #EFE4D6",
+        borderRadius: 14,
+        padding: 14
+      }
+    }, h('div', {
+      style: {
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 8
+      }
+    }, h('div', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A"
+      }
+    }, h(Icons.PawPrint)), h('div', null, h('div', {
+      style: {
+        fontSize: 15.5,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, c.dog), h('div', {
+      style: {
+        fontSize: 13,
+        color: "#8A7A6C",
+        marginTop: 1
+      }
+    }, c.tutor))), h('div', {
+      style: {
+        textAlign: "right"
+      }
+    }, h('div', {
+      style: {
+        fontSize: 22,
+        fontWeight: 800,
+        lineHeight: 1,
+        color: isLow ? "#C0594B" : "#3E332A"
+      }
+    }, balance), h('div', {
+      style: {
+        fontSize: 10.5,
+        color: "#A89A8C",
+        marginTop: 2,
+        fontWeight: 600
+      }
+    }, "em estoque"))), isLow && h('div', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#FBEAE6",
+        color: "#A8412F",
+        fontSize: 12,
+        fontWeight: 600,
+        padding: "7px 10px",
+        borderRadius: 9,
+        marginTop: 10
+      }
+    }, h('span', {
+      style: {
+        color: "#C0594B"
+      }
+    }, h(Icons.AlertTriangle)), h('span', null, `Saldo baixo para a próxima entrega (${c.units || 0} un.)`)), h('div', {
+      style: {
+        display: "flex",
+        gap: 8,
+        marginTop: 12
+      }
+    }, h('input', {
+      type: "number",
+      min: "1",
+      style: {
+        border: "1px solid #E8DDD0",
+        borderRadius: 10,
+        padding: "10px 12px",
+        fontSize: 14.5,
+        background: "#FFF",
+        color: "#3E332A",
+        flex: 1
+      },
+      placeholder: "Unidades produzidas",
+      value: productionInputs[c.id] || "",
+      onChange: e => setProductionInputs(p => ({
+        ...p,
+        [c.id]: e.target.value
+      }))
+    }), h('button', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#3E332A",
+        color: "#FBF1E8",
+        border: "none",
+        borderRadius: 10,
+        padding: "0 14px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        const a = parseInt(productionInputs[c.id], 10);
+        if (a > 0) {
+          onAddSubscriberProduction(c.id, a);
+          setProductionInputs(p => ({
+            ...p,
+            [c.id]: ""
+          }));
+        }
+      }
+    }, h(Icons.Plus), "Adicionar")), h('button', {
+      style: {
+        background: "transparent",
+        border: "none",
+        color: "#B8825A",
+        fontSize: 12.5,
+        fontWeight: 600,
+        padding: "10px 0 0",
+        textAlign: "left",
+        cursor: "pointer"
+      },
+      onClick: () => setExpandedClient(expanded ? null : c.id)
+    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), expanded && h('div', {
+      style: {
+        marginTop: 8,
+        borderTop: "1px solid #F1E6D8",
+        paddingTop: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }
+    }, log.length === 0 ? h('p', {
+      style: {
+        fontSize: 12.5,
+        color: "#A89A8C",
+        margin: 0
+      }
+    }, "Sem movimentações ainda.") : log.map((e, i) => h(HistoryRow, {
+      key: i,
+      entry: e
+    }))));
+  }))), tab === "avulsos" && h('div', null, h('div', {
+    style: {
+      marginBottom: 14
+    }
+  }, showNewProduct ? h('div', {
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 12,
+      padding: 12
+    }
+  }, h('input', {
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A",
+      width: "100%"
+    },
+    placeholder: "Nome do produto (ex: Biscoito Natural 200g)",
+    value: newProductName,
+    onChange: e => setNewProductName(e.target.value),
+    autoFocus: true
+  }), h('div', {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginTop: 8
+    }
+  }, h('button', {
+    style: {
+      flex: 1,
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 10px",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    },
+    onClick: () => {
+      if (newProductName.trim()) {
+        onAddShelfProduct(newProductName.trim());
+        setNewProductName("");
+        setShowNewProduct(false);
+      }
+    }
+  }, "Salvar"), h('button', {
+    style: {
+      background: "#EFE4D6",
+      color: "#8A7A6C",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 14px",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: "pointer"
+    },
+    onClick: () => setShowNewProduct(false)
+  }, "Cancelar"))) : h('button', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      width: "100%",
+      background: "#FFF",
+      border: "1.5px dashed #D9CBBC",
+      borderRadius: 12,
+      padding: "12px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#B8825A",
+      cursor: "pointer"
+    },
+    onClick: () => setShowNewProduct(true)
+  }, h(Icons.Plus), "Cadastrar produto de prateleira")), shelfProducts.length === 0 ? h(EmptyState, {
+    text: "Nenhum produto de prateleira cadastrado ainda."
+  }) : h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, shelfProducts.map(p => {
+    const log = shelfStockLog[p.id] || [],
+      expanded = expandedProduct === p.id,
+      isLow = p.balance <= 0;
+    return h('div', {
+      key: p.id,
+      style: {
+        background: "#FFF",
+        border: "1px solid #EFE4D6",
+        borderRadius: 14,
+        padding: 14
+      }
+    }, h('div', {
+      style: {
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 8
+      }
+    }, h('div', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A"
+      }
+    }, h(Icons.Package)), h('div', {
+      style: {
+        fontSize: 15.5,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, p.name)), h('div', {
+      style: {
+        textAlign: "right"
+      }
+    }, h('div', {
+      style: {
+        fontSize: 22,
+        fontWeight: 800,
+        lineHeight: 1,
+        color: isLow ? "#C0594B" : "#3E332A"
+      }
+    }, p.balance), h('div', {
+      style: {
+        fontSize: 10.5,
+        color: "#A89A8C",
+        marginTop: 2,
+        fontWeight: 600
+      }
+    }, "em estoque"))), isLow && h('div', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#FBEAE6",
+        color: "#A8412F",
+        fontSize: 12,
+        fontWeight: 600,
+        padding: "7px 10px",
+        borderRadius: 9,
+        marginTop: 10
+      }
+    }, h('span', {
+      style: {
+        color: "#C0594B"
+      }
+    }, h(Icons.AlertTriangle)), h('span', null, "Sem saldo disponível")), h('div', {
+      style: {
+        display: "flex",
+        gap: 8,
+        marginTop: 12
+      }
+    }, h('input', {
+      type: "number",
+      min: "1",
+      style: {
+        border: "1px solid #E8DDD0",
+        borderRadius: 10,
+        padding: "10px 12px",
+        fontSize: 14.5,
+        background: "#FFF",
+        color: "#3E332A",
+        flex: 1
+      },
+      placeholder: "Unidades a adicionar",
+      value: stockInputs[p.id] || "",
+      onChange: e => setStockInputs(prev => ({
+        ...prev,
+        [p.id]: e.target.value
+      }))
+    }), h('button', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#3E332A",
+        color: "#FBF1E8",
+        border: "none",
+        borderRadius: 10,
+        padding: "0 14px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        const a = parseInt(stockInputs[p.id], 10);
+        if (a > 0) {
+          onAddShelfStockEntry(p.id, a);
+          setStockInputs(prev => ({
+            ...prev,
+            [p.id]: ""
+          }));
+        }
+      }
+    }, h(Icons.Plus), "Adicionar")), h('div', {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: 8
+      }
+    }, h('button', {
+      style: {
+        background: "transparent",
+        border: "none",
+        color: "#B8825A",
+        fontSize: 12.5,
+        fontWeight: 600,
+        padding: "10px 0 0",
+        textAlign: "left",
+        cursor: "pointer"
+      },
+      onClick: () => setExpandedProduct(expanded ? null : p.id)
+    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), h('button', {
+      style: {
+        width: 26,
+        height: 26,
+        borderRadius: 7,
+        border: "1px solid #EFE4D6",
+        background: "#FBF8F4",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#8A7A6C",
+        cursor: "pointer"
+      },
+      onClick: () => onDeleteShelfProduct(p.id)
+    }, h(Icons.Trash2))), expanded && h('div', {
+      style: {
+        marginTop: 8,
+        borderTop: "1px solid #F1E6D8",
+        paddingTop: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }
+    }, log.length === 0 ? h('p', {
+      style: {
+        fontSize: 12.5,
+        color: "#A89A8C",
+        margin: 0
+      }
+    }, "Sem movimentações ainda.") : log.map((e, i) => h(HistoryRow, {
+      key: i,
+      entry: e
+    }))));
+  }))));
 }
-
-function HistoryRow({ entry }) {
-  const positive=entry.amount>0;
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-      <Icon name={positive?"ArrowUpCircle":"ArrowDownCircle"} size={15} color={positive?"#5C8A5C":"#C0594B"} style={{ flexShrink:0 }} />
-      <div style={{ flex:1 }}><div style={{ fontSize:12.5, fontWeight:600, color:"#3E332A" }}>{entry.reason}</div><div style={{ fontSize:11, color:"#A89A8C" }}>{formatDateBR(entry.date)}</div></div>
-      <div style={{ fontSize:13, fontWeight:700, color:positive?"#5C8A5C":"#C0594B" }}>{positive?"+":""}{entry.amount}</div>
-    </div>
-  );
+function HistoryRow({
+  entry
+}) {
+  const positive = entry.amount > 0;
+  return h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, h('span', {
+    style: {
+      color: positive ? "#5C8A5C" : "#C0594B",
+      flexShrink: 0
+    }
+  }, positive ? h(Icons.ArrowUp) : h(Icons.ArrowDown)), h('div', {
+    style: {
+      flex: 1
+    }
+  }, h('div', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#3E332A"
+    }
+  }, entry.reason), h('div', {
+    style: {
+      fontSize: 11,
+      color: "#A89A8C"
+    }
+  }, formatDateBR(entry.date))), h('div', {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: positive ? "#5C8A5C" : "#C0594B"
+    }
+  }, `${positive ? "+" : ""}${entry.amount}`));
 }
-
-function ClientFormModal({ initial, onClose, onSave }) {
-  const [tutor, setTutor] = useState(initial?.tutor||"");
-  const [dog, setDog] = useState(initial?.dog||"");
-  const [address, setAddress] = useState(initial?.address||"");
-  const [frequency, setFrequency] = useState(initial?.frequency||"semanal");
-  const [nextDate, setNextDate] = useState(initial?.nextDate||todayISO());
-  const [units, setUnits] = useState(initial?.units?String(initial.units):"1");
-  const [notes, setNotes] = useState(initial?.notes||"");
+function ClientFormModal({
+  initial,
+  onClose,
+  onSave
+}) {
+  const [tutor, setTutor] = useState(initial?.tutor || "");
+  const [dog, setDog] = useState(initial?.dog || "");
+  const [address, setAddress] = useState(initial?.address || "");
+  const [frequency, setFrequency] = useState(initial?.frequency || "semanal");
+  const [nextDate, setNextDate] = useState(initial?.nextDate || todayISO());
+  const [units, setUnits] = useState(initial?.units ? String(initial.units) : "1");
+  const [notes, setNotes] = useState(initial?.notes || "");
   const [error, setError] = useState("");
   const handleSubmit = () => {
-    if(!tutor.trim()||!dog.trim()||!address.trim()){setError("Preencha tutor, cão e endereço.");return;}
-    const unitsNum=parseInt(units,10);
-    if(!unitsNum||unitsNum<1){setError("Informe uma quantidade de unidades válida.");return;}
-    onSave({tutor:tutor.trim(),dog:dog.trim(),address:address.trim(),frequency,nextDate,units:unitsNum,notes});
+    if (!tutor.trim() || !dog.trim() || !address.trim()) {
+      setError("Preencha tutor, cão e endereço.");
+      return;
+    }
+    const unitsNum = parseInt(units, 10);
+    if (!unitsNum || unitsNum < 1) {
+      setError("Informe uma quantidade de unidades válida.");
+      return;
+    }
+    onSave({
+      tutor: tutor.trim(),
+      dog: dog.trim(),
+      address: address.trim(),
+      frequency,
+      nextDate,
+      units: unitsNum,
+      notes
+    });
   };
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(62,51,42,0.45)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:50 }} onClick={onClose}>
-      <div style={{ background:"#FDF8F2", width:"100%", maxWidth:480, maxHeight:"88vh", overflowY:"auto", borderRadius:"18px 18px 0 0" }} onClick={e=>e.stopPropagation()}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 18px 10px", position:"sticky", top:0, background:"#FDF8F2" }}>
-          <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:"#3E332A" }}>{initial?"Editar cliente":"Novo cliente"}</h3>
-          <button style={{ background:"#F1E6D8", border:"none", width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={onClose}><Icon name="X" size={18} color="#8A7A6C" /></button>
-        </div>
-        <div style={{ padding:"8px 18px 26px", display:"flex", flexDirection:"column", gap:14 }}>
-          {[["Nome do tutor",tutor,setTutor,"Ex: Marina Costa"],["Nome do cão",dog,setDog,"Ex: Mia"],["Endereço de entrega",address,setAddress,"Rua, número, bairro"]].map(([label,val,setter,ph])=>(
-            <div key={label} style={{ display:"flex", flexDirection:"column", gap:6 }}><label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>{label}</label><input style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A" }} value={val} onChange={e=>setter(e.target.value)} placeholder={ph} /></div>
-          ))}
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            <label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>Frequência</label>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-              {Object.entries(frequencyLabel).map(([key,label])=>(
-                <button key={key} type="button" onClick={()=>setFrequency(key)} style={{ border:frequency===key?"1.5px solid #B8825A":"1.5px solid #E8DDD0", borderRadius:10, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:frequency===key?"#8A6A48":"#8A7A6C", background:frequency===key?"#FBF1E8":"#FFF" }}>{label}</button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}><label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>{frequency==="avulsa"?"Data da entrega":"Próxima entrega"}</label><input type="date" style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A" }} value={nextDate} onChange={e=>setNextDate(e.target.value)} /></div>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}><label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>Quantidade de unidades</label><input type="number" min="1" style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A" }} value={units} onChange={e=>setUnits(e.target.value)} placeholder="Ex: 4" /></div>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}><label style={{ fontSize:12.5, fontWeight:600, color:"#8A7A6C" }}>Observações (opcional)</label><textarea style={{ border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", minHeight:60, resize:"vertical", fontFamily:"inherit" }} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Ex: portaria pede documento" /></div>
-          {error&&<p style={{ color:"#C0594B", fontSize:13, margin:0 }}>{error}</p>}
-          <button style={{ background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:11, padding:"13px", fontSize:15, fontWeight:700, marginTop:4 }} onClick={handleSubmit}>{initial?"Salvar alterações":"Adicionar cliente"}</button>
-        </div>
-      </div>
-    </div>
-  );
+  const fields = [["Nome do tutor", tutor, setTutor, "text", "Ex: Marina Costa"], ["Nome do cão", dog, setDog, "text", "Ex: Mia"], ["Endereço de entrega", address, setAddress, "text", "Rua, número, bairro"]];
+  return h('div', {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(62,51,42,0.45)",
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center",
+      zIndex: 50
+    },
+    onClick: onClose
+  }, h('div', {
+    style: {
+      background: "#FDF8F2",
+      width: "100%",
+      maxWidth: 480,
+      maxHeight: "88vh",
+      overflowY: "auto",
+      borderRadius: "18px 18px 0 0"
+    },
+    onClick: e => e.stopPropagation()
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "18px 18px 10px",
+      position: "sticky",
+      top: 0,
+      background: "#FDF8F2"
+    }
+  }, h('h3', {
+    style: {
+      margin: 0,
+      fontSize: 17,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, initial ? "Editar cliente" : "Novo cliente"), h('button', {
+    style: {
+      background: "#F1E6D8",
+      border: "none",
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#8A7A6C",
+      cursor: "pointer"
+    },
+    onClick: onClose
+  }, h(Icons.X))), h('div', {
+    style: {
+      padding: "8px 18px 26px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, fields.map(([label, val, setter, type, ph]) => h('div', {
+    key: label,
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, label), h('input', {
+    type,
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A"
+    },
+    value: val,
+    onChange: e => setter(e.target.value),
+    placeholder: ph
+  }))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, "Frequência"), h('div', {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 8
+    }
+  }, Object.entries(frequencyLabel).map(([key, label]) => h('button', {
+    key,
+    type: "button",
+    onClick: () => setFrequency(key),
+    style: {
+      border: frequency === key ? "1.5px solid #B8825A" : "1.5px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "9px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: frequency === key ? "#8A6A48" : "#8A7A6C",
+      background: frequency === key ? "#FBF1E8" : "#FFF",
+      cursor: "pointer"
+    }
+  }, label)))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, frequency === "avulsa" ? "Data da entrega" : "Próxima entrega"), h('input', {
+    type: "date",
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A"
+    },
+    value: nextDate,
+    onChange: e => setNextDate(e.target.value)
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, "Quantidade de unidades"), h('input', {
+    type: "number",
+    min: "1",
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A"
+    },
+    value: units,
+    onChange: e => setUnits(e.target.value),
+    placeholder: "Ex: 4"
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, "Observações (opcional)"), h('textarea', {
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A",
+      minHeight: 60,
+      resize: "vertical",
+      fontFamily: "inherit"
+    },
+    value: notes,
+    onChange: e => setNotes(e.target.value),
+    placeholder: "Ex: portaria pede documento"
+  })), error && h('p', {
+    style: {
+      color: "#C0594B",
+      fontSize: 13,
+      margin: 0
+    }
+  }, error), h('button', {
+    style: {
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 11,
+      padding: "13px",
+      fontSize: 15,
+      fontWeight: 700,
+      marginTop: 4,
+      cursor: "pointer"
+    },
+    onClick: handleSubmit
+  }, initial ? "Salvar alterações" : "Adicionar cliente"))));
 }
-
-function EmptyState({ text }) {
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10, padding:"48px 20px", textAlign:"center" }}>
-      <Icon name="PawPrint" size={26} color="#D9CBBC" /><p style={{ color:"#A89A8C", fontSize:14, margin:0 }}>{text}</p>
-    </div>
-  );
+function EmptyState({
+  text
+}) {
+  return h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 10,
+      padding: "48px 20px",
+      textAlign: "center"
+    }
+  }, h('div', {
+    style: {
+      color: "#D9CBBC"
+    }
+  }, h(Icons.PawPrint)), h('p', {
+    style: {
+      color: "#A89A8C",
+      fontSize: 14,
+      margin: 0
+    }
+  }, text));
 }
-
-ReactDOM.render(<App />, document.getElementById("root"));
-</script>
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));</script>
 </body>
 </html>
