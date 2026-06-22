@@ -34,7 +34,7 @@ const auth = {
       })
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error_description || data.msg || "Erro ao entrar");
+    if (!r.ok) throw new Error(data.error_description || "Erro ao entrar");
     return data;
   },
   async signOut(token) {
@@ -116,9 +116,9 @@ function addDays(iso, days) {
   return dateToISO(d);
 }
 function getOccurrencesInRange(client, startISO, endISO) {
-  const out = [];
-  const start = new Date(startISO + "T00:00:00");
-  const end = new Date(endISO + "T00:00:00");
+  const out = [],
+    start = new Date(startISO + "T00:00:00"),
+    end = new Date(endISO + "T00:00:00");
   if (client.frequency === "avulsa") {
     if (client.nextDate && client.nextDate >= startISO && client.nextDate <= endISO) out.push(client.nextDate);
     return out;
@@ -174,13 +174,12 @@ const statusConfig = {
 const {
   useState,
   useEffect,
-  useMemo,
-  createElement: h
+  useMemo
 } = React;
 
 // SVG Icons
 const Icons = {
-  PawPrint: () => h('svg', {
+  PawPrint: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 20,
     height: 20,
@@ -190,22 +189,22 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('circle', {
+  }, React.createElement('circle', {
     cx: 11,
     cy: 4,
     r: 2
-  }), h('circle', {
+  }), React.createElement('circle', {
     cx: 18,
     cy: 8,
     r: 2
-  }), h('circle', {
+  }), React.createElement('circle', {
     cx: 20,
     cy: 16,
     r: 2
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"
   })),
-  Plus: () => h('svg', {
+  Plus: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 18,
     height: 18,
@@ -215,12 +214,12 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M5 12h14"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M12 5v14"
   })),
-  Check: () => h('svg', {
+  Check: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 16,
     height: 16,
@@ -230,10 +229,10 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M20 6 9 17l-5-5"
   })),
-  Clock: () => h('svg', {
+  Clock: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 13,
     height: 13,
@@ -243,14 +242,14 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('circle', {
+  }, React.createElement('circle', {
     cx: 12,
     cy: 12,
     r: 10
-  }), h('polyline', {
+  }), React.createElement('polyline', {
     points: "12 6 12 12 16 14"
   })),
-  Truck: () => h('svg', {
+  Truck: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 13,
     height: 13,
@@ -260,22 +259,22 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M15 18H9"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"
-  }), h('circle', {
+  }), React.createElement('circle', {
     cx: 17,
     cy: 18,
     r: 2
-  }), h('circle', {
+  }), React.createElement('circle', {
     cx: 7,
     cy: 18,
     r: 2
   })),
-  MapPin: () => h('svg', {
+  MapPin: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 13,
     height: 13,
@@ -285,14 +284,14 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"
-  }), h('circle', {
+  }), React.createElement('circle', {
     cx: 12,
     cy: 10,
     r: 3
   })),
-  Search: () => h('svg', {
+  Search: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 16,
     height: 16,
@@ -302,14 +301,14 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('circle', {
+  }, React.createElement('circle', {
     cx: 11,
     cy: 11,
     r: 8
-  }), h('path', {
+  }), React.createElement('path', {
     d: "m21 21-4.3-4.3"
   })),
-  X: () => h('svg', {
+  X: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 18,
     height: 18,
@@ -319,12 +318,12 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M18 6 6 18"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "m6 6 12 12"
   })),
-  ChevronLeft: () => h('svg', {
+  ChevronLeft: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 18,
     height: 18,
@@ -334,10 +333,10 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "m15 18-6-6 6-6"
   })),
-  ChevronRight: () => h('svg', {
+  ChevronRight: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 18,
     height: 18,
@@ -347,10 +346,10 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "m9 18 6-6-6-6"
   })),
-  Trash2: () => h('svg', {
+  Trash2: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 15,
     height: 15,
@@ -360,14 +359,14 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M3 6h18"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
   })),
-  Edit3: () => h('svg', {
+  Edit3: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 15,
     height: 15,
@@ -377,12 +376,12 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M12 20h9"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
   })),
-  Package: () => h('svg', {
+  Package: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 14,
     height: 14,
@@ -392,16 +391,16 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "m7.5 4.27 9 5.15"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "m3.3 7 8.7 5 8.7-5"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M12 22V12"
   })),
-  ArrowUp: () => h('svg', {
+  ArrowUp: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 15,
     height: 15,
@@ -411,16 +410,16 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('circle', {
+  }, React.createElement('circle', {
     cx: 12,
     cy: 12,
     r: 10
-  }), h('path', {
+  }), React.createElement('path', {
     d: "m16 12-4-4-4 4"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M12 16V8"
   })),
-  ArrowDown: () => h('svg', {
+  ArrowDown: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 15,
     height: 15,
@@ -430,16 +429,16 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('circle', {
+  }, React.createElement('circle', {
     cx: 12,
     cy: 12,
     r: 10
-  }), h('path', {
+  }), React.createElement('path', {
     d: "m8 12 4 4 4-4"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M12 8v8"
   })),
-  AlertTriangle: () => h('svg', {
+  AlertTriangle: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 13,
     height: 13,
@@ -449,14 +448,14 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M12 9v4"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M12 17h.01"
   })),
-  LogOut: () => h('svg', {
+  LogOut: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 16,
     height: 16,
@@ -466,17 +465,17 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-  }), h('polyline', {
+  }), React.createElement('polyline', {
     points: "16 17 21 12 16 7"
-  }), h('line', {
+  }), React.createElement('line', {
     x1: 21,
     y1: 12,
     x2: 9,
     y2: 12
   })),
-  Eye: () => h('svg', {
+  Eye: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 18,
     height: 18,
@@ -486,14 +485,14 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"
-  }), h('circle', {
+  }), React.createElement('circle', {
     cx: 12,
     cy: 12,
     r: 3
   })),
-  EyeOff: () => h('svg', {
+  EyeOff: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
     width: 18,
     height: 18,
@@ -503,17 +502,78 @@ const Icons = {
     strokeWidth: 2.5,
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, h('path', {
+  }, React.createElement('path', {
     d: "M9.88 9.88a3 3 0 1 0 4.24 4.24"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"
-  }), h('path', {
+  }), React.createElement('path', {
     d: "M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"
-  }), h('line', {
+  }), React.createElement('line', {
     x1: 2,
     y1: 2,
     x2: 22,
     y2: 22
+  })),
+  Copy: () => React.createElement('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, React.createElement('rect', {
+    width: 14,
+    height: 14,
+    x: 8,
+    y: 8,
+    rx: 2,
+    ry: 2
+  }), React.createElement('path', {
+    d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+  })),
+  Download: () => React.createElement('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, React.createElement('path', {
+    d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+  }), React.createElement('polyline', {
+    points: "7 10 12 15 17 10"
+  }), React.createElement('line', {
+    x1: 12,
+    y1: 15,
+    x2: 12,
+    y2: 3
+  })),
+  FileText: () => React.createElement('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, React.createElement('path', {
+    d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+  }), React.createElement('path', {
+    d: "M14 2v4a2 2 0 0 0 2 2h4"
+  }), React.createElement('path', {
+    d: "M10 9H8"
+  }), React.createElement('path', {
+    d: "M16 13H8"
+  }), React.createElement('path', {
+    d: "M16 17H8"
   }))
 };
 function Icon({
@@ -524,14 +584,14 @@ function Icon({
 }) {
   const Comp = Icons[name];
   if (!Comp) return null;
-  return h('span', {
+  return React.createElement('span', {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
       color: color || 'currentColor',
       ...st
     }
-  }, h(Comp));
+  }, React.createElement(Comp));
 }
 function LoginScreen({
   onLogin
@@ -557,6 +617,7 @@ function LoginScreen({
       setLoading(false);
     }
   };
+  const h = React.createElement;
   return h('div', {
     style: {
       minHeight: "100vh",
@@ -733,6 +794,7 @@ function App() {
     localStorage.removeItem("obentopet_token");
     setSession(null);
   };
+  const h = React.createElement;
   if (!authChecked) return h('div', {
     style: {
       minHeight: "100vh",
@@ -767,6 +829,7 @@ function MainApp({
   token,
   onLogout
 }) {
+  const h = React.createElement;
   const db = useMemo(() => makeDb(token), [token]);
   const [clients, setClients] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -1096,7 +1159,7 @@ function MainApp({
       margin: 0
     }
   }, "Carregando dados…"));
-  const tabs = [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"]];
+  const tabs = [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"], ["roteiro", "Roteiro"]];
   return h('div', {
     style: {
       minHeight: "100vh",
@@ -1193,7 +1256,8 @@ function MainApp({
     style: {
       display: "flex",
       gap: 4,
-      padding: "0 16px"
+      padding: "0 16px",
+      overflowX: "auto"
     }
   }, tabs.map(([key, label]) => h('button', {
     key,
@@ -1206,7 +1270,8 @@ function MainApp({
       fontSize: 14,
       fontWeight: 600,
       borderBottom: view === key ? "2px solid #B8825A" : "2px solid transparent",
-      cursor: "pointer"
+      cursor: "pointer",
+      whiteSpace: "nowrap"
     }
   }, label)))), h('main', {
     style: {
@@ -1246,6 +1311,8 @@ function MainApp({
     onAddShelfProduct: addShelfProduct,
     onAddShelfStockEntry: addShelfStockEntry,
     onDeleteShelfProduct: deleteShelfProduct
+  }), view === "roteiro" && h(RoteiroView, {
+    clients
   })), showForm && h(ClientFormModal, {
     initial: editingClient,
     onClose: () => {
@@ -1261,6 +1328,7 @@ function TodayView({
   setStatus,
   shelfProducts
 }) {
+  const h = React.createElement;
   const t = todayISO();
   const d = new Date(t + "T00:00:00");
   const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", {
@@ -1318,6 +1386,7 @@ function WeekView({
   setStatus,
   shelfProducts
 }) {
+  const h = React.createElement;
   const [activeDay, setActiveDay] = useState(null);
   const t = todayISO();
   const activeDate = activeDay || (weekDays.includes(t) ? t : weekDays[0]);
@@ -1437,6 +1506,7 @@ function DeliveryCard({
   onStatusChange,
   shelfProducts
 }) {
+  const h = React.createElement;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
@@ -1457,7 +1527,6 @@ function DeliveryCard({
     });
     setPickerOpen(false);
   };
-  const statusEntries = Object.entries(statusConfig);
   return h('div', {
     style: {
       background: "#FFF",
@@ -1635,7 +1704,7 @@ function DeliveryCard({
       gap: 6,
       marginTop: 12
     }
-  }, statusEntries.map(([key, conf]) => {
+  }, Object.entries(statusConfig).map(([key, conf]) => {
     const active = status === key;
     return h('button', {
       key,
@@ -1665,6 +1734,7 @@ function ClientsView({
   onEdit,
   onDelete
 }) {
+  const h = React.createElement;
   const [confirmDelete, setConfirmDelete] = useState(null);
   return h('div', null, h('div', {
     style: {
@@ -1809,6 +1879,7 @@ function StockView({
   onAddShelfStockEntry,
   onDeleteShelfProduct
 }) {
+  const h = React.createElement;
   const [tab, setTab] = useState("assinantes");
   const [expandedClient, setExpandedClient] = useState(null);
   const [productionInputs, setProductionInputs] = useState({});
@@ -2294,9 +2365,324 @@ function StockView({
     }))));
   }))));
 }
+function RoteiroView({
+  clients
+}) {
+  const h = React.createElement;
+  const [startDate, setStartDate] = useState(todayISO());
+  const [endDate, setEndDate] = useState(addDays(todayISO(), 6));
+  const [copied, setCopied] = useState(false);
+  const roteiroItems = useMemo(() => {
+    const items = [];
+    clients.forEach(c => {
+      const occs = getOccurrencesInRange(c, startDate, endDate);
+      occs.forEach(date => items.push({
+        client: c,
+        date
+      }));
+    });
+    items.sort((a, b) => {
+      if (a.date < b.date) return -1;
+      if (a.date > b.date) return 1;
+      return a.client.tutor.localeCompare(b.client.tutor);
+    });
+    return items;
+  }, [clients, startDate, endDate]);
+  const grouped = useMemo(() => {
+    const map = {};
+    roteiroItems.forEach(({
+      client,
+      date
+    }) => {
+      if (!map[date]) map[date] = [];
+      map[date].push(client);
+    });
+    return map;
+  }, [roteiroItems]);
+  const formatDateFull = iso => {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long"
+    });
+  };
+  const buildTextRoteiro = () => {
+    const periodLabel = startDate === endDate ? formatDateFull(startDate) : `${formatDateFull(startDate)} a ${formatDateFull(endDate)}`;
+    let text = `🐾 ObentoPet — Roteiro de Entregas\n${periodLabel}\n${"─".repeat(36)}\n\n`;
+    if (roteiroItems.length === 0) {
+      text += "Nenhuma entrega no período selecionado.\n";
+      return text;
+    }
+    Object.entries(grouped).forEach(([date, clientsForDay]) => {
+      const dl = formatDateFull(date);
+      text += `📅 ${dl.charAt(0).toUpperCase() + dl.slice(1)}\n`;
+      clientsForDay.forEach((c, i) => {
+        text += `\n${i + 1}. ${c.dog} (${c.tutor})\n   📍 ${c.address}\n`;
+        if (c.notes) text += `   💬 ${c.notes}\n`;
+      });
+      text += "\n";
+    });
+    text += `Total: ${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""}`;
+    return text;
+  };
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildTextRoteiro()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  const handleDownloadPDF = () => {
+    const periodLabel = startDate === endDate ? formatDateFull(startDate) : `${formatDateFull(startDate)} a ${formatDateFull(endDate)}`;
+    let rows = "";
+    if (roteiroItems.length === 0) {
+      rows = `<p style="color:#8A7A6C;font-style:italic;">Nenhuma entrega no período selecionado.</p>`;
+    } else {
+      Object.entries(grouped).forEach(([date, clientsForDay]) => {
+        const dl = formatDateFull(date);
+        rows += `<div class="day-block"><div class="day-header">${dl.charAt(0).toUpperCase() + dl.slice(1)}</div>`;
+        clientsForDay.forEach((c, i) => {
+          rows += `<div class="entry"><div class="entry-num">${i + 1}</div><div class="entry-body"><div class="entry-name">${c.dog} <span class="entry-tutor">— ${c.tutor}</span></div><div class="entry-address">📍 ${c.address}</div>${c.notes ? `<div class="entry-notes">💬 ${c.notes}</div>` : ""}</div></div>`;
+        });
+        rows += `</div>`;
+      });
+    }
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Roteiro ObentoPet</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Inter',sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}.logo{width:44px;height:44px;background:#B8825A;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}.brand{font-size:22px;font-weight:800;color:#3E332A;}.subtitle{font-size:13px;color:#8A7A6C;font-weight:600;margin-top:2px;}.period{font-size:14px;color:#8A7A6C;margin:10px 0 24px;padding-bottom:18px;border-bottom:2px solid #EFE4D6;}.period strong{color:#3E332A;}.day-block{margin-bottom:28px;}.day-header{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.entry{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start;}.entry-num{min-width:26px;height:26px;background:#F1E6D8;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#8A6A48;flex-shrink:0;margin-top:1px;}.entry-body{flex:1;}.entry-name{font-size:15px;font-weight:700;color:#3E332A;}.entry-tutor{font-weight:400;color:#8A7A6C;font-size:14px;}.entry-address{font-size:13px;color:#7A6C5E;margin-top:3px;line-height:1.4;}.entry-notes{font-size:12.5px;color:#9A7A5A;margin-top:4px;font-style:italic;}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between;}@media print{body{background:white;}}</style></head><body><div class="header"><div class="logo">🐾</div><div><div class="brand">ObentōPet</div><div class="subtitle">Roteiro de Entregas</div></div></div><div class="period">Período: <strong>${periodLabel}</strong></div>${rows}<div class="footer"><span>ObentōPet — Dietas Veterinárias Personalizadas</span><span>${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""} no total</span></div></body></html>`;
+    const blob = new Blob([html], {
+      type: "text/html"
+    });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (win) {
+      win.onload = () => {
+        setTimeout(() => {
+          win.print();
+        }, 500);
+      };
+    }
+  };
+  const inputStyle = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A"
+  };
+  const labelStyle = {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#8A7A6C"
+  };
+  return h('div', null, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, h('h2', {
+    style: {
+      margin: 0,
+      fontSize: 19,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Roteiro"), h('span', {
+    style: {
+      background: "#F1E6D8",
+      color: "#8A6A48",
+      fontSize: 12.5,
+      fontWeight: 600,
+      padding: "4px 10px",
+      borderRadius: 20
+    }
+  }, `${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""}`)), h('div', {
+    style: {
+      display: "flex",
+      gap: 12,
+      marginBottom: 14
+    }
+  }, h('div', {
+    style: {
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: labelStyle
+  }, "De"), h('input', {
+    type: "date",
+    style: inputStyle,
+    value: startDate,
+    onChange: e => {
+      setStartDate(e.target.value);
+      if (e.target.value > endDate) setEndDate(e.target.value);
+    }
+  })), h('div', {
+    style: {
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: labelStyle
+  }, "Até"), h('input', {
+    type: "date",
+    style: inputStyle,
+    value: endDate,
+    min: startDate,
+    onChange: e => setEndDate(e.target.value)
+  }))), h('div', {
+    style: {
+      display: "flex",
+      gap: 10,
+      marginBottom: 20
+    }
+  }, h('button', {
+    style: {
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      border: "1.5px solid #D9CBBC",
+      borderRadius: 11,
+      padding: "11px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#8A7A6C",
+      background: "#FFF",
+      cursor: "pointer"
+    },
+    onClick: handleCopy
+  }, copied ? h(Icons.Check) : h(Icons.Copy), copied ? "Copiado!" : "Copiar texto"), h('button', {
+    style: {
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      border: "none",
+      borderRadius: 11,
+      padding: "11px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      background: "#3E332A",
+      color: "#FBF1E8",
+      cursor: "pointer"
+    },
+    onClick: handleDownloadPDF
+  }, h(Icons.Download), "Abrir PDF")), roteiroItems.length === 0 ? h(EmptyState, {
+    text: "Nenhuma entrega no período selecionado."
+  }) : h('div', {
+    style: {
+      marginTop: 8
+    }
+  }, Object.entries(grouped).map(([date, clientsForDay]) => h('div', {
+    key: date,
+    style: {
+      marginBottom: 20
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+      paddingBottom: 8,
+      borderBottom: "1.5px solid #EFE4D6"
+    }
+  }, h('span', {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#B8825A",
+      textTransform: "capitalize",
+      letterSpacing: "0.2px"
+    }
+  }, formatDateFull(date).charAt(0).toUpperCase() + formatDateFull(date).slice(1)), h('span', {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: "#8A6A48",
+      background: "#F6EEE3",
+      padding: "3px 9px",
+      borderRadius: 20
+    }
+  }, clientsForDay.length)), clientsForDay.map((c, i) => h('div', {
+    key: c.id,
+    style: {
+      display: "flex",
+      gap: 10,
+      alignItems: "flex-start",
+      paddingBottom: 12,
+      borderBottom: "1px solid #F5EDE3",
+      marginBottom: 12
+    }
+  }, h('div', {
+    style: {
+      minWidth: 26,
+      height: 26,
+      background: "#F1E6D8",
+      borderRadius: 7,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#8A6A48",
+      flexShrink: 0,
+      marginTop: 1
+    }
+  }, i + 1), h('div', {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, h('div', {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, c.dog, " ", h('span', {
+    style: {
+      fontWeight: 400,
+      color: "#8A7A6C",
+      fontSize: 13.5
+    }
+  }, `— ${c.tutor}`)), h('div', {
+    style: {
+      display: "flex",
+      gap: 5,
+      fontSize: 12.5,
+      color: "#7A6C5E",
+      marginTop: 4,
+      lineHeight: 1.4,
+      alignItems: "flex-start"
+    }
+  }, h('span', {
+    style: {
+      color: "#A89A8C",
+      flexShrink: 0,
+      marginTop: 2
+    }
+  }, h(Icons.MapPin)), c.address), c.notes && h('div', {
+    style: {
+      fontSize: 12,
+      color: "#9A7A5A",
+      marginTop: 4,
+      fontStyle: "italic"
+    }
+  }, `💬 ${c.notes}`))))))));
+}
 function HistoryRow({
   entry
 }) {
+  const h = React.createElement;
   const positive = entry.amount > 0;
   return h('div', {
     style: {
@@ -2337,6 +2723,7 @@ function ClientFormModal({
   onClose,
   onSave
 }) {
+  const h = React.createElement;
   const [tutor, setTutor] = useState(initial?.tutor || "");
   const [dog, setDog] = useState(initial?.dog || "");
   const [address, setAddress] = useState(initial?.address || "");
@@ -2365,7 +2752,19 @@ function ClientFormModal({
       notes
     });
   };
-  const fields = [["Nome do tutor", tutor, setTutor, "text", "Ex: Marina Costa"], ["Nome do cão", dog, setDog, "text", "Ex: Mia"], ["Endereço de entrega", address, setAddress, "text", "Rua, número, bairro"]];
+  const inputStyle = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A"
+  };
+  const labelStyle = {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#8A7A6C"
+  };
   return h('div', {
     style: {
       position: "fixed",
@@ -2425,7 +2824,7 @@ function ClientFormModal({
       flexDirection: "column",
       gap: 14
     }
-  }, fields.map(([label, val, setter, type, ph]) => h('div', {
+  }, [["Nome do tutor", tutor, setTutor, "Ex: Marina Costa"], ["Nome do cão", dog, setDog, "Ex: Mia"], ["Endereço de entrega", address, setAddress, "Rua, número, bairro"]].map(([label, val, setter, ph]) => h('div', {
     key: label,
     style: {
       display: "flex",
@@ -2433,21 +2832,9 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
+    style: labelStyle
   }, label), h('input', {
-    type,
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A"
-    },
+    style: inputStyle,
     value: val,
     onChange: e => setter(e.target.value),
     placeholder: ph
@@ -2458,11 +2845,7 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
+    style: labelStyle
   }, "Frequência"), h('div', {
     style: {
       display: "grid",
@@ -2490,21 +2873,10 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
+    style: labelStyle
   }, frequency === "avulsa" ? "Data da entrega" : "Próxima entrega"), h('input', {
     type: "date",
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A"
-    },
+    style: inputStyle,
     value: nextDate,
     onChange: e => setNextDate(e.target.value)
   })), h('div', {
@@ -2514,22 +2886,11 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
+    style: labelStyle
   }, "Quantidade de unidades"), h('input', {
     type: "number",
     min: "1",
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A"
-    },
+    style: inputStyle,
     value: units,
     onChange: e => setUnits(e.target.value),
     placeholder: "Ex: 4"
@@ -2540,19 +2901,10 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
+    style: labelStyle
   }, "Observações (opcional)"), h('textarea', {
     style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A",
+      ...inputStyle,
       minHeight: 60,
       resize: "vertical",
       fontFamily: "inherit"
@@ -2584,6 +2936,7 @@ function ClientFormModal({
 function EmptyState({
   text
 }) {
+  const h = React.createElement;
   return h('div', {
     style: {
       display: "flex",
