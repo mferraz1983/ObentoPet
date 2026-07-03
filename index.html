@@ -35,7 +35,7 @@ const auth = {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error_description || "Erro ao entrar");
-    return data;
+    return data; // { access_token, refresh_token, user }
   },
   async signOut(token) {
     await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
@@ -55,6 +55,20 @@ const auth = {
     });
     if (!r.ok) return null;
     return r.json();
+  },
+  async refreshToken(refreshToken) {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        refresh_token: refreshToken
+      })
+    });
+    if (!r.ok) return null;
+    return r.json(); // { access_token, refresh_token, user }
   }
 };
 function makeDb(token) {
@@ -174,10 +188,10 @@ const statusConfig = {
 const {
   useState,
   useEffect,
-  useMemo
+  useMemo,
+  useCallback,
+  useRef
 } = React;
-
-// SVG Icons
 const Icons = {
   PawPrint: () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
@@ -553,27 +567,6 @@ const Icons = {
     y1: 15,
     x2: 12,
     y2: 3
-  })),
-  FileText: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
-  }), React.createElement('path', {
-    d: "M14 2v4a2 2 0 0 0 2 2h4"
-  }), React.createElement('path', {
-    d: "M10 9H8"
-  }), React.createElement('path', {
-    d: "M16 13H8"
-  }), React.createElement('path', {
-    d: "M16 17H8"
   }))
 };
 function Icon({
@@ -610,7 +603,7 @@ function LoginScreen({
     setError("");
     try {
       const data = await auth.signIn(email.trim(), password);
-      onLogin(data.access_token, data.user);
+      onLogin(data);
     } catch (e) {
       setError("Email ou senha incorretos.");
     } finally {
@@ -770,28 +763,73 @@ function LoginScreen({
 function App() {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const refreshTimerRef = useRef(null);
+  const scheduleRefresh = (refreshToken, expiresIn) => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    // Renova 2 minutos antes de expirar
+    const delay = Math.max((expiresIn - 120) * 1000, 10000);
+    refreshTimerRef.current = setTimeout(async () => {
+      const data = await auth.refreshToken(refreshToken);
+      if (data && data.access_token) {
+        localStorage.setItem("obentopet_token", data.access_token);
+        localStorage.setItem("obentopet_refresh", data.refresh_token);
+        setSession(prev => ({
+          ...prev,
+          token: data.access_token
+        }));
+        scheduleRefresh(data.refresh_token, data.expires_in || 3600);
+      } else {
+        // Refresh falhou, faz logout
+        handleLogout();
+      }
+    }, delay);
+  };
   useEffect(() => {
-    const saved = localStorage.getItem("obentopet_token");
-    if (saved) {
-      auth.getUser(saved).then(user => {
-        if (user) setSession({
-          token: saved,
-          user
-        });
+    const token = localStorage.getItem("obentopet_token");
+    const refreshToken = localStorage.getItem("obentopet_refresh");
+    if (token && refreshToken) {
+      auth.getUser(token).then(user => {
+        if (user) {
+          setSession({
+            token,
+            user
+          });
+          scheduleRefresh(refreshToken, 3600);
+        } else {
+          // Token expirado, tenta renovar imediatamente
+          auth.refreshToken(refreshToken).then(data => {
+            if (data && data.access_token) {
+              localStorage.setItem("obentopet_token", data.access_token);
+              localStorage.setItem("obentopet_refresh", data.refresh_token);
+              setSession({
+                token: data.access_token,
+                user: data.user
+              });
+              scheduleRefresh(data.refresh_token, data.expires_in || 3600);
+            }
+          });
+        }
         setAuthChecked(true);
       }).catch(() => setAuthChecked(true));
     } else setAuthChecked(true);
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
   }, []);
-  const handleLogin = (token, user) => {
-    localStorage.setItem("obentopet_token", token);
+  const handleLogin = data => {
+    localStorage.setItem("obentopet_token", data.access_token);
+    localStorage.setItem("obentopet_refresh", data.refresh_token);
     setSession({
-      token,
-      user
+      token: data.access_token,
+      user: data.user
     });
+    scheduleRefresh(data.refresh_token, data.expires_in || 3600);
   };
   const handleLogout = async () => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     if (session) await auth.signOut(session.token);
     localStorage.removeItem("obentopet_token");
+    localStorage.removeItem("obentopet_refresh");
     setSession(null);
   };
   const h = React.createElement;
@@ -2375,17 +2413,12 @@ function RoteiroView({
   const roteiroItems = useMemo(() => {
     const items = [];
     clients.forEach(c => {
-      const occs = getOccurrencesInRange(c, startDate, endDate);
-      occs.forEach(date => items.push({
+      getOccurrencesInRange(c, startDate, endDate).forEach(date => items.push({
         client: c,
         date
       }));
     });
-    items.sort((a, b) => {
-      if (a.date < b.date) return -1;
-      if (a.date > b.date) return 1;
-      return a.client.tutor.localeCompare(b.client.tutor);
-    });
+    items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.client.tutor.localeCompare(b.client.tutor));
     return items;
   }, [clients, startDate, endDate]);
   const grouped = useMemo(() => {
@@ -2414,10 +2447,10 @@ function RoteiroView({
       text += "Nenhuma entrega no período selecionado.\n";
       return text;
     }
-    Object.entries(grouped).forEach(([date, clientsForDay]) => {
+    Object.entries(grouped).forEach(([date, cls]) => {
       const dl = formatDateFull(date);
       text += `📅 ${dl.charAt(0).toUpperCase() + dl.slice(1)}\n`;
-      clientsForDay.forEach((c, i) => {
+      cls.forEach((c, i) => {
         text += `\n${i + 1}. ${c.dog} (${c.tutor})\n   📍 ${c.address}\n`;
         if (c.notes) text += `   💬 ${c.notes}\n`;
       });
@@ -2438,10 +2471,10 @@ function RoteiroView({
     if (roteiroItems.length === 0) {
       rows = `<p style="color:#8A7A6C;font-style:italic;">Nenhuma entrega no período selecionado.</p>`;
     } else {
-      Object.entries(grouped).forEach(([date, clientsForDay]) => {
+      Object.entries(grouped).forEach(([date, cls]) => {
         const dl = formatDateFull(date);
         rows += `<div class="day-block"><div class="day-header">${dl.charAt(0).toUpperCase() + dl.slice(1)}</div>`;
-        clientsForDay.forEach((c, i) => {
+        cls.forEach((c, i) => {
           rows += `<div class="entry"><div class="entry-num">${i + 1}</div><div class="entry-body"><div class="entry-name">${c.dog} <span class="entry-tutor">— ${c.tutor}</span></div><div class="entry-address">📍 ${c.address}</div>${c.notes ? `<div class="entry-notes">💬 ${c.notes}</div>` : ""}</div></div>`;
         });
         rows += `</div>`;
@@ -2581,7 +2614,7 @@ function RoteiroView({
     style: {
       marginTop: 8
     }
-  }, Object.entries(grouped).map(([date, clientsForDay]) => h('div', {
+  }, Object.entries(grouped).map(([date, cls]) => h('div', {
     key: date,
     style: {
       marginBottom: 20
@@ -2600,8 +2633,7 @@ function RoteiroView({
       fontSize: 13,
       fontWeight: 700,
       color: "#B8825A",
-      textTransform: "capitalize",
-      letterSpacing: "0.2px"
+      textTransform: "capitalize"
     }
   }, formatDateFull(date).charAt(0).toUpperCase() + formatDateFull(date).slice(1)), h('span', {
     style: {
@@ -2612,7 +2644,7 @@ function RoteiroView({
       padding: "3px 9px",
       borderRadius: 20
     }
-  }, clientsForDay.length)), clientsForDay.map((c, i) => h('div', {
+  }, cls.length)), cls.map((c, i) => h('div', {
     key: c.id,
     style: {
       display: "flex",
