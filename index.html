@@ -897,6 +897,8 @@ function MainApp({
   const [shelfProducts, setShelfProducts] = useState([]);
   const [shelfStockLog, setShelfStockLog] = useState({});
   const [deliveryDeduction, setDeliveryDeduction] = useState({});
+  const [deliveryExceptions, setDeliveryExceptions] = useState({}); // key: clientId|originalDate -> newDate (or 'skip')
+
   useEffect(() => {
     (async () => {
       const cls = await db.get("clients", "?select=*&order=tutor.asc");
@@ -963,6 +965,12 @@ function MainApp({
         };
       });
       setDeliveryDeduction(ddMap);
+      const de = await db.get("delivery_exceptions", "?select=*");
+      const deMap = {};
+      de.forEach(r => {
+        deMap[r.client_id + "|" + r.original_date] = r.new_date;
+      });
+      setDeliveryExceptions(deMap);
       setLoaded(true);
     })();
   }, []);
@@ -1213,6 +1221,44 @@ function MainApp({
     db.delete("clients", `id=eq.${id}`);
     setClients(prev => prev.filter(c => c.id !== id));
   };
+  const setRemarcar = (clientId, originalDate, newDate, applyToAll) => {
+    if (applyToAll) {
+      // Update client nextDate
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+      const updated = {
+        ...client,
+        nextDate: newDate
+      };
+      db.upsert("clients", {
+        id: updated.id,
+        tutor: updated.tutor,
+        dog: updated.dog,
+        address: updated.address,
+        frequency: updated.frequency,
+        next_date: newDate,
+        units: updated.units,
+        notes: updated.notes,
+        min_stock: updated.minStock || 0
+      });
+      setClients(prev => prev.map(c => c.id === clientId ? updated : c));
+    } else {
+      // Save exception for this single occurrence
+      const key = clientId + "|" + originalDate;
+      const id = "ex" + Date.now();
+      db.upsert("delivery_exceptions", {
+        id,
+        client_id: clientId,
+        original_date: originalDate,
+        new_date: newDate,
+        created_at: Date.now()
+      });
+      setDeliveryExceptions(prev => ({
+        ...prev,
+        [key]: newDate
+      }));
+    }
+  };
   const weekStart = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + weekOffset * 7);
@@ -1226,24 +1272,45 @@ function MainApp({
     const t = todayISO();
     const items = [];
     clients.forEach(c => {
-      getOccurrencesInRange(c, t, t).forEach(() => items.push({
-        client: c,
-        date: t
-      }));
+      getOccurrencesInRange(c, t, t).forEach(origDate => {
+        const exKey = c.id + "|" + origDate;
+        const newDate = deliveryExceptions[exKey];
+        if (newDate === "skip") return;
+        if (newDate && newDate === t) {
+          items.push({
+            client: c,
+            date: t,
+            originalDate: origDate
+          });
+        } else if (!newDate) {
+          items.push({
+            client: c,
+            date: t,
+            originalDate: origDate
+          });
+        }
+      });
     });
     return items.sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
-  }, [clients]);
+  }, [clients, deliveryExceptions]);
   const weekDeliveries = useMemo(() => {
     const map = {};
     weekDays.forEach(d => map[d] = []);
     clients.forEach(c => {
-      getOccurrencesInRange(c, weekDays[0], weekDays[6]).forEach(d => {
-        if (map[d]) map[d].push(c);
+      getOccurrencesInRange(c, weekDays[0], weekDays[6]).forEach(origDate => {
+        const exKey = c.id + "|" + origDate;
+        const newDate = deliveryExceptions[exKey];
+        if (newDate === "skip") return;
+        const effectiveDate = newDate || origDate;
+        if (map[effectiveDate]) map[effectiveDate].push({
+          ...c,
+          _originalDate: origDate
+        });
       });
     });
     Object.keys(map).forEach(d => map[d].sort((a, b) => a.tutor.localeCompare(b.tutor)));
     return map;
-  }, [clients, weekDays]);
+  }, [clients, weekDays, deliveryExceptions]);
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return clients;
@@ -1394,7 +1461,9 @@ function MainApp({
     items: todayDeliveries,
     getStatus,
     setStatus,
-    shelfProducts
+    shelfProducts,
+    deliveryExceptions,
+    setRemarcar
   }), view === "semana" && h(WeekView, {
     weekDays,
     weekDeliveries,
@@ -1402,7 +1471,9 @@ function MainApp({
     setWeekOffset,
     getStatus,
     setStatus,
-    shelfProducts
+    shelfProducts,
+    deliveryExceptions,
+    setRemarcar
   }), view === "clientes" && h(ClientsView, {
     clients: filteredClients,
     search,
@@ -1444,7 +1515,9 @@ function TodayView({
   items,
   getStatus,
   setStatus,
-  shelfProducts
+  shelfProducts,
+  deliveryExceptions,
+  setRemarcar
 }) {
   const h = React.createElement;
   const t = todayISO();
@@ -1486,13 +1559,16 @@ function TodayView({
     }
   }, items.map(({
     client,
-    date
+    date,
+    originalDate
   }) => h(DeliveryCard, {
     key: client.id + date,
     client,
-    status: getStatus(client.id, date),
-    onStatusChange: (s, ded) => setStatus(client.id, date, s, ded),
-    shelfProducts
+    status: getStatus(client.id, originalDate || date),
+    onStatusChange: (s, ded) => setStatus(client.id, originalDate || date, s, ded),
+    shelfProducts,
+    originalDate: originalDate || date,
+    setRemarcar
   }))));
 }
 function WeekView({
@@ -1502,7 +1578,9 @@ function WeekView({
   setWeekOffset,
   getStatus,
   setStatus,
-  shelfProducts
+  shelfProducts,
+  deliveryExceptions,
+  setRemarcar
 }) {
   const h = React.createElement;
   const [activeDay, setActiveDay] = useState(null);
@@ -1610,24 +1688,29 @@ function WeekView({
       flexDirection: "column",
       gap: 12
     }
-  }, weekDeliveries[activeDate].map(client => h(DeliveryCard, {
-    key: client.id + activeDate,
-    client,
-    status: getStatus(client.id, activeDate),
-    onStatusChange: (s, ded) => setStatus(client.id, activeDate, s, ded),
-    shelfProducts
+  }, weekDeliveries[activeDate].map(c => h(DeliveryCard, {
+    key: c.id + activeDate,
+    client: c,
+    status: getStatus(c.id, c._originalDate || activeDate),
+    onStatusChange: (s, ded) => setStatus(c.id, c._originalDate || activeDate, s, ded),
+    shelfProducts,
+    originalDate: c._originalDate || activeDate,
+    setRemarcar
   })))));
 }
 function DeliveryCard({
   client,
   status,
   onStatusChange,
-  shelfProducts
+  shelfProducts,
+  originalDate,
+  setRemarcar
 }) {
   const h = React.createElement;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
+  const [remarcarOpen, setRemarcarOpen] = useState(false);
   const isAvulsa = client.frequency === "avulsa";
   const handleStatusClick = key => {
     if (key === "entregue" && isAvulsa && status !== "entregue") {
@@ -1816,7 +1899,7 @@ function DeliveryCard({
       cursor: "pointer"
     },
     onClick: () => setPickerOpen(false)
-  }, "Cancelar"))) : h('div', {
+  }, "Cancelar"))) : h('div', null, h('div', {
     style: {
       display: "flex",
       gap: 6,
@@ -1843,7 +1926,28 @@ function DeliveryCard({
         cursor: "pointer"
       }
     }, key === "preparando" && h(Icons.Clock), key === "a_caminho" && h(Icons.Truck), key === "entregue" && h(Icons.Check), conf.label);
-  })));
+  })), !isAvulsa && h('button', {
+    onClick: () => setRemarcarOpen(true),
+    style: {
+      marginTop: 8,
+      background: "transparent",
+      border: "none",
+      color: "#B8825A",
+      fontSize: 12,
+      fontWeight: 600,
+      padding: "4px 0",
+      cursor: "pointer",
+      textDecoration: "underline"
+    }
+  }, "Remarcar entrega")), remarcarOpen && h(RemarcarModal, {
+    client,
+    originalDate,
+    onClose: () => setRemarcarOpen(false),
+    onSave: (newDate, applyToAll) => {
+      setRemarcar(client.id, originalDate, newDate, applyToAll);
+      setRemarcarOpen(false);
+    }
+  }));
 }
 function ClientsView({
   clients,
@@ -3315,6 +3419,200 @@ function RoteiroView({
       fontStyle: "italic"
     }
   }, `💬 ${c.notes}`))))))));
+}
+function RemarcarModal({
+  client,
+  originalDate,
+  onClose,
+  onSave
+}) {
+  const h = React.createElement;
+  const [newDate, setNewDate] = useState(addDays(originalDate, 7));
+  const [applyToAll, setApplyToAll] = useState(false);
+  const freqLabel = {
+    semanal: "semana",
+    quinzenal: "quinzena",
+    mensal: "mês"
+  }[client.frequency] || "período";
+  const inputStyle = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A"
+  };
+  const labelStyle = {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#8A7A6C"
+  };
+  return h('div', {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(62,51,42,0.45)",
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center",
+      zIndex: 60
+    },
+    onClick: onClose
+  }, h('div', {
+    style: {
+      background: "#FDF8F2",
+      width: "100%",
+      maxWidth: 480,
+      borderRadius: "18px 18px 0 0",
+      padding: "18px 18px 32px"
+    },
+    onClick: e => e.stopPropagation()
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 18
+    }
+  }, h('h3', {
+    style: {
+      margin: 0,
+      fontSize: 17,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Remarcar entrega"), h('button', {
+    onClick: onClose,
+    style: {
+      background: "#F1E6D8",
+      border: "none",
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#8A7A6C",
+      cursor: "pointer"
+    }
+  }, h(Icons.X))), h('div', {
+    style: {
+      background: "#F6EEE3",
+      borderRadius: 10,
+      padding: "10px 12px",
+      marginBottom: 16,
+      fontSize: 13,
+      color: "#8A6A48"
+    }
+  }, h('strong', null, client.dog), " · entrega original: ", h('strong', null, formatDateBR(originalDate))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: labelStyle
+  }, "Nova data de entrega"), h('input', {
+    type: "date",
+    style: inputStyle,
+    value: newDate,
+    min: originalDate,
+    onChange: e => setNewDate(e.target.value)
+  })), h('div', {
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 12,
+      padding: 14,
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, h('p', {
+    style: {
+      margin: 0,
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Isso afeta:"), h('label', {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 10,
+      cursor: "pointer"
+    }
+  }, h('input', {
+    type: "radio",
+    name: "applyScope",
+    checked: !applyToAll,
+    onChange: () => setApplyToAll(false),
+    style: {
+      marginTop: 2,
+      accentColor: "#B8825A"
+    }
+  }), h('div', null, h('div', {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#3E332A"
+    }
+  }, "Só esta entrega"), h('div', {
+    style: {
+      fontSize: 12,
+      color: "#8A7A6C",
+      marginTop: 2
+    }
+  }, `Apenas a entrega de ${formatDateBR(originalDate)} muda. O calendário regular continua igual depois.`))), h('label', {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 10,
+      cursor: "pointer"
+    }
+  }, h('input', {
+    type: "radio",
+    name: "applyScope",
+    checked: applyToAll,
+    onChange: () => setApplyToAll(true),
+    style: {
+      marginTop: 2,
+      accentColor: "#B8825A"
+    }
+  }), h('div', null, h('div', {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#3E332A"
+    }
+  }, "Esta e todas as próximas"), h('div', {
+    style: {
+      fontSize: 12,
+      color: "#8A7A6C",
+      marginTop: 2
+    }
+  }, `O calendário de ${client.dog} passa a contar a partir da nova data, mantendo a frequência ${freqLabel}.`)))), h('button', {
+    onClick: () => {
+      if (newDate) onSave(newDate, applyToAll);
+    },
+    disabled: !newDate,
+    style: {
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 11,
+      padding: "13px",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "Confirmar remarcação"))));
 }
 function HistoryRow({
   entry
