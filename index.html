@@ -35,7 +35,7 @@ const auth = {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error_description || "Erro ao entrar");
-    return data; // { access_token, refresh_token, user }
+    return data;
   },
   async signOut(token) {
     await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
@@ -68,7 +68,7 @@ const auth = {
       })
     });
     if (!r.ok) return null;
-    return r.json(); // { access_token, refresh_token, user }
+    return r.json();
   }
 };
 function makeDb(token) {
@@ -189,7 +189,6 @@ const {
   useState,
   useEffect,
   useMemo,
-  useCallback,
   useRef
 } = React;
 const Icons = {
@@ -567,6 +566,25 @@ const Icons = {
     y1: 15,
     x2: 12,
     y2: 3
+  })),
+  Factory: () => React.createElement('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, React.createElement('path', {
+    d: "M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"
+  }), React.createElement('path', {
+    d: "M17 18h1"
+  }), React.createElement('path', {
+    d: "M12 18h1"
+  }), React.createElement('path', {
+    d: "M7 18h1"
   }))
 };
 function Icon({
@@ -764,12 +782,11 @@ function App() {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const refreshTimerRef = useRef(null);
-  const scheduleRefresh = (refreshToken, expiresIn) => {
+  const scheduleRefresh = (refreshTok, expiresIn) => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    // Renova 2 minutos antes de expirar
     const delay = Math.max((expiresIn - 120) * 1000, 10000);
     refreshTimerRef.current = setTimeout(async () => {
-      const data = await auth.refreshToken(refreshToken);
+      const data = await auth.refreshToken(refreshTok);
       if (data && data.access_token) {
         localStorage.setItem("obentopet_token", data.access_token);
         localStorage.setItem("obentopet_refresh", data.refresh_token);
@@ -779,25 +796,23 @@ function App() {
         }));
         scheduleRefresh(data.refresh_token, data.expires_in || 3600);
       } else {
-        // Refresh falhou, faz logout
         handleLogout();
       }
     }, delay);
   };
   useEffect(() => {
     const token = localStorage.getItem("obentopet_token");
-    const refreshToken = localStorage.getItem("obentopet_refresh");
-    if (token && refreshToken) {
+    const refreshTok = localStorage.getItem("obentopet_refresh");
+    if (token && refreshTok) {
       auth.getUser(token).then(user => {
         if (user) {
           setSession({
             token,
             user
           });
-          scheduleRefresh(refreshToken, 3600);
+          scheduleRefresh(refreshTok, 3600);
         } else {
-          // Token expirado, tenta renovar imediatamente
-          auth.refreshToken(refreshToken).then(data => {
+          auth.refreshToken(refreshTok).then(data => {
             if (data && data.access_token) {
               localStorage.setItem("obentopet_token", data.access_token);
               localStorage.setItem("obentopet_refresh", data.refresh_token);
@@ -893,7 +908,8 @@ function MainApp({
         frequency: r.frequency,
         nextDate: r.next_date,
         units: r.units,
-        notes: r.notes || ""
+        notes: r.notes || "",
+        minStock: r.min_stock || 0
       })));
       const sl = await db.get("status_log", "?select=*");
       const slMap = {};
@@ -923,7 +939,8 @@ function MainApp({
       setShelfProducts(sp.map(r => ({
         id: r.id,
         name: r.name,
-        balance: r.balance
+        balance: r.balance,
+        minStock: r.min_stock || 0
       })));
       const spl = await db.get("shelf_stock_log", "?select=*&order=ts.desc");
       const splMap = {};
@@ -965,6 +982,18 @@ function MainApp({
     });
   }, [clients, loaded]);
   const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
+
+  // Última entrega de cada cliente
+  const lastDeliveryMap = useMemo(() => {
+    const map = {};
+    Object.entries(statusLog).forEach(([key, status]) => {
+      if (status === "entregue") {
+        const [clientId, date] = key.split("|");
+        if (!map[clientId] || date > map[clientId]) map[clientId] = date;
+      }
+    });
+    return map;
+  }, [statusLog]);
   const setStatus = (clientId, date, status, deduction) => {
     const key = `${clientId}|${date}`;
     const wasEntregue = getStatus(clientId, date) === "entregue";
@@ -1049,7 +1078,8 @@ function MainApp({
       db.upsert("shelf_products", {
         id: p.id,
         name: p.name,
-        balance: newBal
+        balance: newBal,
+        min_stock: p.minStock || 0
       });
       return {
         ...p,
@@ -1084,12 +1114,14 @@ function MainApp({
     db.upsert("shelf_products", {
       id,
       name,
-      balance: 0
+      balance: 0,
+      min_stock: 0
     });
     setShelfProducts(prev => [...prev, {
       id,
       name,
-      balance: 0
+      balance: 0,
+      minStock: 0
     }]);
   };
   const addShelfStockEntry = (productId, amount) => {
@@ -1098,6 +1130,43 @@ function MainApp({
   const deleteShelfProduct = productId => {
     db.delete("shelf_products", `id=eq.${productId}`);
     setShelfProducts(prev => prev.filter(p => p.id !== productId));
+  };
+  const updateClientMinStock = (clientId, minStock) => {
+    setClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      const updated = {
+        ...c,
+        minStock
+      };
+      db.upsert("clients", {
+        id: updated.id,
+        tutor: updated.tutor,
+        dog: updated.dog,
+        address: updated.address,
+        frequency: updated.frequency,
+        next_date: updated.nextDate,
+        units: updated.units,
+        notes: updated.notes,
+        min_stock: minStock
+      });
+      return updated;
+    }));
+  };
+  const updateShelfMinStock = (productId, minStock) => {
+    setShelfProducts(prev => prev.map(p => {
+      if (p.id !== productId) return p;
+      const updated = {
+        ...p,
+        minStock
+      };
+      db.upsert("shelf_products", {
+        id: updated.id,
+        name: updated.name,
+        balance: updated.balance,
+        min_stock: minStock
+      });
+      return updated;
+    }));
   };
   const saveClient = data => {
     if (editingClient) {
@@ -1113,11 +1182,17 @@ function MainApp({
         frequency: updated.frequency,
         next_date: updated.nextDate,
         units: updated.units,
-        notes: updated.notes
+        notes: updated.notes,
+        min_stock: updated.minStock || 0
       });
       setClients(prev => prev.map(c => c.id === editingClient.id ? updated : c));
     } else {
       const id = "c" + Date.now();
+      const newClient = {
+        ...data,
+        id,
+        minStock: 0
+      };
       db.upsert("clients", {
         id,
         tutor: data.tutor,
@@ -1126,12 +1201,10 @@ function MainApp({
         frequency: data.frequency,
         next_date: data.nextDate,
         units: data.units,
-        notes: data.notes
+        notes: data.notes,
+        min_stock: 0
       });
-      setClients(prev => [...prev, {
-        ...data,
-        id
-      }]);
+      setClients(prev => [...prev, newClient]);
     }
     setShowForm(false);
     setEditingClient(null);
@@ -1197,7 +1270,7 @@ function MainApp({
       margin: 0
     }
   }, "Carregando dados…"));
-  const tabs = [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"], ["roteiro", "Roteiro"]];
+  const tabs = [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"], ["producao", "Produção"], ["roteiro", "Roteiro"]];
   return h('div', {
     style: {
       minHeight: "100vh",
@@ -1293,7 +1366,7 @@ function MainApp({
   }, h(Icons.LogOut)))), h('nav', {
     style: {
       display: "flex",
-      gap: 4,
+      gap: 0,
       padding: "0 16px",
       overflowX: "auto"
     }
@@ -1304,8 +1377,8 @@ function MainApp({
       background: "transparent",
       border: "none",
       color: view === key ? "#FBF1E8" : "#9C8E7E",
-      padding: "10px 14px",
-      fontSize: 14,
+      padding: "10px 12px",
+      fontSize: 13.5,
       fontWeight: 600,
       borderBottom: view === key ? "2px solid #B8825A" : "2px solid transparent",
       cursor: "pointer",
@@ -1338,7 +1411,8 @@ function MainApp({
       setEditingClient(c);
       setShowForm(true);
     },
-    onDelete: deleteClient
+    onDelete: deleteClient,
+    lastDeliveryMap
   }), view === "estoque" && h(StockView, {
     clients,
     subscriberStock,
@@ -1349,6 +1423,12 @@ function MainApp({
     onAddShelfProduct: addShelfProduct,
     onAddShelfStockEntry: addShelfStockEntry,
     onDeleteShelfProduct: deleteShelfProduct
+  }), view === "producao" && h(ProducaoView, {
+    clients,
+    subscriberStock,
+    shelfProducts,
+    onUpdateClientMinStock: updateClientMinStock,
+    onUpdateShelfMinStock: updateShelfMinStock
   }), view === "roteiro" && h(RoteiroView, {
     clients
   })), showForm && h(ClientFormModal, {
@@ -1770,7 +1850,8 @@ function ClientsView({
   search,
   setSearch,
   onEdit,
-  onDelete
+  onDelete,
+  lastDeliveryMap
 }) {
   const h = React.createElement;
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -1809,102 +1890,112 @@ function ClientsView({
       flexDirection: "column",
       gap: 12
     }
-  }, clients.map(c => h('div', {
-    key: c.id,
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 14,
-      padding: 12,
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, h('div', {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 9,
-      background: "#FBF1E8",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#B8825A"
-    }
-  }, h(Icons.PawPrint)), h('div', {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, h('div', {
-    style: {
-      fontSize: 15.5,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, c.dog), h('div', {
-    style: {
-      fontSize: 13,
-      color: "#8A7A6C",
-      marginTop: 1
-    }
-  }, c.tutor), h('div', {
-    style: {
-      fontSize: 11.5,
-      color: "#A89A8C",
-      marginTop: 3
-    }
-  }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`)), h('div', {
-    style: {
-      display: "flex",
-      gap: 6
-    }
-  }, h('button', {
-    style: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      border: "1px solid #EFE4D6",
-      background: "#FBF8F4",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#8A7A6C",
-      cursor: "pointer"
-    },
-    onClick: () => onEdit(c)
-  }, h(Icons.Edit3)), confirmDelete === c.id ? h('button', {
-    style: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      border: "none",
-      background: "#C0594B",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#FFF",
-      cursor: "pointer"
-    },
-    onClick: () => {
-      onDelete(c.id);
-      setConfirmDelete(null);
-    }
-  }, h(Icons.Check)) : h('button', {
-    style: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      border: "1px solid #EFE4D6",
-      background: "#FBF8F4",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#8A7A6C",
-      cursor: "pointer"
-    },
-    onClick: () => setConfirmDelete(c.id)
-  }, h(Icons.Trash2)))))));
+  }, clients.map(c => {
+    const lastDel = lastDeliveryMap[c.id];
+    return h('div', {
+      key: c.id,
+      style: {
+        background: "#FFF",
+        border: "1px solid #EFE4D6",
+        borderRadius: 14,
+        padding: 12,
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A"
+      }
+    }, h(Icons.PawPrint)), h('div', {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, h('div', {
+      style: {
+        fontSize: 15.5,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, c.dog), h('div', {
+      style: {
+        fontSize: 13,
+        color: "#8A7A6C",
+        marginTop: 1
+      }
+    }, c.tutor), h('div', {
+      style: {
+        fontSize: 11.5,
+        color: "#A89A8C",
+        marginTop: 3
+      }
+    }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`), lastDel && h('div', {
+      style: {
+        fontSize: 11.5,
+        color: "#5C8A5C",
+        marginTop: 2,
+        fontWeight: 600
+      }
+    }, `✓ Última entrega: ${formatDateBR(lastDel)}`)), h('div', {
+      style: {
+        display: "flex",
+        gap: 6
+      }
+    }, h('button', {
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        border: "1px solid #EFE4D6",
+        background: "#FBF8F4",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#8A7A6C",
+        cursor: "pointer"
+      },
+      onClick: () => onEdit(c)
+    }, h(Icons.Edit3)), confirmDelete === c.id ? h('button', {
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        border: "none",
+        background: "#C0594B",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#FFF",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        onDelete(c.id);
+        setConfirmDelete(null);
+      }
+    }, h(Icons.Check)) : h('button', {
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        border: "1px solid #EFE4D6",
+        background: "#FBF8F4",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#8A7A6C",
+        cursor: "pointer"
+      },
+      onClick: () => setConfirmDelete(c.id)
+    }, h(Icons.Trash2))));
+  })));
 }
 function StockView({
   clients,
@@ -1925,7 +2016,18 @@ function StockView({
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [newProductName, setNewProductName] = useState("");
   const [stockInputs, setStockInputs] = useState({});
+  const [searchQ, setSearchQ] = useState("");
   const subscribers = clients.filter(c => c.frequency !== "avulsa");
+  const filteredSubscribers = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q) return subscribers;
+    return subscribers.filter(c => c.dog.toLowerCase().includes(q) || c.tutor.toLowerCase().includes(q));
+  }, [subscribers, searchQ]);
+  const filteredProducts = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q) return shelfProducts;
+    return shelfProducts.filter(p => p.name.toLowerCase().includes(q));
+  }, [shelfProducts, searchQ]);
   return h('div', null, h('div', {
     style: {
       display: "flex",
@@ -1941,6 +2043,33 @@ function StockView({
       color: "#3E332A"
     }
   }, "Estoque")), h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 11,
+      padding: "10px 12px",
+      marginBottom: 14
+    }
+  }, h('span', {
+    style: {
+      color: "#A89A8C"
+    }
+  }, h(Icons.Search)), h('input', {
+    style: {
+      border: "none",
+      outline: "none",
+      fontSize: 14,
+      flex: 1,
+      background: "transparent",
+      color: "#3E332A"
+    },
+    placeholder: "Buscar…",
+    value: searchQ,
+    onChange: e => setSearchQ(e.target.value)
+  })), h('div', {
     style: {
       display: "flex",
       gap: 6,
@@ -1964,15 +2093,15 @@ function StockView({
       boxShadow: tab === key ? "0 1px 2px rgba(62,51,42,0.08)" : "none",
       cursor: "pointer"
     }
-  }, label))), tab === "assinantes" && (subscribers.length === 0 ? h(EmptyState, {
-    text: "Nenhum cliente assinante cadastrado ainda."
+  }, label))), tab === "assinantes" && (filteredSubscribers.length === 0 ? h(EmptyState, {
+    text: "Nenhum assinante encontrado."
   }) : h('div', {
     style: {
       display: "flex",
       flexDirection: "column",
       gap: 12
     }
-  }, subscribers.map(c => {
+  }, filteredSubscribers.map(c => {
     const balance = subscriberStock[c.id] ?? 0,
       isLow = balance <= (c.units || 0),
       log = subscriberStockLog[c.id] || [],
@@ -2215,15 +2344,15 @@ function StockView({
       cursor: "pointer"
     },
     onClick: () => setShowNewProduct(true)
-  }, h(Icons.Plus), "Cadastrar produto de prateleira")), shelfProducts.length === 0 ? h(EmptyState, {
-    text: "Nenhum produto de prateleira cadastrado ainda."
+  }, h(Icons.Plus), "Cadastrar produto de prateleira")), filteredProducts.length === 0 ? h(EmptyState, {
+    text: "Nenhum produto encontrado."
   }) : h('div', {
     style: {
       display: "flex",
       flexDirection: "column",
       gap: 12
     }
-  }, shelfProducts.map(p => {
+  }, filteredProducts.map(p => {
     const log = shelfStockLog[p.id] || [],
       expanded = expandedProduct === p.id,
       isLow = p.balance <= 0;
@@ -2403,6 +2532,484 @@ function StockView({
     }))));
   }))));
 }
+
+// ---------- PRODUÇÃO VIEW ----------
+function ProducaoView({
+  clients,
+  subscriberStock,
+  shelfProducts,
+  onUpdateClientMinStock,
+  onUpdateShelfMinStock
+}) {
+  const h = React.createElement;
+  const [copied, setCopied] = useState(false);
+  const [minInputs, setMinInputs] = useState({});
+  const subscribers = clients.filter(c => c.frequency !== "avulsa");
+
+  // Itens que precisam reposição
+  const needsSubscribers = subscribers.filter(c => {
+    const balance = subscriberStock[c.id] ?? 0;
+    return c.minStock > 0 && balance < c.minStock;
+  });
+  const needsProducts = shelfProducts.filter(p => p.minStock > 0 && p.balance < p.minStock);
+  const totalNeeds = needsSubscribers.length + needsProducts.length;
+  const buildText = () => {
+    let text = `🐾 ObentōPet — Lista de Produção\n${new Date().toLocaleDateString("pt-BR")}\n${"─".repeat(36)}\n\n`;
+    if (totalNeeds === 0) {
+      text += "Tudo em dia! Nenhum item abaixo do estoque mínimo.\n";
+      return text;
+    }
+    if (needsSubscribers.length > 0) {
+      text += `🐶 DIETAS ASSINANTES\n\n`;
+      needsSubscribers.forEach(c => {
+        const balance = subscriberStock[c.id] ?? 0;
+        const needed = c.minStock - balance;
+        text += `• ${c.dog} (${c.tutor})\n  Estoque: ${balance} | Mínimo: ${c.minStock} | Produzir: ${needed} un.\n\n`;
+      });
+    }
+    if (needsProducts.length > 0) {
+      text += `📦 PRODUTOS DE PRATELEIRA\n\n`;
+      needsProducts.forEach(p => {
+        const needed = p.minStock - p.balance;
+        text += `• ${p.name}\n  Estoque: ${p.balance} | Mínimo: ${p.minStock} | Repor: ${needed} un.\n\n`;
+      });
+    }
+    text += `Total: ${totalNeeds} item${totalNeeds !== 1 ? "s" : ""} para repor`;
+    return text;
+  };
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildText()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  const handlePDF = () => {
+    let rows = "";
+    if (totalNeeds === 0) {
+      rows = `<p style="color:#5C8A5C;font-weight:600;">✓ Tudo em dia! Nenhum item abaixo do estoque mínimo.</p>`;
+    } else {
+      if (needsSubscribers.length > 0) {
+        rows += `<div class="section-title">🐶 Dietas Assinantes</div>`;
+        needsSubscribers.forEach(c => {
+          const balance = subscriberStock[c.id] ?? 0;
+          const needed = c.minStock - balance;
+          rows += `<div class="item"><div class="item-name">${c.dog} <span class="item-sub">— ${c.tutor}</span></div><div class="item-nums"><span class="badge red">Estoque: ${balance}</span><span class="badge gray">Mínimo: ${c.minStock}</span><span class="badge orange">Produzir: ${needed} un.</span></div></div>`;
+        });
+      }
+      if (needsProducts.length > 0) {
+        rows += `<div class="section-title" style="margin-top:24px;">📦 Produtos de Prateleira</div>`;
+        needsProducts.forEach(p => {
+          const needed = p.minStock - p.balance;
+          rows += `<div class="item"><div class="item-name">${p.name}</div><div class="item-nums"><span class="badge red">Estoque: ${p.balance}</span><span class="badge gray">Mínimo: ${p.minStock}</span><span class="badge orange">Repor: ${needed} un.</span></div></div>`;
+        });
+      }
+    }
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Lista de Produção ObentoPet</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Inter',sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}.logo{width:44px;height:44px;background:#B8825A;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}.brand{font-size:22px;font-weight:800;}.subtitle{font-size:13px;color:#8A7A6C;font-weight:600;margin-top:2px;}.date{font-size:13px;color:#8A7A6C;margin:10px 0 24px;padding-bottom:16px;border-bottom:2px solid #EFE4D6;}.section-title{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #F5EDE3;}.item-name{font-size:15px;font-weight:700;color:#3E332A;margin-bottom:6px;}.item-sub{font-weight:400;color:#8A7A6C;font-size:14px;}.item-nums{display:flex;gap:8px;flex-wrap:wrap;}.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}.badge.red{background:#FBEAE6;color:#A8412F;}.badge.gray{background:#F1E6D8;color:#8A6A48;}.badge.orange{background:#FBF1E8;color:#B8825A;}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between;}@media print{body{background:white;}}</style></head><body><div class="header"><div class="logo">🐾</div><div><div class="brand">ObentōPet</div><div class="subtitle">Lista de Produção</div></div></div><div class="date">Data: <strong>${new Date().toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    })}</strong></div>${rows}<div class="footer"><span>ObentōPet — Dietas Veterinárias Personalizadas</span><span>${totalNeeds} item${totalNeeds !== 1 ? "s" : ""} para repor</span></div></body></html>`;
+    const blob = new Blob([html], {
+      type: "text/html"
+    });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (win) {
+      win.onload = () => {
+        setTimeout(() => win.print(), 500);
+      };
+    }
+  };
+  const inputStyle = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 8,
+    padding: "7px 10px",
+    fontSize: 13.5,
+    background: "#FFF",
+    color: "#3E332A",
+    width: 70,
+    textAlign: "center"
+  };
+  return h('div', null, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, h('h2', {
+    style: {
+      margin: 0,
+      fontSize: 19,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Produção"), totalNeeds > 0 && h('span', {
+    style: {
+      background: "#FBEAE6",
+      color: "#A8412F",
+      fontSize: 12.5,
+      fontWeight: 700,
+      padding: "4px 10px",
+      borderRadius: 20
+    }
+  }, `${totalNeeds} para repor`)),
+  // Resumo / lista de reposição
+  totalNeeds > 0 && React.createElement.apply(null, ['div', {
+    style: {
+      background: "#FBEAE6",
+      border: "1px solid #F5C6B8",
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 20
+    }
+  }, h('div', {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#A8412F",
+      marginBottom: 10,
+      display: "flex",
+      alignItems: "center",
+      gap: 6
+    }
+  }, h('span', {
+    style: {
+      color: "#C0594B"
+    }
+  }, h(Icons.AlertTriangle)), "Itens abaixo do estoque mínimo"), ...needsSubscribers.map(c => {
+    const balance = subscriberStock[c.id] ?? 0;
+    const needed = c.minStock - balance;
+    return h('div', {
+      key: "s" + c.id,
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "7px 0",
+        borderBottom: "1px solid #F5C6B8"
+      }
+    }, h('div', null, h('div', {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, c.dog), h('div', {
+      style: {
+        fontSize: 12,
+        color: "#8A7A6C"
+      }
+    }, c.tutor)), h('div', {
+      style: {
+        textAlign: "right"
+      }
+    }, h('div', {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#C0594B"
+      }
+    }, `Produzir ${needed} un.`), h('div', {
+      style: {
+        fontSize: 11,
+        color: "#A89A8C"
+      }
+    }, `Saldo: ${balance} / Mín: ${c.minStock}`)));
+  }), ...needsProducts.map(p => {
+    const needed = p.minStock - p.balance;
+    return h('div', {
+      key: "p" + p.id,
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "7px 0",
+        borderBottom: "1px solid #F5C6B8"
+      }
+    }, h('div', {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, p.name), h('div', {
+      style: {
+        textAlign: "right"
+      }
+    }, h('div', {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#C0594B"
+      }
+    }, `Repor ${needed} un.`), h('div', {
+      style: {
+        fontSize: 11,
+        color: "#A89A8C"
+      }
+    }, `Saldo: ${p.balance} / Mín: ${p.minStock}`)));
+  }), h('div', {
+    style: {
+      display: "flex",
+      gap: 10,
+      marginTop: 14
+    }
+  }, h('button', {
+    style: {
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      border: "1.5px solid #D9CBBC",
+      borderRadius: 11,
+      padding: "11px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#8A7A6C",
+      background: "#FFF",
+      cursor: "pointer"
+    },
+    onClick: handleCopy
+  }, copied ? h(Icons.Check) : h(Icons.Copy), copied ? "Copiado!" : "Copiar para WhatsApp"), h('button', {
+    style: {
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      border: "none",
+      borderRadius: 11,
+      padding: "11px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      background: "#3E332A",
+      color: "#FBF1E8",
+      cursor: "pointer"
+    },
+    onClick: handlePDF
+  }, h(Icons.Download), "Abrir PDF"))]), totalNeeds === 0 && h('div', {
+    style: {
+      background: "#EFF6EE",
+      border: "1px solid #C3E0BF",
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 20,
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, h('span', {
+    style: {
+      fontSize: 20
+    }
+  }, "✅"), h('div', null, h('div', {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#3A6B3A"
+    }
+  }, "Tudo em dia!"), h('div', {
+    style: {
+      fontSize: 12.5,
+      color: "#5C8A5C"
+    }
+  }, "Nenhum item abaixo do estoque mínimo."))),
+  // Configurar mínimos — assinantes
+  h('div', {
+    style: {
+      marginBottom: 8,
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#8A7A6C",
+      textTransform: "uppercase",
+      letterSpacing: "0.4px"
+    }
+  }, "Estoque mínimo — Assinantes"), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      marginBottom: 24
+    }
+  }, subscribers.length === 0 ? h('p', {
+    style: {
+      fontSize: 13,
+      color: "#A89A8C",
+      margin: 0
+    }
+  }, "Nenhum assinante cadastrado.") : subscribers.map(c => {
+    const balance = subscriberStock[c.id] ?? 0;
+    const isLow = c.minStock > 0 && balance < c.minStock;
+    return h('div', {
+      key: c.id,
+      style: {
+        background: "#FFF",
+        border: `1px solid ${isLow ? "#F5C6B8" : "#EFE4D6"}`,
+        borderRadius: 12,
+        padding: "12px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A",
+        flexShrink: 0
+      }
+    }, h(Icons.PawPrint)), h('div', {
+      style: {
+        flex: 1
+      }
+    }, h('div', {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, c.dog), h('div', {
+      style: {
+        fontSize: 12,
+        color: "#8A7A6C"
+      }
+    }, `Saldo atual: ${balance} un.`)), h('div', {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4
+      }
+    }, h('label', {
+      style: {
+        fontSize: 10.5,
+        color: "#A89A8C",
+        fontWeight: 600
+      }
+    }, "mín."), h('input', {
+      type: "number",
+      min: "0",
+      style: inputStyle,
+      value: minInputs[c.id] !== undefined ? minInputs[c.id] : c.minStock,
+      onChange: e => setMinInputs(p => ({
+        ...p,
+        [c.id]: e.target.value
+      })),
+      onBlur: e => {
+        const v = parseInt(e.target.value, 10) || 0;
+        onUpdateClientMinStock(c.id, v);
+        setMinInputs(p => ({
+          ...p,
+          [c.id]: undefined
+        }));
+      },
+      placeholder: "0"
+    })));
+  })),
+  // Configurar mínimos — prateleira
+  h('div', {
+    style: {
+      marginBottom: 8,
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#8A7A6C",
+      textTransform: "uppercase",
+      letterSpacing: "0.4px"
+    }
+  }, "Estoque mínimo — Prateleira"), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    }
+  }, shelfProducts.length === 0 ? h('p', {
+    style: {
+      fontSize: 13,
+      color: "#A89A8C",
+      margin: 0
+    }
+  }, "Nenhum produto de prateleira cadastrado.") : shelfProducts.map(p => {
+    const isLow = p.minStock > 0 && p.balance < p.minStock;
+    return h('div', {
+      key: p.id,
+      style: {
+        background: "#FFF",
+        border: `1px solid ${isLow ? "#F5C6B8" : "#EFE4D6"}`,
+        borderRadius: 12,
+        padding: "12px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A",
+        flexShrink: 0
+      }
+    }, h(Icons.Package)), h('div', {
+      style: {
+        flex: 1
+      }
+    }, h('div', {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, p.name), h('div', {
+      style: {
+        fontSize: 12,
+        color: "#8A7A6C"
+      }
+    }, `Saldo atual: ${p.balance} un.`)), h('div', {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4
+      }
+    }, h('label', {
+      style: {
+        fontSize: 10.5,
+        color: "#A89A8C",
+        fontWeight: 600
+      }
+    }, "mín."), h('input', {
+      type: "number",
+      min: "0",
+      style: inputStyle,
+      value: minInputs["p" + p.id] !== undefined ? minInputs["p" + p.id] : p.minStock,
+      onChange: e => setMinInputs(prev => ({
+        ...prev,
+        ["p" + p.id]: e.target.value
+      })),
+      onBlur: e => {
+        const v = parseInt(e.target.value, 10) || 0;
+        onUpdateShelfMinStock(p.id, v);
+        setMinInputs(prev => ({
+          ...prev,
+          ["p" + p.id]: undefined
+        }));
+      },
+      placeholder: "0"
+    })));
+  })));
+}
 function RoteiroView({
   clients
 }) {
@@ -2488,9 +3095,7 @@ function RoteiroView({
     const win = window.open(url, "_blank");
     if (win) {
       win.onload = () => {
-        setTimeout(() => {
-          win.print();
-        }, 500);
+        setTimeout(() => win.print(), 500);
       };
     }
   };
