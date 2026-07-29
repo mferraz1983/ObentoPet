@@ -3861,15 +3861,39 @@ function ClientFormModal({
   onSave
 }) {
   const h = React.createElement;
-  const [tutor, setTutor] = useState(initial?.tutor || "");
-  const [dog, setDog] = useState(initial?.dog || "");
-  const [address, setAddress] = useState(initial?.address || "");
-  const [phone, setPhone] = useState(initial?.phone || "");
-  const [frequency, setFrequency] = useState(initial?.frequency || "semanal");
-  const [nextDate, setNextDate] = useState(initial?.nextDate || todayISO());
-  const [units, setUnits] = useState(initial?.units ? String(initial.units) : "1");
-  const [notes, setNotes] = useState(initial?.notes || "");
+  const [tutor, setTutor] = useState(initial ? initial.tutor : "");
+  const [dog, setDog] = useState(initial ? initial.dog : "");
+  const [address, setAddress] = useState(initial ? initial.address : "");
+  const [phone, setPhone] = useState(initial ? initial.phone || "" : "");
+  const [frequency, setFrequency] = useState(initial ? initial.frequency : "semanal");
+  const [nextDate, setNextDate] = useState(initial ? initial.nextDate : todayISO());
+  const [units, setUnits] = useState(initial ? String(initial.units) : "1");
+  const [notes, setNotes] = useState(initial ? initial.notes || "" : "");
   const [error, setError] = useState("");
+  const IS = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A"
+  };
+  const LS = {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#8A7A6C"
+  };
+  const TS = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A",
+    minHeight: 60,
+    resize: "vertical",
+    fontFamily: "inherit"
+  };
   const handleSubmit = () => {
     if (!tutor.trim() || !dog.trim() || !address.trim()) {
       setError("Preencha tutor, cão e endereço.");
@@ -3891,19 +3915,6 @@ function ClientFormModal({
       notes
     });
   };
-  const inputStyle = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 14.5,
-    background: "#FFF",
-    color: "#3E332A"
-  };
-  const labelStyle = {
-    fontSize: 12.5,
-    fontWeight: 600,
-    color: "#8A7A6C"
-  };
   return h('div', {
     style: {
       position: "fixed",
@@ -3924,7 +3935,9 @@ function ClientFormModal({
       overflowY: "auto",
       borderRadius: "18px 18px 0 0"
     },
-    onClick: e => e.stopPropagation()
+    onClick: function (e) {
+      e.stopPropagation();
+    }
   }, h('div', {
     style: {
       display: "flex",
@@ -3963,61 +3976,21 @@ function ClientFormModal({
       flexDirection: "column",
       gap: 14
     }
-  }, [["Nome do tutor", tutor, setTutor, "Ex: Marina Costa"], ["Nome do cão", dog, setDog, "Ex: Mia"], ["Endereço de entrega", address, setAddress, "Rua, número, bairro"], ["Telefone (WhatsApp)", phone, setPhone, "Ex: 11 99999-9999"]].map(([label, val, setter, ph]) => h('div', {
-    key: label,
+  }, h('div', {
     style: {
       display: "flex",
       flexDirection: "column",
       gap: 6
     }
   }, h('label', {
-    style: labelStyle
-  }, label), h('input', {
-    style: inputStyle,
-    value: val,
-    onChange: e => setter(e.target.value),
-    placeholder: ph
-  }))), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: labelStyle
-  }, "Frequência"), h('div', {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 8
-    }
-  }, Object.entries(frequencyLabel).map(([key, label]) => h('button', {
-    key,
-    type: "button",
-    onClick: () => setFrequency(key),
-    style: {
-      border: frequency === key ? "1.5px solid #B8825A" : "1.5px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "9px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: frequency === key ? "#8A6A48" : "#8A7A6C",
-      background: frequency === key ? "#FBF1E8" : "#FFF",
-      cursor: "pointer"
-    }
-  }, label)))), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: labelStyle
-  }, frequency === "avulsa" ? "Data da entrega" : "Próxima entrega"), h('input', {
-    type: "date",
-    style: inputStyle,
-    value: nextDate,
-    onChange: e => setNextDate(e.target.value)
+    style: LS
+  }, "Nome do tutor"), h('input', {
+    style: IS,
+    value: tutor,
+    onChange: function (e) {
+      setTutor(e.target.value);
+    },
+    placeholder: "Ex: Marina Costa"
   })), h('div', {
     style: {
       display: "flex",
@@ -4025,13 +3998,109 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: labelStyle
+    style: LS
+  }, "Nome do cão"), h('input', {
+    style: IS,
+    value: dog,
+    onChange: function (e) {
+      setDog(e.target.value);
+    },
+    placeholder: "Ex: Mia"
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: LS
+  }, "Endereço de entrega"), h('input', {
+    style: IS,
+    value: address,
+    onChange: function (e) {
+      setAddress(e.target.value);
+    },
+    placeholder: "Rua, número, bairro"
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: LS
+  }, "Telefone (WhatsApp)"), h('input', {
+    style: IS,
+    value: phone,
+    onChange: function (e) {
+      setPhone(e.target.value);
+    },
+    placeholder: "Ex: 11 99999-9999"
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: LS
+  }, "Frequência"), h('div', {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 8
+    }
+  }, Object.entries(frequencyLabel).map(function (entry) {
+    var key = entry[0],
+      label = entry[1];
+    return h('button', {
+      key: key,
+      type: "button",
+      onClick: function () {
+        setFrequency(key);
+      },
+      style: {
+        border: frequency === key ? "1.5px solid #B8825A" : "1.5px solid #E8DDD0",
+        borderRadius: 10,
+        padding: "9px 8px",
+        fontSize: 13.5,
+        fontWeight: 600,
+        color: frequency === key ? "#8A6A48" : "#8A7A6C",
+        background: frequency === key ? "#FBF1E8" : "#FFF",
+        cursor: "pointer"
+      }
+    }, label);
+  }))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: LS
+  }, frequency === "avulsa" ? "Data da entrega" : "Próxima entrega"), h('input', {
+    type: "date",
+    style: IS,
+    value: nextDate,
+    onChange: function (e) {
+      setNextDate(e.target.value);
+    }
+  })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: LS
   }, "Quantidade de unidades"), h('input', {
     type: "number",
     min: "1",
-    style: inputStyle,
+    style: IS,
     value: units,
-    onChange: e => setUnits(e.target.value),
+    onChange: function (e) {
+      setUnits(e.target.value);
+    },
     placeholder: "Ex: 4"
   })), h('div', {
     style: {
@@ -4040,16 +4109,13 @@ function ClientFormModal({
       gap: 6
     }
   }, h('label', {
-    style: labelStyle
+    style: LS
   }, "Observações (opcional)"), h('textarea', {
-    style: {
-      ...inputStyle,
-      minHeight: 60,
-      resize: "vertical",
-      fontFamily: "inherit"
-    },
+    style: TS,
     value: notes,
-    onChange: e => setNotes(e.target.value),
+    onChange: function (e) {
+      setNotes(e.target.value);
+    },
     placeholder: "Ex: portaria pede documento"
   })), error && h('p', {
     style: {
