@@ -1318,7 +1318,7 @@ function MainApp({
   // Entregas pendentes: ocorrências passadas sem status "entregue"
   const pendingDeliveries = useMemo(() => {
     const yesterday = addDays(todayISO(), -1);
-    const startCheck = addDays(todayISO(), -365);
+    const startCheck = addDays(todayISO(), -30);
     const items = [];
     clients.forEach(c => {
       const occs = getOccurrencesInRange(c, startCheck, yesterday);
@@ -1613,15 +1613,18 @@ function TodayView({
   }, h('div', {
     style: {
       display: "flex",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
-      marginBottom: 8
+      marginBottom: 8,
+      gap: 8
     }
   }, h('div', {
     style: {
       display: "flex",
       alignItems: "center",
-      gap: 8
+      gap: 8,
+      flex: 1,
+      minWidth: 0
     }
   }, h('div', {
     style: {
@@ -1635,7 +1638,12 @@ function TodayView({
       color: "#B8825A",
       flexShrink: 0
     }
-  }, h(Icons.PawPrint)), h('div', null, h('div', {
+  }, h(Icons.PawPrint)), h('div', {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, h('div', {
     style: {
       fontSize: 14,
       fontWeight: 700,
@@ -1646,7 +1654,21 @@ function TodayView({
       fontSize: 12,
       color: "#8A7A6C"
     }
-  }, client.tutor))), h('span', {
+  }, client.tutor), h('div', {
+    style: {
+      fontSize: 11.5,
+      color: "#7A6C5E",
+      marginTop: 2
+    }
+  }, client.address))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 4,
+      flexShrink: 0
+    }
+  }, h('span', {
     style: {
       fontSize: 12,
       fontWeight: 700,
@@ -1655,7 +1677,16 @@ function TodayView({
       padding: "3px 8px",
       borderRadius: 8
     }
-  }, formatDateBR(date))), h('div', {
+  }, formatDateBR(date)), h('span', {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: "#8A6A48",
+      background: "#F6EEE3",
+      padding: "2px 7px",
+      borderRadius: 6
+    }
+  }, frequencyLabel[client.frequency]))), h('div', {
     style: {
       display: "flex",
       gap: 6
