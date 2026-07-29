@@ -911,7 +911,8 @@ function MainApp({
         nextDate: r.next_date,
         units: r.units,
         notes: r.notes || "",
-        minStock: r.min_stock || 0
+        minStock: r.min_stock || 0,
+        phone: r.phone || ""
       })));
       const sl = await db.get("status_log", "?select=*");
       const slMap = {};
@@ -1155,7 +1156,8 @@ function MainApp({
         next_date: updated.nextDate,
         units: updated.units,
         notes: updated.notes,
-        min_stock: minStock
+        min_stock: minStock,
+        phone: updated.phone || ""
       });
       return updated;
     }));
@@ -1191,7 +1193,8 @@ function MainApp({
         next_date: updated.nextDate,
         units: updated.units,
         notes: updated.notes,
-        min_stock: updated.minStock || 0
+        min_stock: updated.minStock || 0,
+        phone: updated.phone || ""
       });
       setClients(prev => prev.map(c => c.id === editingClient.id ? updated : c));
     } else {
@@ -1210,7 +1213,8 @@ function MainApp({
         next_date: data.nextDate,
         units: data.units,
         notes: data.notes,
-        min_stock: 0
+        min_stock: 0,
+        phone: data.phone || ""
       });
       setClients(prev => [...prev, newClient]);
     }
@@ -1311,6 +1315,31 @@ function MainApp({
     Object.keys(map).forEach(d => map[d].sort((a, b) => a.tutor.localeCompare(b.tutor)));
     return map;
   }, [clients, weekDays, deliveryExceptions]);
+  // Entregas pendentes: ocorrências passadas sem status "entregue"
+  const pendingDeliveries = useMemo(() => {
+    const yesterday = addDays(todayISO(), -1);
+    const startCheck = addDays(todayISO(), -365);
+    const items = [];
+    clients.forEach(c => {
+      const occs = getOccurrencesInRange(c, startCheck, yesterday);
+      occs.forEach(date => {
+        const exKey = c.id + "|" + date;
+        const exception = deliveryExceptions[exKey];
+        if (exception === "skip") return;
+        const effectiveDate = exception || date;
+        if (effectiveDate > yesterday) return; // rescheduled to future
+        const status = statusLog[exKey] || statusLog[c.id + "|" + effectiveDate] || "preparando";
+        if (status !== "entregue") {
+          items.push({
+            client: c,
+            date: effectiveDate,
+            originalDate: date
+          });
+        }
+      });
+    });
+    return items.sort((a, b) => b.date.localeCompare(a.date));
+  }, [clients, statusLog, deliveryExceptions]);
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return clients;
@@ -1459,6 +1488,7 @@ function MainApp({
     }
   }, view === "hoje" && h(TodayView, {
     items: todayDeliveries,
+    pendingDeliveries,
     getStatus,
     setStatus,
     shelfProducts,
@@ -1491,8 +1521,10 @@ function MainApp({
     shelfProducts,
     shelfStockLog,
     onAddSubscriberProduction: addSubscriberProduction,
+    onRemoveSubscriberStock: (clientId, amount) => applySubscriberDelta(clientId, -amount, todayISO(), "Ajuste manual"),
     onAddShelfProduct: addShelfProduct,
     onAddShelfStockEntry: addShelfStockEntry,
+    onRemoveShelfStock: (productId, amount) => applyShelfDelta(productId, -amount, todayISO(), "Ajuste manual"),
     onDeleteShelfProduct: deleteShelfProduct
   }), view === "producao" && h(ProducaoView, {
     clients,
@@ -1513,6 +1545,7 @@ function MainApp({
 }
 function TodayView({
   items,
+  pendingDeliveries,
   getStatus,
   setStatus,
   shelfProducts,
@@ -1525,7 +1558,130 @@ function TodayView({
   const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", {
     month: "long"
   })}`;
-  return h('div', null, h('div', {
+  return h('div', null, pendingDeliveries && pendingDeliveries.length > 0 && h('div', {
+    style: {
+      background: "#FBEAE6",
+      border: "1px solid #F5C6B8",
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 20
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 7,
+      marginBottom: 12
+    }
+  }, h('span', {
+    style: {
+      color: "#C0594B"
+    }
+  }, h(Icons.AlertTriangle)), h('span', {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#A8412F"
+    }
+  }, "Entregas pendentes"), h('span', {
+    style: {
+      background: "#C0594B",
+      color: "#FFF",
+      fontSize: 11.5,
+      fontWeight: 700,
+      padding: "2px 8px",
+      borderRadius: 20
+    }
+  }, pendingDeliveries.length)), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    }
+  }, pendingDeliveries.map(({
+    client,
+    date,
+    originalDate
+  }) => h('div', {
+    key: client.id + date,
+    style: {
+      background: "#FFF",
+      borderRadius: 11,
+      padding: 12,
+      border: "1px solid #F5C6B8"
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 8
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, h('div', {
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      background: "#FBF1E8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#B8825A",
+      flexShrink: 0
+    }
+  }, h(Icons.PawPrint)), h('div', null, h('div', {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, client.dog), h('div', {
+    style: {
+      fontSize: 12,
+      color: "#8A7A6C"
+    }
+  }, client.tutor))), h('span', {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#C0594B",
+      background: "#FBEAE6",
+      padding: "3px 8px",
+      borderRadius: 8
+    }
+  }, formatDateBR(date))), h('div', {
+    style: {
+      display: "flex",
+      gap: 6
+    }
+  }, Object.entries(statusConfig).map(([key, conf]) => {
+    const active = getStatus(client.id, originalDate || date) === key;
+    return h('button', {
+      key,
+      onClick: () => setStatus(client.id, originalDate || date, key),
+      style: {
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        border: `1.5px solid ${active ? conf.color : "#E8DDD0"}`,
+        borderRadius: 8,
+        padding: "7px 4px",
+        fontSize: 11.5,
+        fontWeight: 600,
+        background: active ? conf.color : "#FFF7EF",
+        color: active ? "#FFF7EF" : "#8A7A6C",
+        cursor: "pointer"
+      }
+    }, key === "preparando" && h(Icons.Clock), key === "a_caminho" && h(Icons.Truck), key === "entregue" && h(Icons.Check), conf.label);
+  })))))), h('div', {
     style: {
       display: "flex",
       alignItems: "center",
@@ -1814,7 +1970,20 @@ function DeliveryCard({
       flexShrink: 0,
       marginTop: 2
     }
-  }, h(Icons.MapPin)), h('span', null, client.address)), pickerOpen ? h('div', {
+  }, h(Icons.MapPin)), h('span', null, client.address)), client.phone && h('a', {
+    href: `tel:${client.phone}`,
+    style: {
+      display: "flex",
+      gap: 6,
+      fontSize: 12.5,
+      color: "#3E7CB1",
+      marginTop: 6,
+      lineHeight: 1.4,
+      alignItems: "center",
+      textDecoration: "none",
+      fontWeight: 600
+    }
+  }, h('span', null, "📞"), h('span', null, client.phone)), pickerOpen ? h('div', {
     style: {
       marginTop: 12,
       background: "#FBF8F4",
@@ -2041,7 +2210,14 @@ function ClientsView({
         color: "#A89A8C",
         marginTop: 3
       }
-    }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`), lastDel && h('div', {
+    }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`), c.phone && h('div', {
+      style: {
+        fontSize: 12,
+        color: "#3E7CB1",
+        marginTop: 3,
+        fontWeight: 600
+      }
+    }, `📞 ${c.phone}`), lastDel && h('div', {
       style: {
         fontSize: 11.5,
         color: "#5C8A5C",
@@ -2051,54 +2227,53 @@ function ClientsView({
     }, `✓ Última entrega: ${formatDateBR(lastDel)}`)), h('div', {
       style: {
         display: "flex",
-        gap: 6
+        flexDirection: "column",
+        gap: 6,
+        alignItems: "flex-end"
       }
     }, h('button', {
       style: {
-        width: 30,
-        height: 30,
+        background: "#B8825A",
+        color: "#FFF7EF",
+        border: "none",
         borderRadius: 8,
-        border: "1px solid #EFE4D6",
-        background: "#FBF8F4",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#8A7A6C",
-        cursor: "pointer"
+        padding: "6px 14px",
+        fontSize: 12.5,
+        fontWeight: 700,
+        cursor: "pointer",
+        whiteSpace: "nowrap"
       },
       onClick: () => onEdit(c)
-    }, h(Icons.Edit3)), confirmDelete === c.id ? h('button', {
+    }, "✏️ Alterar"), confirmDelete === c.id ? h('button', {
       style: {
-        width: 30,
-        height: 30,
-        borderRadius: 8,
-        border: "none",
         background: "#C0594B",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         color: "#FFF",
-        cursor: "pointer"
+        border: "none",
+        borderRadius: 8,
+        padding: "6px 14px",
+        fontSize: 12.5,
+        fontWeight: 700,
+        cursor: "pointer",
+        whiteSpace: "nowrap"
       },
       onClick: () => {
         onDelete(c.id);
         setConfirmDelete(null);
       }
-    }, h(Icons.Check)) : h('button', {
+    }, "Confirmar") : h('button', {
       style: {
-        width: 30,
-        height: 30,
+        background: "transparent",
+        color: "#C0594B",
+        border: "1px solid #F5C6B8",
         borderRadius: 8,
-        border: "1px solid #EFE4D6",
-        background: "#FBF8F4",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#8A7A6C",
-        cursor: "pointer"
+        padding: "6px 14px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        cursor: "pointer",
+        whiteSpace: "nowrap"
       },
       onClick: () => setConfirmDelete(c.id)
-    }, h(Icons.Trash2))));
+    }, "🗑️ Excluir")));
   })));
 }
 function StockView({
@@ -2108,8 +2283,10 @@ function StockView({
   shelfProducts,
   shelfStockLog,
   onAddSubscriberProduction,
+  onRemoveSubscriberStock,
   onAddShelfProduct,
   onAddShelfStockEntry,
+  onRemoveShelfStock,
   onDeleteShelfProduct
 }) {
   const h = React.createElement;
@@ -2307,7 +2484,7 @@ function StockView({
         color: "#3E332A",
         flex: 1
       },
-      placeholder: "Unidades produzidas",
+      placeholder: "Qtd",
       value: productionInputs[c.id] || "",
       onChange: e => setProductionInputs(p => ({
         ...p,
@@ -2322,7 +2499,7 @@ function StockView({
         color: "#FBF1E8",
         border: "none",
         borderRadius: 10,
-        padding: "0 14px",
+        padding: "0 12px",
         fontSize: 12.5,
         fontWeight: 600,
         whiteSpace: "nowrap",
@@ -2338,7 +2515,32 @@ function StockView({
           }));
         }
       }
-    }, h(Icons.Plus), "Adicionar")), h('button', {
+    }, h(Icons.Plus), "Add"), h('button', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#C0594B",
+        color: "#FFF",
+        border: "none",
+        borderRadius: 10,
+        padding: "0 12px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        const a = parseInt(productionInputs[c.id], 10);
+        if (a > 0) {
+          onRemoveSubscriberStock(c.id, a);
+          setProductionInputs(p => ({
+            ...p,
+            [c.id]: ""
+          }));
+        }
+      }
+    }, "− Remover")), h('button', {
       style: {
         background: "transparent",
         border: "none",
@@ -3759,7 +3961,7 @@ function ClientFormModal({
       flexDirection: "column",
       gap: 14
     }
-  }, [["Nome do tutor", tutor, setTutor, "Ex: Marina Costa"], ["Nome do cão", dog, setDog, "Ex: Mia"], ["Endereço de entrega", address, setAddress, "Rua, número, bairro"]].map(([label, val, setter, ph]) => h('div', {
+  }, [["Nome do tutor", tutor, setTutor, "Ex: Marina Costa"], ["Nome do cão", dog, setDog, "Ex: Mia"], ["Endereço de entrega", address, setAddress, "Rua, número, bairro"], ["Telefone (WhatsApp)", phone, setPhone, "Ex: 11 99999-9999"]].map(([label, val, setter, ph]) => h('div', {
     key: label,
     style: {
       display: "flex",
