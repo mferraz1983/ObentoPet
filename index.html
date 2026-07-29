@@ -2753,7 +2753,7 @@ function StockView({
         color: "#3E332A",
         flex: 1
       },
-      placeholder: "Unidades a adicionar",
+      placeholder: "Qtd",
       value: stockInputs[p.id] || "",
       onChange: e => setStockInputs(prev => ({
         ...prev,
@@ -2768,7 +2768,7 @@ function StockView({
         color: "#FBF1E8",
         border: "none",
         borderRadius: 10,
-        padding: "0 14px",
+        padding: "0 12px",
         fontSize: 12.5,
         fontWeight: 600,
         whiteSpace: "nowrap",
@@ -2784,7 +2784,32 @@ function StockView({
           }));
         }
       }
-    }, h(Icons.Plus), "Adicionar")), h('div', {
+    }, h(Icons.Plus), "Add"), h('button', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#C0594B",
+        color: "#FFF",
+        border: "none",
+        borderRadius: 10,
+        padding: "0 12px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        const a = parseInt(stockInputs[p.id], 10);
+        if (a > 0) {
+          onRemoveShelfStock(p.id, a);
+          setStockInputs(prev => ({
+            ...prev,
+            [p.id]: ""
+          }));
+        }
+      }
+    }, "− Remover")), h('div', {
       style: {
         display: "flex",
         justifyContent: "space-between",
