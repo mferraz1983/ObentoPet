@@ -3864,6 +3864,7 @@ function ClientFormModal({
   const [tutor, setTutor] = useState(initial?.tutor || "");
   const [dog, setDog] = useState(initial?.dog || "");
   const [address, setAddress] = useState(initial?.address || "");
+  const [phone, setPhone] = useState(initial?.phone || "");
   const [frequency, setFrequency] = useState(initial?.frequency || "semanal");
   const [nextDate, setNextDate] = useState(initial?.nextDate || todayISO());
   const [units, setUnits] = useState(initial?.units ? String(initial.units) : "1");
@@ -3883,6 +3884,7 @@ function ClientFormModal({
       tutor: tutor.trim(),
       dog: dog.trim(),
       address: address.trim(),
+      phone: phone.trim(),
       frequency,
       nextDate,
       units: unitsNum,
