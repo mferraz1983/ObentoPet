@@ -20,6 +20,15 @@ button { font-family: inherit; }
 <script>
 const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A";
+function showAuthWarning() {
+  if (document.getElementById("auth-warning")) return;
+  const div = document.createElement("div");
+  div.id = "auth-warning";
+  div.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#C0594B;color:#FFF;text-align:center;padding:14px 16px;font-family:sans-serif;font-size:14px;font-weight:700;cursor:pointer;";
+  div.innerHTML = "⚠️ Sessão expirada — alterações não estão sendo salvas. Toque aqui para reconectar.";
+  div.onclick = () => location.reload();
+  document.body.prepend(div);
+}
 const auth = {
   async signIn(email, password) {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
@@ -78,39 +87,62 @@ function makeDb(token) {
     "Content-Type": "application/json",
     "Prefer": "return=representation"
   };
+  const check = r => {
+    if (r.status === 401 || r.status === 403) showAuthWarning();
+  };
   return {
     async get(table, params = "") {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
-        headers
-      });
-      if (!r.ok) return [];
-      return r.json();
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
+          headers
+        });
+        check(r);
+        if (!r.ok) return [];
+        return r.json();
+      } catch (e) {
+        return [];
+      }
     },
     async upsert(table, data) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-        method: "POST",
-        headers: {
-          ...headers,
-          "Prefer": "resolution=merge-duplicates,return=representation"
-        },
-        body: JSON.stringify(data)
-      });
-      return r.ok;
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+          method: "POST",
+          headers: {
+            ...headers,
+            "Prefer": "resolution=merge-duplicates,return=representation"
+          },
+          body: JSON.stringify(data)
+        });
+        check(r);
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
     },
     async delete(table, filter) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
-        method: "DELETE",
-        headers
-      });
-      return r.ok;
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+          method: "DELETE",
+          headers
+        });
+        check(r);
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
     },
     async insert(table, data) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(data)
-      });
-      return r.ok;
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(data)
+        });
+        check(r);
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
     }
   };
 }
@@ -566,25 +598,6 @@ const Icons = {
     y1: 15,
     x2: 12,
     y2: 3
-  })),
-  Factory: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"
-  }), React.createElement('path', {
-    d: "M17 18h1"
-  }), React.createElement('path', {
-    d: "M12 18h1"
-  }), React.createElement('path', {
-    d: "M7 18h1"
   }))
 };
 function Icon({
@@ -800,37 +813,6 @@ function App() {
       }
     }, delay);
   };
-  useEffect(() => {
-    const token = localStorage.getItem("obentopet_token");
-    const refreshTok = localStorage.getItem("obentopet_refresh");
-    if (token && refreshTok) {
-      auth.getUser(token).then(user => {
-        if (user) {
-          setSession({
-            token,
-            user
-          });
-          scheduleRefresh(refreshTok, 3600);
-        } else {
-          auth.refreshToken(refreshTok).then(data => {
-            if (data && data.access_token) {
-              localStorage.setItem("obentopet_token", data.access_token);
-              localStorage.setItem("obentopet_refresh", data.refresh_token);
-              setSession({
-                token: data.access_token,
-                user: data.user
-              });
-              scheduleRefresh(data.refresh_token, data.expires_in || 3600);
-            }
-          });
-        }
-        setAuthChecked(true);
-      }).catch(() => setAuthChecked(true));
-    } else setAuthChecked(true);
-    return () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    };
-  }, []);
   const handleLogin = data => {
     localStorage.setItem("obentopet_token", data.access_token);
     localStorage.setItem("obentopet_refresh", data.refresh_token);
@@ -847,6 +829,48 @@ function App() {
     localStorage.removeItem("obentopet_refresh");
     setSession(null);
   };
+  useEffect(() => {
+    const token = localStorage.getItem("obentopet_token");
+    const refreshTok = localStorage.getItem("obentopet_refresh");
+    if (refreshTok) {
+      // Sempre renova o token ao abrir o app
+      auth.refreshToken(refreshTok).then(data => {
+        if (data && data.access_token) {
+          localStorage.setItem("obentopet_token", data.access_token);
+          localStorage.setItem("obentopet_refresh", data.refresh_token);
+          setSession({
+            token: data.access_token,
+            user: data.user
+          });
+          scheduleRefresh(data.refresh_token, data.expires_in || 3600);
+        } else if (token) {
+          auth.getUser(token).then(user => {
+            if (user) {
+              setSession({
+                token,
+                user
+              });
+              scheduleRefresh(refreshTok, 3600);
+            }
+          }).catch(() => {});
+        }
+        setAuthChecked(true);
+      }).catch(() => {
+        if (token) {
+          auth.getUser(token).then(user => {
+            if (user) setSession({
+              token,
+              user
+            });
+            setAuthChecked(true);
+          }).catch(() => setAuthChecked(true));
+        } else setAuthChecked(true);
+      });
+    } else setAuthChecked(true);
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, []);
   const h = React.createElement;
   if (!authChecked) return h('div', {
     style: {
@@ -897,8 +921,7 @@ function MainApp({
   const [shelfProducts, setShelfProducts] = useState([]);
   const [shelfStockLog, setShelfStockLog] = useState({});
   const [deliveryDeduction, setDeliveryDeduction] = useState({});
-  const [deliveryExceptions, setDeliveryExceptions] = useState({}); // key: clientId|originalDate -> newDate (or 'skip')
-
+  const [deliveryExceptions, setDeliveryExceptions] = useState({});
   useEffect(() => {
     (async () => {
       const cls = await db.get("clients", "?select=*&order=tutor.asc");
@@ -991,8 +1014,6 @@ function MainApp({
     });
   }, [clients, loaded]);
   const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
-
-  // Última entrega de cada cliente
   const lastDeliveryMap = useMemo(() => {
     const map = {};
     Object.entries(statusLog).forEach(([key, status]) => {
@@ -1178,6 +1199,43 @@ function MainApp({
       return updated;
     }));
   };
+  const setRemarcar = (clientId, originalDate, newDate, applyToAll) => {
+    if (applyToAll) {
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+      const updated = {
+        ...client,
+        nextDate: newDate
+      };
+      db.upsert("clients", {
+        id: updated.id,
+        tutor: updated.tutor,
+        dog: updated.dog,
+        address: updated.address,
+        frequency: updated.frequency,
+        next_date: newDate,
+        units: updated.units,
+        notes: updated.notes,
+        min_stock: updated.minStock || 0,
+        phone: updated.phone || ""
+      });
+      setClients(prev => prev.map(c => c.id === clientId ? updated : c));
+    } else {
+      const key = clientId + "|" + originalDate;
+      const id = "ex" + Date.now();
+      db.upsert("delivery_exceptions", {
+        id,
+        client_id: clientId,
+        original_date: originalDate,
+        new_date: newDate,
+        created_at: Date.now()
+      });
+      setDeliveryExceptions(prev => ({
+        ...prev,
+        [key]: newDate
+      }));
+    }
+  };
   const saveClient = data => {
     if (editingClient) {
       const updated = {
@@ -1225,44 +1283,6 @@ function MainApp({
     db.delete("clients", `id=eq.${id}`);
     setClients(prev => prev.filter(c => c.id !== id));
   };
-  const setRemarcar = (clientId, originalDate, newDate, applyToAll) => {
-    if (applyToAll) {
-      // Update client nextDate
-      const client = clients.find(c => c.id === clientId);
-      if (!client) return;
-      const updated = {
-        ...client,
-        nextDate: newDate
-      };
-      db.upsert("clients", {
-        id: updated.id,
-        tutor: updated.tutor,
-        dog: updated.dog,
-        address: updated.address,
-        frequency: updated.frequency,
-        next_date: newDate,
-        units: updated.units,
-        notes: updated.notes,
-        min_stock: updated.minStock || 0
-      });
-      setClients(prev => prev.map(c => c.id === clientId ? updated : c));
-    } else {
-      // Save exception for this single occurrence
-      const key = clientId + "|" + originalDate;
-      const id = "ex" + Date.now();
-      db.upsert("delivery_exceptions", {
-        id,
-        client_id: clientId,
-        original_date: originalDate,
-        new_date: newDate,
-        created_at: Date.now()
-      });
-      setDeliveryExceptions(prev => ({
-        ...prev,
-        [key]: newDate
-      }));
-    }
-  };
   const weekStart = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + weekOffset * 7);
@@ -1272,6 +1292,30 @@ function MainApp({
   const weekDays = useMemo(() => Array.from({
     length: 7
   }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const pendingDeliveries = useMemo(() => {
+    const yesterday = addDays(todayISO(), -1);
+    const startCheck = addDays(todayISO(), -30);
+    const items = [];
+    clients.forEach(c => {
+      const occs = getOccurrencesInRange(c, startCheck, yesterday);
+      occs.forEach(date => {
+        const exKey = c.id + "|" + date;
+        const exception = deliveryExceptions[exKey];
+        if (exception === "skip") return;
+        const effectiveDate = exception || date;
+        if (effectiveDate > yesterday) return;
+        const status = statusLog[c.id + "|" + effectiveDate] || "preparando";
+        if (status !== "entregue") {
+          items.push({
+            client: c,
+            date: effectiveDate,
+            originalDate: date
+          });
+        }
+      });
+    });
+    return items.sort((a, b) => b.date.localeCompare(a.date));
+  }, [clients, statusLog, deliveryExceptions]);
   const todayDeliveries = useMemo(() => {
     const t = todayISO();
     const items = [];
@@ -1315,31 +1359,6 @@ function MainApp({
     Object.keys(map).forEach(d => map[d].sort((a, b) => a.tutor.localeCompare(b.tutor)));
     return map;
   }, [clients, weekDays, deliveryExceptions]);
-  // Entregas pendentes: ocorrências passadas sem status "entregue"
-  const pendingDeliveries = useMemo(() => {
-    const yesterday = addDays(todayISO(), -1);
-    const startCheck = addDays(todayISO(), -30);
-    const items = [];
-    clients.forEach(c => {
-      const occs = getOccurrencesInRange(c, startCheck, yesterday);
-      occs.forEach(date => {
-        const exKey = c.id + "|" + date;
-        const exception = deliveryExceptions[exKey];
-        if (exception === "skip") return;
-        const effectiveDate = exception || date;
-        if (effectiveDate > yesterday) return; // rescheduled to future
-        const status = statusLog[exKey] || statusLog[c.id + "|" + effectiveDate] || "preparando";
-        if (status !== "entregue") {
-          items.push({
-            client: c,
-            date: effectiveDate,
-            originalDate: date
-          });
-        }
-      });
-    });
-    return items.sort((a, b) => b.date.localeCompare(a.date));
-  }, [clients, statusLog, deliveryExceptions]);
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return clients;
@@ -1521,10 +1540,10 @@ function MainApp({
     shelfProducts,
     shelfStockLog,
     onAddSubscriberProduction: addSubscriberProduction,
-    onRemoveSubscriberStock: (clientId, amount) => applySubscriberDelta(clientId, -amount, todayISO(), "Ajuste manual"),
+    onRemoveSubscriberStock: (cid, amt) => applySubscriberDelta(cid, -amt, todayISO(), "Ajuste manual"),
     onAddShelfProduct: addShelfProduct,
     onAddShelfStockEntry: addShelfStockEntry,
-    onRemoveShelfStock: (productId, amount) => applyShelfDelta(productId, -amount, todayISO(), "Ajuste manual"),
+    onRemoveShelfStock: (pid, amt) => applyShelfDelta(pid, -amt, todayISO(), "Ajuste manual"),
     onDeleteShelfProduct: deleteShelfProduct
   }), view === "producao" && h(ProducaoView, {
     clients,
@@ -1549,7 +1568,6 @@ function TodayView({
   getStatus,
   setStatus,
   shelfProducts,
-  deliveryExceptions,
   setRemarcar
 }) {
   const h = React.createElement;
@@ -1766,7 +1784,6 @@ function WeekView({
   getStatus,
   setStatus,
   shelfProducts,
-  deliveryExceptions,
   setRemarcar
 }) {
   const h = React.createElement;
@@ -2009,12 +2026,11 @@ function DeliveryCard({
       fontSize: 12.5,
       color: "#3E7CB1",
       marginTop: 6,
-      lineHeight: 1.4,
       alignItems: "center",
       textDecoration: "none",
       fontWeight: 600
     }
-  }, h('span', null, "📞"), h('span', null, client.phone)), pickerOpen ? h('div', {
+  }, "📞", h('span', null, client.phone)), pickerOpen ? h('div', {
     style: {
       marginTop: 12,
       background: "#FBF8F4",
@@ -2035,7 +2051,7 @@ function DeliveryCard({
       color: "#C0594B",
       margin: 0
     }
-  }, "Nenhum produto cadastrado em Estoque ainda.") : h('select', {
+  }, "Nenhum produto cadastrado.") : h('select', {
     style: {
       border: "1px solid #E8DDD0",
       borderRadius: 10,
@@ -2149,6 +2165,201 @@ function DeliveryCard({
     }
   }));
 }
+function RemarcarModal({
+  client,
+  originalDate,
+  onClose,
+  onSave
+}) {
+  const h = React.createElement;
+  const [newDate, setNewDate] = useState(addDays(originalDate, 7));
+  const [applyToAll, setApplyToAll] = useState(false);
+  const freqLabel = {
+    semanal: "semana",
+    quinzenal: "quinzena",
+    mensal: "mês"
+  }[client.frequency] || "período";
+  const IS = {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A"
+  };
+  return h('div', {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(62,51,42,0.45)",
+      display: "flex",
+      alignItems: "flex-end",
+      justifyContent: "center",
+      zIndex: 60
+    },
+    onClick: onClose
+  }, h('div', {
+    style: {
+      background: "#FDF8F2",
+      width: "100%",
+      maxWidth: 480,
+      borderRadius: "18px 18px 0 0",
+      padding: "18px 18px 32px"
+    },
+    onClick: function (e) {
+      e.stopPropagation();
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 18
+    }
+  }, h('h3', {
+    style: {
+      margin: 0,
+      fontSize: 17,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Remarcar entrega"), h('button', {
+    onClick: onClose,
+    style: {
+      background: "#F1E6D8",
+      border: "none",
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#8A7A6C",
+      cursor: "pointer"
+    }
+  }, h(Icons.X))), h('div', {
+    style: {
+      background: "#F6EEE3",
+      borderRadius: 10,
+      padding: "10px 12px",
+      marginBottom: 16,
+      fontSize: 13,
+      color: "#8A6A48"
+    }
+  }, h('strong', null, client.dog), " · entrega original: ", h('strong', null, formatDateBR(originalDate))), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#8A7A6C"
+    }
+  }, "Nova data de entrega"), h('input', {
+    type: "date",
+    style: IS,
+    value: newDate,
+    min: originalDate,
+    onChange: e => setNewDate(e.target.value)
+  })), h('div', {
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 12,
+      padding: 14,
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, h('p', {
+    style: {
+      margin: 0,
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "Isso afeta:"), h('label', {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 10,
+      cursor: "pointer"
+    }
+  }, h('input', {
+    type: "radio",
+    name: "applyScope",
+    checked: !applyToAll,
+    onChange: () => setApplyToAll(false),
+    style: {
+      marginTop: 2,
+      accentColor: "#B8825A"
+    }
+  }), h('div', null, h('div', {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#3E332A"
+    }
+  }, "Só esta entrega"), h('div', {
+    style: {
+      fontSize: 12,
+      color: "#8A7A6C",
+      marginTop: 2
+    }
+  }, `Apenas a entrega de ${formatDateBR(originalDate)} muda.`))), h('label', {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 10,
+      cursor: "pointer"
+    }
+  }, h('input', {
+    type: "radio",
+    name: "applyScope",
+    checked: applyToAll,
+    onChange: () => setApplyToAll(true),
+    style: {
+      marginTop: 2,
+      accentColor: "#B8825A"
+    }
+  }), h('div', null, h('div', {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#3E332A"
+    }
+  }, "Esta e todas as próximas"), h('div', {
+    style: {
+      fontSize: 12,
+      color: "#8A7A6C",
+      marginTop: 2
+    }
+  }, `O calendário de ${client.dog} passa a contar a partir da nova data.`)))), h('button', {
+    onClick: () => {
+      if (newDate) onSave(newDate, applyToAll);
+    },
+    disabled: !newDate,
+    style: {
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 11,
+      padding: "13px",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "Confirmar remarcação"))));
+}
 function ClientsView({
   clients,
   search,
@@ -2235,20 +2446,20 @@ function ClientsView({
         color: "#8A7A6C",
         marginTop: 1
       }
-    }, c.tutor), h('div', {
+    }, c.tutor), c.phone && h('div', {
+      style: {
+        fontSize: 12,
+        color: "#3E7CB1",
+        marginTop: 2,
+        fontWeight: 600
+      }
+    }, `📞 ${c.phone}`), h('div', {
       style: {
         fontSize: 11.5,
         color: "#A89A8C",
         marginTop: 3
       }
-    }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`), c.phone && h('div', {
-      style: {
-        fontSize: 12,
-        color: "#3E7CB1",
-        marginTop: 3,
-        fontWeight: 600
-      }
-    }, `📞 ${c.phone}`), lastDel && h('div', {
+    }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`), lastDel && h('div', {
       style: {
         fontSize: 11.5,
         color: "#5C8A5C",
@@ -2497,7 +2708,7 @@ function StockView({
       style: {
         color: "#C0594B"
       }
-    }, h(Icons.AlertTriangle)), h('span', null, `Saldo baixo para a próxima entrega (${c.units || 0} un.)`)), h('div', {
+    }, h(Icons.AlertTriangle)), h('span', null, `Saldo baixo (${c.units || 0} un.)`)), h('div', {
       style: {
         display: "flex",
         gap: 8,
@@ -2894,8 +3105,6 @@ function StockView({
     }))));
   }))));
 }
-
-// ---------- PRODUÇÃO VIEW ----------
 function ProducaoView({
   clients,
   subscriberStock,
@@ -2907,12 +3116,7 @@ function ProducaoView({
   const [copied, setCopied] = useState(false);
   const [minInputs, setMinInputs] = useState({});
   const subscribers = clients.filter(c => c.frequency !== "avulsa");
-
-  // Itens que precisam reposição
-  const needsSubscribers = subscribers.filter(c => {
-    const balance = subscriberStock[c.id] ?? 0;
-    return c.minStock > 0 && balance < c.minStock;
-  });
+  const needsSubscribers = subscribers.filter(c => c.minStock > 0 && (subscriberStock[c.id] ?? 0) < c.minStock);
   const needsProducts = shelfProducts.filter(p => p.minStock > 0 && p.balance < p.minStock);
   const totalNeeds = needsSubscribers.length + needsProducts.length;
   const buildText = () => {
@@ -2948,7 +3152,7 @@ function ProducaoView({
   const handlePDF = () => {
     let rows = "";
     if (totalNeeds === 0) {
-      rows = `<p style="color:#5C8A5C;font-weight:600;">✓ Tudo em dia! Nenhum item abaixo do estoque mínimo.</p>`;
+      rows = `<p style="color:#5C8A5C;font-weight:600;">✓ Tudo em dia!</p>`;
     } else {
       if (needsSubscribers.length > 0) {
         rows += `<div class="section-title">🐶 Dietas Assinantes</div>`;
@@ -2966,12 +3170,7 @@ function ProducaoView({
         });
       }
     }
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Lista de Produção ObentoPet</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Inter',sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}.logo{width:44px;height:44px;background:#B8825A;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}.brand{font-size:22px;font-weight:800;}.subtitle{font-size:13px;color:#8A7A6C;font-weight:600;margin-top:2px;}.date{font-size:13px;color:#8A7A6C;margin:10px 0 24px;padding-bottom:16px;border-bottom:2px solid #EFE4D6;}.section-title{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #F5EDE3;}.item-name{font-size:15px;font-weight:700;color:#3E332A;margin-bottom:6px;}.item-sub{font-weight:400;color:#8A7A6C;font-size:14px;}.item-nums{display:flex;gap:8px;flex-wrap:wrap;}.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}.badge.red{background:#FBEAE6;color:#A8412F;}.badge.gray{background:#F1E6D8;color:#8A6A48;}.badge.orange{background:#FBF1E8;color:#B8825A;}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between;}@media print{body{background:white;}}</style></head><body><div class="header"><div class="logo">🐾</div><div><div class="brand">ObentōPet</div><div class="subtitle">Lista de Produção</div></div></div><div class="date">Data: <strong>${new Date().toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric"
-    })}</strong></div>${rows}<div class="footer"><span>ObentōPet — Dietas Veterinárias Personalizadas</span><span>${totalNeeds} item${totalNeeds !== 1 ? "s" : ""} para repor</span></div></body></html>`;
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Lista de Produção</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.section-title{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #F5EDE3;}.item-name{font-size:15px;font-weight:700;margin-bottom:6px;}.item-sub{font-weight:400;color:#8A7A6C;font-size:14px;}.item-nums{display:flex;gap:8px;flex-wrap:wrap;}.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}.badge.red{background:#FBEAE6;color:#A8412F;}.badge.gray{background:#F1E6D8;color:#8A6A48;}.badge.orange{background:#FBF1E8;color:#B8825A;}@media print{body{background:white;}}</style></head><body>${rows}</body></html>`;
     const blob = new Blob([html], {
       type: "text/html"
     });
@@ -2983,7 +3182,7 @@ function ProducaoView({
       };
     }
   };
-  const inputStyle = {
+  const IS = {
     border: "1px solid #E8DDD0",
     borderRadius: 8,
     padding: "7px 10px",
@@ -3016,9 +3215,7 @@ function ProducaoView({
       padding: "4px 10px",
       borderRadius: 20
     }
-  }, `${totalNeeds} para repor`)),
-  // Resumo / lista de reposição
-  totalNeeds > 0 && React.createElement.apply(null, ['div', {
+  }, `${totalNeeds} para repor`)), totalNeeds > 0 && h('div', {
     style: {
       background: "#FBEAE6",
       border: "1px solid #F5C6B8",
@@ -3040,7 +3237,7 @@ function ProducaoView({
     style: {
       color: "#C0594B"
     }
-  }, h(Icons.AlertTriangle)), "Itens abaixo do estoque mínimo"), ...needsSubscribers.map(c => {
+  }, h(Icons.AlertTriangle)), "Itens abaixo do estoque mínimo"), needsSubscribers.map(c => {
     const balance = subscriberStock[c.id] ?? 0;
     const needed = c.minStock - balance;
     return h('div', {
@@ -3079,7 +3276,7 @@ function ProducaoView({
         color: "#A89A8C"
       }
     }, `Saldo: ${balance} / Mín: ${c.minStock}`)));
-  }), ...needsProducts.map(p => {
+  }), needsProducts.map(p => {
     const needed = p.minStock - p.balance;
     return h('div', {
       key: "p" + p.id,
@@ -3152,7 +3349,7 @@ function ProducaoView({
       cursor: "pointer"
     },
     onClick: handlePDF
-  }, h(Icons.Download), "Abrir PDF"))]), totalNeeds === 0 && h('div', {
+  }, h(Icons.Download), "Abrir PDF"))), totalNeeds === 0 && h('div', {
     style: {
       background: "#EFF6EE",
       border: "1px solid #C3E0BF",
@@ -3178,9 +3375,7 @@ function ProducaoView({
       fontSize: 12.5,
       color: "#5C8A5C"
     }
-  }, "Nenhum item abaixo do estoque mínimo."))),
-  // Configurar mínimos — assinantes
-  h('div', {
+  }, "Nenhum item abaixo do estoque mínimo."))), h('div', {
     style: {
       marginBottom: 8,
       fontSize: 13,
@@ -3259,7 +3454,7 @@ function ProducaoView({
     }, "mín."), h('input', {
       type: "number",
       min: "0",
-      style: inputStyle,
+      style: IS,
       value: minInputs[c.id] !== undefined ? minInputs[c.id] : c.minStock,
       onChange: e => setMinInputs(p => ({
         ...p,
@@ -3275,9 +3470,7 @@ function ProducaoView({
       },
       placeholder: "0"
     })));
-  })),
-  // Configurar mínimos — prateleira
-  h('div', {
+  })), h('div', {
     style: {
       marginBottom: 8,
       fontSize: 13,
@@ -3354,7 +3547,7 @@ function ProducaoView({
     }, "mín."), h('input', {
       type: "number",
       min: "0",
-      style: inputStyle,
+      style: IS,
       value: minInputs["p" + p.id] !== undefined ? minInputs["p" + p.id] : p.minStock,
       onChange: e => setMinInputs(prev => ({
         ...prev,
@@ -3413,7 +3606,7 @@ function RoteiroView({
     const periodLabel = startDate === endDate ? formatDateFull(startDate) : `${formatDateFull(startDate)} a ${formatDateFull(endDate)}`;
     let text = `🐾 ObentoPet — Roteiro de Entregas\n${periodLabel}\n${"─".repeat(36)}\n\n`;
     if (roteiroItems.length === 0) {
-      text += "Nenhuma entrega no período selecionado.\n";
+      text += "Nenhuma entrega no período.\n";
       return text;
     }
     Object.entries(grouped).forEach(([date, cls]) => {
@@ -3421,6 +3614,7 @@ function RoteiroView({
       text += `📅 ${dl.charAt(0).toUpperCase() + dl.slice(1)}\n`;
       cls.forEach((c, i) => {
         text += `\n${i + 1}. ${c.dog} (${c.tutor})\n   📍 ${c.address}\n`;
+        if (c.phone) text += `   📞 ${c.phone}\n`;
         if (c.notes) text += `   💬 ${c.notes}\n`;
       });
       text += "\n";
@@ -3438,18 +3632,18 @@ function RoteiroView({
     const periodLabel = startDate === endDate ? formatDateFull(startDate) : `${formatDateFull(startDate)} a ${formatDateFull(endDate)}`;
     let rows = "";
     if (roteiroItems.length === 0) {
-      rows = `<p style="color:#8A7A6C;font-style:italic;">Nenhuma entrega no período selecionado.</p>`;
+      rows = `<p style="color:#8A7A6C;font-style:italic;">Nenhuma entrega no período.</p>`;
     } else {
       Object.entries(grouped).forEach(([date, cls]) => {
         const dl = formatDateFull(date);
         rows += `<div class="day-block"><div class="day-header">${dl.charAt(0).toUpperCase() + dl.slice(1)}</div>`;
         cls.forEach((c, i) => {
-          rows += `<div class="entry"><div class="entry-num">${i + 1}</div><div class="entry-body"><div class="entry-name">${c.dog} <span class="entry-tutor">— ${c.tutor}</span></div><div class="entry-address">📍 ${c.address}</div>${c.notes ? `<div class="entry-notes">💬 ${c.notes}</div>` : ""}</div></div>`;
+          rows += `<div class="entry"><div class="entry-num">${i + 1}</div><div class="entry-body"><div class="entry-name">${c.dog} <span class="entry-tutor">— ${c.tutor}</span></div><div class="entry-address">📍 ${c.address}</div>${c.phone ? `<div class="entry-phone">📞 ${c.phone}</div>` : ""}${c.notes ? `<div class="entry-notes">💬 ${c.notes}</div>` : ""}</div></div>`;
         });
         rows += `</div>`;
       });
     }
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Roteiro ObentoPet</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Inter',sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.header{display:flex;align-items:center;gap:14px;margin-bottom:6px;}.logo{width:44px;height:44px;background:#B8825A;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}.brand{font-size:22px;font-weight:800;color:#3E332A;}.subtitle{font-size:13px;color:#8A7A6C;font-weight:600;margin-top:2px;}.period{font-size:14px;color:#8A7A6C;margin:10px 0 24px;padding-bottom:18px;border-bottom:2px solid #EFE4D6;}.period strong{color:#3E332A;}.day-block{margin-bottom:28px;}.day-header{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.entry{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start;}.entry-num{min-width:26px;height:26px;background:#F1E6D8;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#8A6A48;flex-shrink:0;margin-top:1px;}.entry-body{flex:1;}.entry-name{font-size:15px;font-weight:700;color:#3E332A;}.entry-tutor{font-weight:400;color:#8A7A6C;font-size:14px;}.entry-address{font-size:13px;color:#7A6C5E;margin-top:3px;line-height:1.4;}.entry-notes{font-size:12.5px;color:#9A7A5A;margin-top:4px;font-style:italic;}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between;}@media print{body{background:white;}}</style></head><body><div class="header"><div class="logo">🐾</div><div><div class="brand">ObentōPet</div><div class="subtitle">Roteiro de Entregas</div></div></div><div class="period">Período: <strong>${periodLabel}</strong></div>${rows}<div class="footer"><span>ObentōPet — Dietas Veterinárias Personalizadas</span><span>${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""} no total</span></div></body></html>`;
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Roteiro ObentoPet</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.day-block{margin-bottom:28px;}.day-header{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.entry{display:flex;gap:12px;margin-bottom:14px;}.entry-num{min-width:26px;height:26px;background:#F1E6D8;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#8A6A48;flex-shrink:0;}.entry-body{flex:1;}.entry-name{font-size:15px;font-weight:700;}.entry-tutor{font-weight:400;color:#8A7A6C;font-size:14px;}.entry-address,.entry-phone,.entry-notes{font-size:13px;color:#7A6C5E;margin-top:3px;}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between;}@media print{body{background:white;}}</style></head><body><h2 style="margin-bottom:4px;">ObentōPet</h2><p style="color:#8A7A6C;font-size:13px;margin-bottom:20px;">Roteiro — ${periodLabel}</p>${rows}<div class="footer"><span>ObentōPet</span><span>${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""}</span></div></body></html>`;
     const blob = new Blob([html], {
       type: "text/html"
     });
@@ -3461,7 +3655,7 @@ function RoteiroView({
       };
     }
   };
-  const inputStyle = {
+  const IS = {
     border: "1px solid #E8DDD0",
     borderRadius: 10,
     padding: "10px 12px",
@@ -3469,7 +3663,7 @@ function RoteiroView({
     background: "#FFF",
     color: "#3E332A"
   };
-  const labelStyle = {
+  const LS = {
     fontSize: 12.5,
     fontWeight: 600,
     color: "#8A7A6C"
@@ -3511,10 +3705,10 @@ function RoteiroView({
       gap: 6
     }
   }, h('label', {
-    style: labelStyle
+    style: LS
   }, "De"), h('input', {
     type: "date",
-    style: inputStyle,
+    style: IS,
     value: startDate,
     onChange: e => {
       setStartDate(e.target.value);
@@ -3528,10 +3722,10 @@ function RoteiroView({
       gap: 6
     }
   }, h('label', {
-    style: labelStyle
+    style: LS
   }, "Até"), h('input', {
     type: "date",
-    style: inputStyle,
+    style: IS,
     value: endDate,
     min: startDate,
     onChange: e => setEndDate(e.target.value)
@@ -3669,7 +3863,13 @@ function RoteiroView({
       flexShrink: 0,
       marginTop: 2
     }
-  }, h(Icons.MapPin)), c.address), c.notes && h('div', {
+  }, h(Icons.MapPin)), c.address), c.phone && h('div', {
+    style: {
+      fontSize: 12.5,
+      color: "#3E7CB1",
+      marginTop: 3
+    }
+  }, "📞 ", c.phone), c.notes && h('div', {
     style: {
       fontSize: 12,
       color: "#9A7A5A",
@@ -3677,200 +3877,6 @@ function RoteiroView({
       fontStyle: "italic"
     }
   }, `💬 ${c.notes}`))))))));
-}
-function RemarcarModal({
-  client,
-  originalDate,
-  onClose,
-  onSave
-}) {
-  const h = React.createElement;
-  const [newDate, setNewDate] = useState(addDays(originalDate, 7));
-  const [applyToAll, setApplyToAll] = useState(false);
-  const freqLabel = {
-    semanal: "semana",
-    quinzenal: "quinzena",
-    mensal: "mês"
-  }[client.frequency] || "período";
-  const inputStyle = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 14.5,
-    background: "#FFF",
-    color: "#3E332A"
-  };
-  const labelStyle = {
-    fontSize: 12.5,
-    fontWeight: 600,
-    color: "#8A7A6C"
-  };
-  return h('div', {
-    style: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(62,51,42,0.45)",
-      display: "flex",
-      alignItems: "flex-end",
-      justifyContent: "center",
-      zIndex: 60
-    },
-    onClick: onClose
-  }, h('div', {
-    style: {
-      background: "#FDF8F2",
-      width: "100%",
-      maxWidth: 480,
-      borderRadius: "18px 18px 0 0",
-      padding: "18px 18px 32px"
-    },
-    onClick: e => e.stopPropagation()
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 18
-    }
-  }, h('h3', {
-    style: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Remarcar entrega"), h('button', {
-    onClick: onClose,
-    style: {
-      background: "#F1E6D8",
-      border: "none",
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#8A7A6C",
-      cursor: "pointer"
-    }
-  }, h(Icons.X))), h('div', {
-    style: {
-      background: "#F6EEE3",
-      borderRadius: 10,
-      padding: "10px 12px",
-      marginBottom: 16,
-      fontSize: 13,
-      color: "#8A6A48"
-    }
-  }, h('strong', null, client.dog), " · entrega original: ", h('strong', null, formatDateBR(originalDate))), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 14
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: labelStyle
-  }, "Nova data de entrega"), h('input', {
-    type: "date",
-    style: inputStyle,
-    value: newDate,
-    min: originalDate,
-    onChange: e => setNewDate(e.target.value)
-  })), h('div', {
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 12,
-      padding: 14,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, h('p', {
-    style: {
-      margin: 0,
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Isso afeta:"), h('label', {
-    style: {
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 10,
-      cursor: "pointer"
-    }
-  }, h('input', {
-    type: "radio",
-    name: "applyScope",
-    checked: !applyToAll,
-    onChange: () => setApplyToAll(false),
-    style: {
-      marginTop: 2,
-      accentColor: "#B8825A"
-    }
-  }), h('div', null, h('div', {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#3E332A"
-    }
-  }, "Só esta entrega"), h('div', {
-    style: {
-      fontSize: 12,
-      color: "#8A7A6C",
-      marginTop: 2
-    }
-  }, `Apenas a entrega de ${formatDateBR(originalDate)} muda. O calendário regular continua igual depois.`))), h('label', {
-    style: {
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 10,
-      cursor: "pointer"
-    }
-  }, h('input', {
-    type: "radio",
-    name: "applyScope",
-    checked: applyToAll,
-    onChange: () => setApplyToAll(true),
-    style: {
-      marginTop: 2,
-      accentColor: "#B8825A"
-    }
-  }), h('div', null, h('div', {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#3E332A"
-    }
-  }, "Esta e todas as próximas"), h('div', {
-    style: {
-      fontSize: 12,
-      color: "#8A7A6C",
-      marginTop: 2
-    }
-  }, `O calendário de ${client.dog} passa a contar a partir da nova data, mantendo a frequência ${freqLabel}.`)))), h('button', {
-    onClick: () => {
-      if (newDate) onSave(newDate, applyToAll);
-    },
-    disabled: !newDate,
-    style: {
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 11,
-      padding: "13px",
-      fontSize: 15,
-      fontWeight: 700,
-      cursor: "pointer"
-    }
-  }, "Confirmar remarcação"))));
 }
 function HistoryRow({
   entry
