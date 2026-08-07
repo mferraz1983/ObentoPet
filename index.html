@@ -935,7 +935,8 @@ function MainApp({
         units: r.units,
         notes: r.notes || "",
         minStock: r.min_stock || 0,
-        phone: r.phone || ""
+        phone: r.phone || "",
+        labelFile: r.label_file || ""
       })));
       const sl = await db.get("status_log", "?select=*");
       const slMap = {};
@@ -1178,7 +1179,8 @@ function MainApp({
         units: updated.units,
         notes: updated.notes,
         min_stock: minStock,
-        phone: updated.phone || ""
+        phone: updated.phone || "",
+        label_file: updated.labelFile || ""
       });
       return updated;
     }));
@@ -1217,7 +1219,8 @@ function MainApp({
         units: updated.units,
         notes: updated.notes,
         min_stock: updated.minStock || 0,
-        phone: updated.phone || ""
+        phone: updated.phone || "",
+        label_file: updated.labelFile || ""
       });
       setClients(prev => prev.map(c => c.id === clientId ? updated : c));
     } else {
@@ -1252,7 +1255,8 @@ function MainApp({
         units: updated.units,
         notes: updated.notes,
         min_stock: updated.minStock || 0,
-        phone: updated.phone || ""
+        phone: updated.phone || "",
+        label_file: updated.labelFile || ""
       });
       setClients(prev => prev.map(c => c.id === editingClient.id ? updated : c));
     } else {
@@ -1272,7 +1276,8 @@ function MainApp({
         units: data.units,
         notes: data.notes,
         min_stock: 0,
-        phone: data.phone || ""
+        phone: data.phone || "",
+        label_file: data.labelFile || ""
       });
       setClients(prev => [...prev, newClient]);
     }
@@ -3733,7 +3738,7 @@ function RoteiroView({
     style: {
       display: "flex",
       gap: 10,
-      marginBottom: 20
+      marginBottom: 12
     }
   }, h('button', {
     style: {
@@ -3769,7 +3774,43 @@ function RoteiroView({
       cursor: "pointer"
     },
     onClick: handleDownloadPDF
-  }, h(Icons.Download), "Abrir PDF")), roteiroItems.length === 0 ? h(EmptyState, {
+  }, h(Icons.Download), "Abrir PDF")), h('button', {
+    style: {
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      border: "1.5px solid #B8825A",
+      borderRadius: 11,
+      padding: "11px 8px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#B8825A",
+      background: "#FBF1E8",
+      cursor: "pointer",
+      marginBottom: 20
+    },
+    onClick: () => {
+      const semLabel = roteiroItems.filter(i => !i.client.labelFile);
+      const comLabel = roteiroItems.filter(i => i.client.labelFile);
+      let txt = comLabel.map(i => i.client.labelFile).join("\n");
+      if (semLabel.length > 0) {
+        txt += "\n\n// SEM ARQUIVO CONFIGURADO:\n" + semLabel.map(i => "// " + i.client.dog + " (" + i.client.tutor + ")").join("\n");
+      }
+      const blob = new Blob([txt], {
+        type: "text/plain;charset=utf-8"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "lista_etiquetas.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+      setCopiedLabels(true);
+      setTimeout(() => setCopiedLabels(false), 2000);
+    }
+  }, copiedLabels ? h(Icons.Check) : "🏷️", copiedLabels ? "Arquivo gerado!" : "Exportar lista de etiquetas (.txt)"), roteiroItems.length === 0 ? h(EmptyState, {
     text: "Nenhuma entrega no período selecionado."
   }) : h('div', {
     style: {
@@ -3927,6 +3968,7 @@ function ClientFormModal({
   const [dog, setDog] = useState(initial ? initial.dog : "");
   const [address, setAddress] = useState(initial ? initial.address : "");
   const [phone, setPhone] = useState(initial ? initial.phone || "" : "");
+  const [labelFile, setLabelFile] = useState(initial ? initial.labelFile || "" : "");
   const [frequency, setFrequency] = useState(initial ? initial.frequency : "semanal");
   const [nextDate, setNextDate] = useState(initial ? initial.nextDate : todayISO());
   const [units, setUnits] = useState(initial ? String(initial.units) : "1");
@@ -3974,7 +4016,8 @@ function ClientFormModal({
       frequency,
       nextDate,
       units: unitsNum,
-      notes
+      notes,
+      labelFile: labelFile.trim()
     });
   };
   return h('div', {
@@ -4099,6 +4142,26 @@ function ClientFormModal({
     },
     placeholder: "Ex: 11 99999-9999"
   })), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, h('label', {
+    style: LS
+  }, "Arquivo de etiqueta (.btw)"), h('input', {
+    style: IS,
+    value: labelFile,
+    onChange: function (e) {
+      setLabelFile(e.target.value);
+    },
+    placeholder: "Ex: Amora - S"
+  }), h('span', {
+    style: {
+      fontSize: 11,
+      color: "#A89A8C"
+    }
+  }, 'Nome do arquivo sem o .btw — deve ser idêntico ao arquivo na pasta de etiquetas')), h('div', {
     style: {
       display: "flex",
       flexDirection: "column",
