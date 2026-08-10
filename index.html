@@ -3810,7 +3810,7 @@ function RoteiroView({
       setCopiedLabels(true);
       setTimeout(() => setCopiedLabels(false), 2000);
     }
-  }, copiedLabels ? h(Icons.Check) : "🏷️", copiedLabels ? "Arquivo gerado!" : "Exportar lista de etiquetas (.txt)"), roteiroItems.length === 0 ? h(EmptyState, {
+  }, copiedLabels ? h(Icons.Check) : h('span', null, "📋"), copiedLabels ? "Arquivo gerado!" : "Exportar lista de etiquetas (.txt)"), roteiroItems.length === 0 ? h(EmptyState, {
     text: "Nenhuma entrega no período selecionado."
   }) : h('div', {
     style: {
