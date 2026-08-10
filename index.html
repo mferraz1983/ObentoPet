@@ -922,6 +922,8 @@ function MainApp({
   const [shelfStockLog, setShelfStockLog] = useState({});
   const [deliveryDeduction, setDeliveryDeduction] = useState({});
   const [deliveryExceptions, setDeliveryExceptions] = useState({});
+  const [snackProducts, setSnackProducts] = useState([]);
+  const [snackStockLog, setSnackStockLog] = useState({});
   useEffect(() => {
     (async () => {
       const cls = await db.get("clients", "?select=*&order=tutor.asc");
@@ -996,6 +998,25 @@ function MainApp({
         deMap[r.client_id + "|" + r.original_date] = r.new_date;
       });
       setDeliveryExceptions(deMap);
+      const sn = await db.get("snack_products", "?select=*&order=name.asc");
+      setSnackProducts(sn.map(r => ({
+        id: r.id,
+        name: r.name,
+        balance: r.balance,
+        minStock: r.min_stock || 0
+      })));
+      const snl = await db.get("snack_stock_log", "?select=*&order=ts.desc");
+      const snlMap = {};
+      snl.forEach(r => {
+        if (!snlMap[r.product_id]) snlMap[r.product_id] = [];
+        snlMap[r.product_id].push({
+          date: r.date,
+          amount: r.amount,
+          reason: r.reason,
+          ts: r.ts
+        });
+      });
+      setSnackStockLog(snlMap);
       setLoaded(true);
     })();
   }, []);
@@ -1161,6 +1182,82 @@ function MainApp({
   const deleteShelfProduct = productId => {
     db.delete("shelf_products", `id=eq.${productId}`);
     setShelfProducts(prev => prev.filter(p => p.id !== productId));
+  };
+  const addSnackProduct = name => {
+    const id = "sn" + Date.now();
+    db.upsert("snack_products", {
+      id,
+      name,
+      balance: 0,
+      min_stock: 0
+    });
+    setSnackProducts(prev => [...prev, {
+      id,
+      name,
+      balance: 0,
+      minStock: 0
+    }]);
+  };
+  const addSnackStockEntry = (productId, amount) => {
+    if (amount > 0) applySnackDelta(productId, amount, todayISO(), "Entrada de estoque");
+  };
+  const removeSnackStock = (productId, amount) => {
+    if (amount > 0) applySnackDelta(productId, -amount, todayISO(), "Ajuste manual");
+  };
+  const deleteSnackProduct = productId => {
+    db.delete("snack_products", `id=eq.${productId}`);
+    setSnackProducts(prev => prev.filter(p => p.id !== productId));
+  };
+  const applySnackDelta = (productId, delta, date, reason) => {
+    setSnackProducts(prev => prev.map(p => {
+      if (p.id !== productId) return p;
+      const newBal = p.balance + delta;
+      db.upsert("snack_products", {
+        id: p.id,
+        name: p.name,
+        balance: newBal,
+        min_stock: p.minStock || 0
+      });
+      return {
+        ...p,
+        balance: newBal
+      };
+    }));
+    db.insert("snack_stock_log", {
+      product_id: productId,
+      date,
+      amount: delta,
+      reason,
+      ts: Date.now()
+    });
+    setSnackStockLog(prev => {
+      const entries = prev[productId] ? [...prev[productId]] : [];
+      entries.unshift({
+        date,
+        amount: delta,
+        reason
+      });
+      return {
+        ...prev,
+        [productId]: entries.slice(0, 100)
+      };
+    });
+  };
+  const updateSnackMinStock = (productId, minStock) => {
+    setSnackProducts(prev => prev.map(p => {
+      if (p.id !== productId) return p;
+      const updated = {
+        ...p,
+        minStock
+      };
+      db.upsert("snack_products", {
+        id: updated.id,
+        name: updated.name,
+        balance: updated.balance,
+        min_stock: minStock
+      });
+      return updated;
+    }));
   };
   const updateClientMinStock = (clientId, minStock) => {
     setClients(prev => prev.map(c => {
@@ -1549,13 +1646,21 @@ function MainApp({
     onAddShelfProduct: addShelfProduct,
     onAddShelfStockEntry: addShelfStockEntry,
     onRemoveShelfStock: (pid, amt) => applyShelfDelta(pid, -amt, todayISO(), "Ajuste manual"),
-    onDeleteShelfProduct: deleteShelfProduct
+    onDeleteShelfProduct: deleteShelfProduct,
+    snackProducts,
+    snackStockLog,
+    onAddSnackProduct: addSnackProduct,
+    onAddSnackStockEntry: addSnackStockEntry,
+    onRemoveSnackStock: removeSnackStock,
+    onDeleteSnackProduct: deleteSnackProduct
   }), view === "producao" && h(ProducaoView, {
     clients,
     subscriberStock,
     shelfProducts,
+    snackProducts,
     onUpdateClientMinStock: updateClientMinStock,
-    onUpdateShelfMinStock: updateShelfMinStock
+    onUpdateShelfMinStock: updateShelfMinStock,
+    onUpdateSnackMinStock: updateSnackMinStock
   }), view === "roteiro" && h(RoteiroView, {
     clients
   })), showForm && h(ClientFormModal, {
@@ -2534,7 +2639,13 @@ function StockView({
   onAddShelfProduct,
   onAddShelfStockEntry,
   onRemoveShelfStock,
-  onDeleteShelfProduct
+  onDeleteShelfProduct,
+  snackProducts,
+  snackStockLog,
+  onAddSnackProduct,
+  onAddSnackStockEntry,
+  onRemoveSnackStock,
+  onDeleteSnackProduct
 }) {
   const h = React.createElement;
   const [tab, setTab] = useState("assinantes");
@@ -3108,14 +3219,309 @@ function StockView({
       key: i,
       entry: e
     }))));
+  }))), tab === "petiscos" && h('div', null, h('div', {
+    style: {
+      marginBottom: 14
+    }
+  }, showNewSnack ? h('div', {
+    style: {
+      background: "#FFF",
+      border: "1px solid #EFE4D6",
+      borderRadius: 12,
+      padding: 12
+    }
+  }, h('input', {
+    style: {
+      border: "1px solid #E8DDD0",
+      borderRadius: 10,
+      padding: "10px 12px",
+      fontSize: 14.5,
+      background: "#FFF",
+      color: "#3E332A",
+      width: "100%"
+    },
+    placeholder: "Nome do petisco (ex: Orelha Bovina)",
+    value: newSnackName,
+    onChange: e => setNewSnackName(e.target.value),
+    autoFocus: true
+  }), h('div', {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginTop: 8
+    }
+  }, h('button', {
+    style: {
+      flex: 1,
+      background: "#B8825A",
+      color: "#FFF7EF",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 10px",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    },
+    onClick: () => {
+      if (newSnackName.trim()) {
+        onAddSnackProduct(newSnackName.trim());
+        setNewSnackName("");
+        setShowNewSnack(false);
+      }
+    }
+  }, "Salvar"), h('button', {
+    style: {
+      background: "#EFE4D6",
+      color: "#8A7A6C",
+      border: "none",
+      borderRadius: 9,
+      padding: "9px 14px",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: "pointer"
+    },
+    onClick: () => setShowNewSnack(false)
+  }, "Cancelar"))) : h('button', {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      width: "100%",
+      background: "#FFF",
+      border: "1.5px dashed #D9CBBC",
+      borderRadius: 12,
+      padding: "12px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "#B8825A",
+      cursor: "pointer"
+    },
+    onClick: () => setShowNewSnack(true)
+  }, h(Icons.Plus), "Cadastrar petisco")), snackProducts.length === 0 ? h(EmptyState, {
+    text: "Nenhum petisco cadastrado ainda."
+  }) : h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, snackProducts.filter(p => {
+    const q = searchQ.trim().toLowerCase();
+    return !q || p.name.toLowerCase().includes(q);
+  }).map(p => {
+    const log = snackStockLog && snackStockLog[p.id] || [],
+      expanded = expandedSnack === p.id,
+      isLow = p.balance <= 0;
+    return h('div', {
+      key: p.id,
+      style: {
+        background: "#FFF",
+        border: "1px solid #EFE4D6",
+        borderRadius: 14,
+        padding: 14
+      }
+    }, h('div', {
+      style: {
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 8
+      }
+    }, h('div', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A"
+      }
+    }, h(Icons.Package)), h('div', {
+      style: {
+        fontSize: 15.5,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, p.name)), h('div', {
+      style: {
+        textAlign: "right"
+      }
+    }, h('div', {
+      style: {
+        fontSize: 22,
+        fontWeight: 800,
+        lineHeight: 1,
+        color: isLow ? "#C0594B" : "#3E332A"
+      }
+    }, p.balance), h('div', {
+      style: {
+        fontSize: 10.5,
+        color: "#A89A8C",
+        marginTop: 2,
+        fontWeight: 600
+      }
+    }, "em estoque"))), isLow && h('div', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#FBEAE6",
+        color: "#A8412F",
+        fontSize: 12,
+        fontWeight: 600,
+        padding: "7px 10px",
+        borderRadius: 9,
+        marginTop: 10
+      }
+    }, h('span', {
+      style: {
+        color: "#C0594B"
+      }
+    }, h(Icons.AlertTriangle)), h('span', null, "Sem saldo disponível")), h('div', {
+      style: {
+        display: "flex",
+        gap: 8,
+        marginTop: 12
+      }
+    }, h('input', {
+      type: "number",
+      min: "1",
+      style: {
+        border: "1px solid #E8DDD0",
+        borderRadius: 10,
+        padding: "10px 12px",
+        fontSize: 14.5,
+        background: "#FFF",
+        color: "#3E332A",
+        flex: 1
+      },
+      placeholder: "Qtd",
+      value: snackInputs[p.id] || "",
+      onChange: e => setSnackInputs(prev => ({
+        ...prev,
+        [p.id]: e.target.value
+      }))
+    }), h('button', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#3E332A",
+        color: "#FBF1E8",
+        border: "none",
+        borderRadius: 10,
+        padding: "0 12px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        const a = parseInt(snackInputs[p.id], 10);
+        if (a > 0) {
+          onAddSnackStockEntry(p.id, a);
+          setSnackInputs(prev => ({
+            ...prev,
+            [p.id]: ""
+          }));
+        }
+      }
+    }, h(Icons.Plus), "Add"), h('button', {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "#C0594B",
+        color: "#FFF",
+        border: "none",
+        borderRadius: 10,
+        padding: "0 12px",
+        fontSize: 12.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer"
+      },
+      onClick: () => {
+        const a = parseInt(snackInputs[p.id], 10);
+        if (a > 0) {
+          onRemoveSnackStock(p.id, a);
+          setSnackInputs(prev => ({
+            ...prev,
+            [p.id]: ""
+          }));
+        }
+      }
+    }, "− Remover")), h('div', {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: 8
+      }
+    }, h('button', {
+      style: {
+        background: "transparent",
+        border: "none",
+        color: "#B8825A",
+        fontSize: 12.5,
+        fontWeight: 600,
+        padding: "10px 0 0",
+        textAlign: "left",
+        cursor: "pointer"
+      },
+      onClick: () => setExpandedSnack(expanded ? null : p.id)
+    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), h('button', {
+      style: {
+        width: 26,
+        height: 26,
+        borderRadius: 7,
+        border: "1px solid #EFE4D6",
+        background: "#FBF8F4",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#8A7A6C",
+        cursor: "pointer"
+      },
+      onClick: () => onDeleteSnackProduct(p.id)
+    }, h(Icons.Trash2))), expanded && h('div', {
+      style: {
+        marginTop: 8,
+        borderTop: "1px solid #F1E6D8",
+        paddingTop: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }
+    }, log.length === 0 ? h('p', {
+      style: {
+        fontSize: 12.5,
+        color: "#A89A8C",
+        margin: 0
+      }
+    }, "Sem movimentações ainda.") : log.map((e, i) => h(HistoryRow, {
+      key: i,
+      entry: e
+    }))));
   }))));
 }
 function ProducaoView({
   clients,
   subscriberStock,
   shelfProducts,
+  snackProducts,
   onUpdateClientMinStock,
-  onUpdateShelfMinStock
+  onUpdateShelfMinStock,
+  onUpdateSnackMinStock
 }) {
   const h = React.createElement;
   const [copied, setCopied] = useState(false);
@@ -3123,7 +3529,8 @@ function ProducaoView({
   const subscribers = clients.filter(c => c.frequency !== "avulsa");
   const needsSubscribers = subscribers.filter(c => c.minStock > 0 && (subscriberStock[c.id] ?? 0) < c.minStock);
   const needsProducts = shelfProducts.filter(p => p.minStock > 0 && p.balance < p.minStock);
-  const totalNeeds = needsSubscribers.length + needsProducts.length;
+  const needsSnacks = (snackProducts || []).filter(p => p.minStock > 0 && p.balance < p.minStock);
+  const totalNeeds = needsSubscribers.length + needsProducts.length + needsSnacks.length;
   const buildText = () => {
     let text = `🐾 ObentōPet — Lista de Produção\n${new Date().toLocaleDateString("pt-BR")}\n${"─".repeat(36)}\n\n`;
     if (totalNeeds === 0) {
@@ -3141,6 +3548,13 @@ function ProducaoView({
     if (needsProducts.length > 0) {
       text += `📦 PRODUTOS DE PRATELEIRA\n\n`;
       needsProducts.forEach(p => {
+        const needed = p.minStock - p.balance;
+        text += `• ${p.name}\n  Estoque: ${p.balance} | Mínimo: ${p.minStock} | Repor: ${needed} un.\n\n`;
+      });
+    }
+    if (needsSnacks.length > 0) {
+      text += `🍖 PETISCOS\n\n`;
+      needsSnacks.forEach(p => {
         const needed = p.minStock - p.balance;
         text += `• ${p.name}\n  Estoque: ${p.balance} | Mínimo: ${p.minStock} | Repor: ${needed} un.\n\n`;
       });
@@ -3170,6 +3584,13 @@ function ProducaoView({
       if (needsProducts.length > 0) {
         rows += `<div class="section-title" style="margin-top:24px;">📦 Produtos de Prateleira</div>`;
         needsProducts.forEach(p => {
+          const needed = p.minStock - p.balance;
+          rows += `<div class="item"><div class="item-name">${p.name}</div><div class="item-nums"><span class="badge red">Estoque: ${p.balance}</span><span class="badge gray">Mínimo: ${p.minStock}</span><span class="badge orange">Repor: ${needed} un.</span></div></div>`;
+        });
+      }
+      if (needsSnacks.length > 0) {
+        rows += `<div class="section-title" style="margin-top:24px;">🍖 Petiscos</div>`;
+        needsSnacks.forEach(p => {
           const needed = p.minStock - p.balance;
           rows += `<div class="item"><div class="item-name">${p.name}</div><div class="item-nums"><span class="badge red">Estoque: ${p.balance}</span><span class="badge gray">Mínimo: ${p.minStock}</span><span class="badge orange">Repor: ${needed} un.</span></div></div>`;
         });
@@ -3564,6 +3985,100 @@ function ProducaoView({
         setMinInputs(prev => ({
           ...prev,
           ["p" + p.id]: undefined
+        }));
+      },
+      placeholder: "0"
+    })));
+  })), h('div', {
+    style: {
+      marginBottom: 8,
+      marginTop: 24,
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#8A7A6C",
+      textTransform: "uppercase",
+      letterSpacing: "0.4px"
+    }
+  }, "Estoque mínimo — Petiscos"), h('div', {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    }
+  }, (snackProducts || []).length === 0 ? h('p', {
+    style: {
+      fontSize: 13,
+      color: "#A89A8C",
+      margin: 0
+    }
+  }, "Nenhum petisco cadastrado.") : (snackProducts || []).map(p => {
+    const isLow = p.minStock > 0 && p.balance < p.minStock;
+    return h('div', {
+      key: p.id,
+      style: {
+        background: "#FFF",
+        border: `1px solid ${isLow ? "#F5C6B8" : "#EFE4D6"}`,
+        borderRadius: 12,
+        padding: "12px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10
+      }
+    }, h('div', {
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: "#FBF1E8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#B8825A",
+        flexShrink: 0
+      }
+    }, h(Icons.Package)), h('div', {
+      style: {
+        flex: 1
+      }
+    }, h('div', {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: "#3E332A"
+      }
+    }, p.name), h('div', {
+      style: {
+        fontSize: 12,
+        color: "#8A7A6C"
+      }
+    }, `Saldo atual: ${p.balance} un.`)), h('div', {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4
+      }
+    }, h('label', {
+      style: {
+        fontSize: 10.5,
+        color: "#A89A8C",
+        fontWeight: 600
+      }
+    }, "mín."), h('input', {
+      type: "number",
+      min: "0",
+      style: IS,
+      value: minInputs["sn" + p.id] !== undefined ? minInputs["sn" + p.id] : p.minStock,
+      onChange: e => setMinInputs(prev => ({
+        ...prev,
+        ["sn" + p.id]: e.target.value
+      })),
+      onBlur: e => {
+        const v = parseInt(e.target.value, 10) || 0;
+        onUpdateSnackMinStock(p.id, v);
+        setMinInputs(prev => ({
+          ...prev,
+          ["sn" + p.id]: undefined
         }));
       },
       placeholder: "0"
