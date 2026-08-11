@@ -1,154 +1,225 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ObentōPet – Controle de Entregas</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #FDF8F2; }
-    button, input, select, textarea { font-family: inherit; }
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type=number] { -moz-appearance: textfield; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #D9CBBC; border-radius: 4px; }
-  </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>ObentōPet — Entregas &amp; Estoque</title>
+  <style>* { box-sizing: border-box; } body { margin: 0; background: #FDF8F2; }</style>
 </head>
 <body>
   <div id="root"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
   <script>
-const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A";
-function showAuthWarning() {
-  if (document.getElementById("auth-warning")) return;
-  const div = document.createElement("div");
-  div.id = "auth-warning";
-  div.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#C0594B;color:#FFF;text-align:center;padding:14px 16px;font-family:sans-serif;font-size:14px;font-weight:700;cursor:pointer;";
-  div.innerHTML = "⚠️ Sessão expirada — alterações não estão sendo salvas. Toque aqui para reconectar.";
-  div.onclick = () => location.reload();
-  document.body.prepend(div);
-}
-const auth = {
-  async signIn(email, password) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Content-Type": "application/json"
+    window.storage = {
+      get: function(key) {
+        try { var v = localStorage.getItem('obp_' + key); return Promise.resolve(v ? { value: v } : { value: null }); }
+        catch(e) { return Promise.resolve({ value: null }); }
       },
-      body: JSON.stringify({
-        email,
-        password
-      })
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error_description || "Erro ao entrar");
-    return data;
-  },
-  async signOut(token) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
-      method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": `Bearer ${token}`
+      set: function(key, value) {
+        try { localStorage.setItem('obp_' + key, value); } catch(e) {}
+        return Promise.resolve();
       }
-    });
-  },
-  async getUser(token) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": `Bearer ${token}`
-      }
-    });
-    if (!r.ok) return null;
-    return r.json();
-  },
-  async refreshToken(refreshToken) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        refresh_token: refreshToken
-      })
-    });
-    if (!r.ok) return null;
-    return r.json();
-  }
-};
-function makeDb(token) {
-  const headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
-  };
-  const check = r => {
-    if (r.status === 401 || r.status === 403) showAuthWarning();
-  };
-  return {
-    async get(table, params = "") {
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
-          headers
-        });
-        check(r);
-        if (!r.ok) return [];
-        return r.json();
-      } catch (e) {
-        return [];
-      }
-    },
-    async upsert(table, data) {
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-          method: "POST",
-          headers: {
-            ...headers,
-            "Prefer": "resolution=merge-duplicates,return=representation"
-          },
-          body: JSON.stringify(data)
-        });
-        check(r);
-        return r.ok;
-      } catch (e) {
-        return false;
-      }
-    },
-    async delete(table, filter) {
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
-          method: "DELETE",
-          headers
-        });
-        check(r);
-        return r.ok;
-      } catch (e) {
-        return false;
-      }
-    },
-    async insert(table, data) {
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(data)
-        });
-        check(r);
-        return r.ok;
-      } catch (e) {
-        return false;
-      }
-    }
-  };
+    };
+  </script>
+  <script>
+const {
+  useState,
+  useEffect,
+  useMemo
+} = React;
+
+// ---------- Inline SVG Icons ----------
+function Svg({
+  size = 24,
+  color = "currentColor",
+  strokeWidth = 2,
+  style,
+  children
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: color,
+    strokeWidth: strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    style: style
+  }, children);
 }
+const Plus = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "5",
+  x2: "12",
+  y2: "19"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "5",
+  y1: "12",
+  x2: "19",
+  y2: "12"
+}));
+const Check = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("polyline", {
+  points: "20 6 9 17 4 12"
+}));
+const Clock = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "12 6 12 12 16 14"
+}));
+const Truck = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("rect", {
+  x: "1",
+  y: "3",
+  width: "15",
+  height: "13",
+  rx: "2"
+}), /*#__PURE__*/React.createElement("polygon", {
+  points: "16 8 20 8 23 11 23 16 16 16 16 8"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "5.5",
+  cy: "18.5",
+  r: "2.5"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "18.5",
+  cy: "18.5",
+  r: "2.5"
+}));
+const PawPrint = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "11",
+  cy: "4",
+  r: "2"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "18",
+  cy: "8",
+  r: "2"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "20",
+  cy: "16",
+  r: "2"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"
+}));
+const MapPin = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "10",
+  r: "3"
+}));
+const X = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("line", {
+  x1: "18",
+  y1: "6",
+  x2: "6",
+  y2: "18"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "6",
+  y1: "6",
+  x2: "18",
+  y2: "18"
+}));
+const Search = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "11",
+  cy: "11",
+  r: "8"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "21",
+  y1: "21",
+  x2: "16.65",
+  y2: "16.65"
+}));
+const ChevronLeft = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("polyline", {
+  points: "15 18 9 12 15 6"
+}));
+const ChevronRight = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("polyline", {
+  points: "9 18 15 12 9 6"
+}));
+const Trash2 = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("polyline", {
+  points: "3 6 5 6 21 6"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "10",
+  y1: "11",
+  x2: "10",
+  y2: "17"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "14",
+  y1: "11",
+  x2: "14",
+  y2: "17"
+}));
+const Edit3 = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M12 20h9"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
+}));
+const Package = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("line", {
+  x1: "16.5",
+  y1: "9.4",
+  x2: "7.5",
+  y2: "4.21"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "3.27 6.96 12 12.01 20.73 6.96"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "22.08",
+  x2: "12",
+  y2: "12"
+}));
+const ArrowDownCircle = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "8 12 12 16 16 12"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "8",
+  x2: "12",
+  y2: "16"
+}));
+const ArrowUpCircle = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "16 12 12 8 8 12"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "16",
+  x2: "12",
+  y2: "8"
+}));
+const AlertTriangle = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "9",
+  x2: "12",
+  y2: "13"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "17",
+  x2: "12.01",
+  y2: "17"
+}));
+const Cookie = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M8.5 8.5v.01"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M16 15.5v.01"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M12 12v.01"
+}));
+
+// ---------- Helpers ----------
 const todayISO = () => new Date().toISOString().split("T")[0];
 const weekdayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const weekdayShort = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -165,16 +236,17 @@ function addDays(iso, days) {
   return dateToISO(d);
 }
 function getOccurrencesInRange(client, startISO, endISO) {
-  const out = [],
-    start = new Date(startISO + "T00:00:00"),
-    end = new Date(endISO + "T00:00:00");
+  const out = [];
+  const start = new Date(startISO + "T00:00:00");
+  const end = new Date(endISO + "T00:00:00");
   if (client.frequency === "avulsa") {
     if (client.nextDate && client.nextDate >= startISO && client.nextDate <= endISO) out.push(client.nextDate);
     return out;
   }
   const intervalDays = {
     semanal: 7,
-    quinzenal: 14
+    quinzenal: 14,
+    mensal: null
   }[client.frequency];
   if (!client.nextDate) return out;
   if (client.frequency === "mensal") {
@@ -209,708 +281,45 @@ const frequencyLabel = {
 const statusConfig = {
   preparando: {
     label: "Preparando",
-    color: "#B8825A"
+    color: "#B8825A",
+    bg: "#FBF1E8",
+    icon: Clock
   },
   a_caminho: {
     label: "A caminho",
-    color: "#3E7CB1"
+    color: "#3E7CB1",
+    bg: "#EAF2F8",
+    icon: Truck
   },
   entregue: {
     label: "Entregue",
-    color: "#5C8A5C"
+    color: "#5C8A5C",
+    bg: "#EFF6EE",
+    icon: Check
   }
 };
-const {
-  useState,
-  useEffect,
-  useMemo,
-  useRef
-} = React;
-const Icons = {
-  PawPrint: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 20,
-    height: 20,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('circle', {
-    cx: 11,
-    cy: 4,
-    r: 2
-  }), React.createElement('circle', {
-    cx: 18,
-    cy: 8,
-    r: 2
-  }), React.createElement('circle', {
-    cx: 20,
-    cy: 16,
-    r: 2
-  }), React.createElement('path', {
-    d: "M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"
-  })),
-  Plus: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M5 12h14"
-  }), React.createElement('path', {
-    d: "M12 5v14"
-  })),
-  Check: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M20 6 9 17l-5-5"
-  })),
-  Clock: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 13,
-    height: 13,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('circle', {
-    cx: 12,
-    cy: 12,
-    r: 10
-  }), React.createElement('polyline', {
-    points: "12 6 12 12 16 14"
-  })),
-  Truck: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 13,
-    height: 13,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"
-  }), React.createElement('path', {
-    d: "M15 18H9"
-  }), React.createElement('path', {
-    d: "M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"
-  }), React.createElement('circle', {
-    cx: 17,
-    cy: 18,
-    r: 2
-  }), React.createElement('circle', {
-    cx: 7,
-    cy: 18,
-    r: 2
-  })),
-  MapPin: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 13,
-    height: 13,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"
-  }), React.createElement('circle', {
-    cx: 12,
-    cy: 10,
-    r: 3
-  })),
-  Search: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('circle', {
-    cx: 11,
-    cy: 11,
-    r: 8
-  }), React.createElement('path', {
-    d: "m21 21-4.3-4.3"
-  })),
-  X: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M18 6 6 18"
-  }), React.createElement('path', {
-    d: "m6 6 12 12"
-  })),
-  ChevronLeft: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "m15 18-6-6 6-6"
-  })),
-  ChevronRight: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "m9 18 6-6-6-6"
-  })),
-  Trash2: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M3 6h18"
-  }), React.createElement('path', {
-    d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
-  }), React.createElement('path', {
-    d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
-  })),
-  Edit3: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M12 20h9"
-  }), React.createElement('path', {
-    d: "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
-  })),
-  Package: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 14,
-    height: 14,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "m7.5 4.27 9 5.15"
-  }), React.createElement('path', {
-    d: "M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
-  }), React.createElement('path', {
-    d: "m3.3 7 8.7 5 8.7-5"
-  }), React.createElement('path', {
-    d: "M12 22V12"
-  })),
-  ArrowUp: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('circle', {
-    cx: 12,
-    cy: 12,
-    r: 10
-  }), React.createElement('path', {
-    d: "m16 12-4-4-4 4"
-  }), React.createElement('path', {
-    d: "M12 16V8"
-  })),
-  ArrowDown: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('circle', {
-    cx: 12,
-    cy: 12,
-    r: 10
-  }), React.createElement('path', {
-    d: "m8 12 4 4 4-4"
-  }), React.createElement('path', {
-    d: "M12 8v8"
-  })),
-  AlertTriangle: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 13,
-    height: 13,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
-  }), React.createElement('path', {
-    d: "M12 9v4"
-  }), React.createElement('path', {
-    d: "M12 17h.01"
-  })),
-  LogOut: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-  }), React.createElement('polyline', {
-    points: "16 17 21 12 16 7"
-  }), React.createElement('line', {
-    x1: 21,
-    y1: 12,
-    x2: 9,
-    y2: 12
-  })),
-  Eye: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"
-  }), React.createElement('circle', {
-    cx: 12,
-    cy: 12,
-    r: 3
-  })),
-  EyeOff: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M9.88 9.88a3 3 0 1 0 4.24 4.24"
-  }), React.createElement('path', {
-    d: "M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"
-  }), React.createElement('path', {
-    d: "M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"
-  }), React.createElement('line', {
-    x1: 2,
-    y1: 2,
-    x2: 22,
-    y2: 22
-  })),
-  Copy: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('rect', {
-    width: 14,
-    height: 14,
-    x: 8,
-    y: 8,
-    rx: 2,
-    ry: 2
-  }), React.createElement('path', {
-    d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
-  })),
-  Download: () => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 15,
-    height: 15,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.5,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, React.createElement('path', {
-    d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-  }), React.createElement('polyline', {
-    points: "7 10 12 15 17 10"
-  }), React.createElement('line', {
-    x1: 12,
-    y1: 15,
-    x2: 12,
-    y2: 3
-  }))
-};
-function Icon({
-  name,
-  size,
-  color,
-  style: st
-}) {
-  const Comp = Icons[name];
-  if (!Comp) return null;
-  return React.createElement('span', {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      color: color || 'currentColor',
-      ...st
-    }
-  }, React.createElement(Comp));
-}
-function LoginScreen({
-  onLogin
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const handleLogin = async () => {
-    if (!email.trim() || !password) {
-      setError("Preencha email e senha.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const data = await auth.signIn(email.trim(), password);
-      onLogin(data);
-    } catch (e) {
-      setError("Email ou senha incorretos.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const h = React.createElement;
-  return h('div', {
-    style: {
-      minHeight: "100vh",
-      background: "#FDF8F2",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 24
-    }
-  }, h('div', {
-    style: {
-      width: "100%",
-      maxWidth: 360
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      marginBottom: 36
-    }
-  }, h('div', {
-    style: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
-      background: "#B8825A",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 14,
-      color: "#FBF1E8"
-    }
-  }, h(Icons.PawPrint)), h('h1', {
-    style: {
-      margin: 0,
-      fontSize: 22,
-      fontWeight: 800,
-      color: "#3E332A"
-    }
-  }, "ObentōPet"), h('p', {
-    style: {
-      margin: "4px 0 0",
-      fontSize: 13.5,
-      color: "#A89A8C",
-      fontWeight: 500
-    }
-  }, "Controle de Entregas")), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
-  }, "Email"), h('input', {
-    type: "email",
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 11,
-      padding: "12px 14px",
-      fontSize: 15,
-      background: "#FFF",
-      color: "#3E332A"
-    },
-    placeholder: "seu@email.com",
-    value: email,
-    onChange: e => setEmail(e.target.value),
-    onKeyDown: e => e.key === "Enter" && handleLogin()
-  })), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
-  }, "Senha"), h('div', {
-    style: {
-      position: "relative"
-    }
-  }, h('input', {
-    type: showPass ? "text" : "password",
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 11,
-      padding: "12px 44px 12px 14px",
-      fontSize: 15,
-      background: "#FFF",
-      color: "#3E332A",
-      width: "100%"
-    },
-    placeholder: "••••••••",
-    value: password,
-    onChange: e => setPassword(e.target.value),
-    onKeyDown: e => e.key === "Enter" && handleLogin()
-  }), h('button', {
-    onClick: () => setShowPass(s => !s),
-    style: {
-      position: "absolute",
-      right: 12,
-      top: "50%",
-      transform: "translateY(-50%)",
-      background: "none",
-      border: "none",
-      padding: 0,
-      display: "flex",
-      alignItems: "center",
-      color: "#A89A8C",
-      cursor: "pointer"
-    }
-  }, h(showPass ? Icons.EyeOff : Icons.Eye)))), error && h('p', {
-    style: {
-      color: "#C0594B",
-      fontSize: 13,
-      margin: 0,
-      textAlign: "center"
-    }
-  }, error), h('button', {
-    onClick: handleLogin,
-    disabled: loading,
-    style: {
-      background: loading ? "#D9CBBC" : "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 11,
-      padding: "14px",
-      fontSize: 15.5,
-      fontWeight: 700,
-      marginTop: 4,
-      cursor: "pointer"
-    }
-  }, loading ? "Entrando…" : "Entrar"))));
-}
+const seedClients = [{
+  id: "c1",
+  tutor: "Marina Costa",
+  dog: "Mia",
+  address: "Rua dos Pinheiros, 480 — Pinheiros, São Paulo",
+  frequency: "semanal",
+  nextDate: todayISO(),
+  units: 4,
+  notes: ""
+}, {
+  id: "c2",
+  tutor: "Carlos Eduardo",
+  dog: "Margot",
+  address: "Av. Brigadeiro Faria Lima, 1200 — Itaim Bibi, São Paulo",
+  frequency: "quinzenal",
+  nextDate: addDays(todayISO(), 1),
+  units: 8,
+  notes: "Portaria pede documento"
+}];
+
+// ---------- App ----------
 function App() {
-  const [session, setSession] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const refreshTimerRef = useRef(null);
-  const scheduleRefresh = (refreshTok, expiresIn) => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    const delay = Math.max((expiresIn - 120) * 1000, 10000);
-    refreshTimerRef.current = setTimeout(async () => {
-      const data = await auth.refreshToken(refreshTok);
-      if (data && data.access_token) {
-        localStorage.setItem("obentopet_token", data.access_token);
-        localStorage.setItem("obentopet_refresh", data.refresh_token);
-        setSession(prev => ({
-          ...prev,
-          token: data.access_token
-        }));
-        scheduleRefresh(data.refresh_token, data.expires_in || 3600);
-      } else {
-        handleLogout();
-      }
-    }, delay);
-  };
-  const handleLogin = data => {
-    localStorage.setItem("obentopet_token", data.access_token);
-    localStorage.setItem("obentopet_refresh", data.refresh_token);
-    setSession({
-      token: data.access_token,
-      user: data.user
-    });
-    scheduleRefresh(data.refresh_token, data.expires_in || 3600);
-  };
-  const handleLogout = async () => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    if (session) await auth.signOut(session.token);
-    localStorage.removeItem("obentopet_token");
-    localStorage.removeItem("obentopet_refresh");
-    setSession(null);
-  };
-  useEffect(() => {
-    const token = localStorage.getItem("obentopet_token");
-    const refreshTok = localStorage.getItem("obentopet_refresh");
-    if (refreshTok) {
-      // Sempre renova o token ao abrir o app
-      auth.refreshToken(refreshTok).then(data => {
-        if (data && data.access_token) {
-          localStorage.setItem("obentopet_token", data.access_token);
-          localStorage.setItem("obentopet_refresh", data.refresh_token);
-          setSession({
-            token: data.access_token,
-            user: data.user
-          });
-          scheduleRefresh(data.refresh_token, data.expires_in || 3600);
-        } else if (token) {
-          auth.getUser(token).then(user => {
-            if (user) {
-              setSession({
-                token,
-                user
-              });
-              scheduleRefresh(refreshTok, 3600);
-            }
-          }).catch(() => {});
-        }
-        setAuthChecked(true);
-      }).catch(() => {
-        if (token) {
-          auth.getUser(token).then(user => {
-            if (user) setSession({
-              token,
-              user
-            });
-            setAuthChecked(true);
-          }).catch(() => setAuthChecked(true));
-        } else setAuthChecked(true);
-      });
-    } else setAuthChecked(true);
-    return () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    };
-  }, []);
-  const h = React.createElement;
-  if (!authChecked) return h('div', {
-    style: {
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#FDF8F2",
-      gap: 12
-    }
-  }, h('div', {
-    style: {
-      color: "#B8825A"
-    }
-  }, h(Icons.PawPrint)), h('p', {
-    style: {
-      color: "#A89A8C",
-      fontSize: 14,
-      margin: 0
-    }
-  }, "Carregando…"));
-  if (!session) return h(LoginScreen, {
-    onLogin: handleLogin
-  });
-  return h(MainApp, {
-    token: session.token,
-    user: session.user,
-    onLogout: handleLogout
-  });
-}
-function MainApp({
-  token,
-  onLogout
-}) {
-  const h = React.createElement;
-  const db = useMemo(() => makeDb(token), [token]);
   const [clients, setClients] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [statusLog, setStatusLog] = useState({});
@@ -924,159 +333,173 @@ function MainApp({
   const [shelfProducts, setShelfProducts] = useState([]);
   const [shelfStockLog, setShelfStockLog] = useState({});
   const [deliveryDeduction, setDeliveryDeduction] = useState({});
-  const [deliveryExceptions, setDeliveryExceptions] = useState({});
-  const [snackProducts, setSnackProducts] = useState([]);
-  const [snackStockLog, setSnackStockLog] = useState({});
+  const [petiscoProducts, setPetiscoProducts] = useState([]);
+  const [petiscoStockLog, setPetiscoStockLog] = useState({});
   useEffect(() => {
     (async () => {
-      const cls = await db.get("clients", "?select=*&order=tutor.asc");
-      setClients(cls.map(r => ({
-        id: r.id,
-        tutor: r.tutor,
-        dog: r.dog,
-        address: r.address,
-        frequency: r.frequency,
-        nextDate: r.next_date,
-        units: r.units,
-        notes: r.notes || "",
-        minStock: r.min_stock || 0,
-        phone: r.phone || "",
-        labelFile: r.label_file || ""
-      })));
-      const sl = await db.get("status_log", "?select=*");
-      const slMap = {};
-      sl.forEach(r => {
-        slMap[r.key] = r.status;
-      });
-      setStatusLog(slMap);
-      const ss = await db.get("subscriber_stock", "?select=*");
-      const ssMap = {};
-      ss.forEach(r => {
-        ssMap[r.client_id] = r.balance;
-      });
-      setSubscriberStock(ssMap);
-      const ssl = await db.get("subscriber_stock_log", "?select=*&order=ts.desc");
-      const sslMap = {};
-      ssl.forEach(r => {
-        if (!sslMap[r.client_id]) sslMap[r.client_id] = [];
-        sslMap[r.client_id].push({
-          date: r.date,
-          amount: r.amount,
-          reason: r.reason,
-          ts: r.ts
-        });
-      });
-      setSubscriberStockLog(sslMap);
-      const sp = await db.get("shelf_products", "?select=*&order=name.asc");
-      setShelfProducts(sp.map(r => ({
-        id: r.id,
-        name: r.name,
-        balance: r.balance,
-        minStock: r.min_stock || 0
-      })));
-      const spl = await db.get("shelf_stock_log", "?select=*&order=ts.desc");
-      const splMap = {};
-      spl.forEach(r => {
-        if (!splMap[r.product_id]) splMap[r.product_id] = [];
-        splMap[r.product_id].push({
-          date: r.date,
-          amount: r.amount,
-          reason: r.reason,
-          ts: r.ts
-        });
-      });
-      setShelfStockLog(splMap);
-      const dd = await db.get("delivery_deduction", "?select=*");
-      const ddMap = {};
-      dd.forEach(r => {
-        ddMap[r.key] = {
-          productId: r.product_id,
-          amount: r.amount
-        };
-      });
-      setDeliveryDeduction(ddMap);
-      const de = await db.get("delivery_exceptions", "?select=*");
-      const deMap = {};
-      de.forEach(r => {
-        deMap[r.client_id + "|" + r.original_date] = r.new_date;
-      });
-      setDeliveryExceptions(deMap);
-      const sn = await db.get("snack_products", "?select=*&order=name.asc");
-      setSnackProducts(sn.map(r => ({
-        id: r.id,
-        name: r.name,
-        balance: r.balance,
-        minStock: r.min_stock || 0
-      })));
-      const snl = await db.get("snack_stock_log", "?select=*&order=ts.desc");
-      const snlMap = {};
-      snl.forEach(r => {
-        if (!snlMap[r.product_id]) snlMap[r.product_id] = [];
-        snlMap[r.product_id].push({
-          date: r.date,
-          amount: r.amount,
-          reason: r.reason,
-          ts: r.ts
-        });
-      });
-      setSnackStockLog(snlMap);
+      const load = async (key, set) => {
+        try {
+          const r = await window.storage.get(key);
+          if (r && r.value) set(JSON.parse(r.value));
+        } catch (e) {}
+      };
+      try {
+        const r = await window.storage.get("clients");
+        if (r && r.value) {
+          setClients(JSON.parse(r.value));
+        } else {
+          setClients(seedClients);
+          await window.storage.set("clients", JSON.stringify(seedClients));
+        }
+      } catch (e) {
+        setClients(seedClients);
+      }
+      await load("statusLog", setStatusLog);
+      await load("subscriberStock", setSubscriberStock);
+      await load("subscriberStockLog", setSubscriberStockLog);
+      await load("shelfProducts", setShelfProducts);
+      await load("shelfStockLog", setShelfStockLog);
+      await load("deliveryDeduction", setDeliveryDeduction);
+      await load("petiscoProducts", setPetiscoProducts);
+      await load("petiscoStockLog", setPetiscoStockLog);
       setLoaded(true);
     })();
   }, []);
+  const persist = (key, val) => {
+    if (window.storage) window.storage.set(key, JSON.stringify(val)).catch(() => {});
+  };
   useEffect(() => {
     if (!loaded) return;
-    clients.filter(c => c.frequency !== "avulsa").forEach(c => {
-      if (!(c.id in subscriberStock)) {
-        db.upsert("subscriber_stock", {
-          client_id: c.id,
-          balance: 0
-        });
-        setSubscriberStock(prev => ({
-          ...prev,
-          [c.id]: 0
-        }));
-      }
+    persist("clients", clients);
+  }, [clients, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("statusLog", statusLog);
+  }, [statusLog, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("subscriberStock", subscriberStock);
+  }, [subscriberStock, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("subscriberStockLog", subscriberStockLog);
+  }, [subscriberStockLog, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("shelfProducts", shelfProducts);
+  }, [shelfProducts, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("shelfStockLog", shelfStockLog);
+  }, [shelfStockLog, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("deliveryDeduction", deliveryDeduction);
+  }, [deliveryDeduction, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("petiscoProducts", petiscoProducts);
+  }, [petiscoProducts, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    persist("petiscoStockLog", petiscoStockLog);
+  }, [petiscoStockLog, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    setSubscriberStock(prev => {
+      const next = {
+        ...prev
+      };
+      let changed = false;
+      clients.filter(c => c.frequency !== "avulsa").forEach(c => {
+        if (!(c.id in next)) {
+          next[c.id] = 0;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
     });
   }, [clients, loaded]);
-  const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
-  const lastDeliveryMap = useMemo(() => {
-    const map = {};
-    Object.entries(statusLog).forEach(([key, status]) => {
-      if (status === "entregue") {
-        const [clientId, date] = key.split("|");
-        if (!map[clientId] || date > map[clientId]) map[clientId] = date;
-      }
+  const getStatus = (cid, date) => statusLog[`${cid}|${date}`] || "preparando";
+  const applySubscriberDelta = (cid, delta, date, reason) => {
+    setSubscriberStock(p => ({
+      ...p,
+      [cid]: (p[cid] || 0) + delta
+    }));
+    setSubscriberStockLog(p => {
+      const n = {
+          ...p
+        },
+        e = [...(n[cid] || [])];
+      e.unshift({
+        date,
+        amount: delta,
+        reason,
+        ts: Date.now()
+      });
+      n[cid] = e.slice(0, 100);
+      return n;
     });
-    return map;
-  }, [statusLog]);
-  const setStatus = (clientId, date, status, deduction) => {
-    const key = `${clientId}|${date}`;
-    const wasEntregue = getStatus(clientId, date) === "entregue";
-    const willBeEntregue = status === "entregue";
-    const client = clients.find(c => c.id === clientId);
-    setStatusLog(prev => ({
-      ...prev,
+  };
+  const applyShelfDelta = (pid, delta, date, reason) => {
+    setShelfProducts(p => p.map(x => x.id === pid ? {
+      ...x,
+      balance: x.balance + delta
+    } : x));
+    setShelfStockLog(p => {
+      const n = {
+          ...p
+        },
+        e = [...(n[pid] || [])];
+      e.unshift({
+        date,
+        amount: delta,
+        reason,
+        ts: Date.now()
+      });
+      n[pid] = e.slice(0, 100);
+      return n;
+    });
+  };
+  const applyPetiscoDelta = (pid, delta, date, reason) => {
+    setPetiscoProducts(p => p.map(x => x.id === pid ? {
+      ...x,
+      balance: x.balance + delta
+    } : x));
+    setPetiscoStockLog(p => {
+      const n = {
+          ...p
+        },
+        e = [...(n[pid] || [])];
+      e.unshift({
+        date,
+        amount: delta,
+        reason,
+        ts: Date.now()
+      });
+      n[pid] = e.slice(0, 100);
+      return n;
+    });
+  };
+  const setStatus = (cid, date, status, deduction) => {
+    const key = `${cid}|${date}`;
+    const wasEntregue = getStatus(cid, date) === "entregue";
+    const willEntregue = status === "entregue";
+    const client = clients.find(c => c.id === cid);
+    setStatusLog(p => ({
+      ...p,
       [key]: status
     }));
-    db.upsert("status_log", {
-      key,
-      status
-    });
     if (!client) return;
     if (client.frequency === "avulsa") {
-      if (!wasEntregue && willBeEntregue && deduction?.productId) {
+      if (!wasEntregue && willEntregue && deduction?.productId) {
         applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
-        setDeliveryDeduction(prev => ({
-          ...prev,
+        setDeliveryDeduction(p => ({
+          ...p,
           [key]: deduction
         }));
-        db.upsert("delivery_deduction", {
-          key,
-          product_id: deduction.productId,
-          amount: deduction.amount
-        });
       }
-      if (wasEntregue && !willBeEntregue) {
+      if (wasEntregue && !willEntregue) {
         const prev = deliveryDeduction[key];
         if (prev?.productId) applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
         setDeliveryDeduction(p => {
@@ -1086,308 +509,40 @@ function MainApp({
           delete n[key];
           return n;
         });
-        db.delete("delivery_deduction", `key=eq.${encodeURIComponent(key)}`);
       }
     } else {
-      const amount = client.units || 0;
-      if (!wasEntregue && willBeEntregue) applySubscriberDelta(clientId, -amount, date, "Entrega realizada");
-      if (wasEntregue && !willBeEntregue) applySubscriberDelta(clientId, amount, date, "Estorno (status revertido)");
+      const amt = client.units || 0;
+      if (!wasEntregue && willEntregue) applySubscriberDelta(cid, -amt, date, "Entrega realizada");
+      if (wasEntregue && !willEntregue) applySubscriberDelta(cid, amt, date, "Estorno (status revertido)");
     }
   };
-  const applySubscriberDelta = (clientId, delta, date, reason) => {
-    setSubscriberStock(prev => {
-      const newBal = (prev[clientId] || 0) + delta;
-      db.upsert("subscriber_stock", {
-        client_id: clientId,
-        balance: newBal
-      });
-      return {
-        ...prev,
-        [clientId]: newBal
-      };
-    });
-    db.insert("subscriber_stock_log", {
-      client_id: clientId,
-      date,
-      amount: delta,
-      reason,
-      ts: Date.now()
-    });
-    setSubscriberStockLog(prev => {
-      const entries = prev[clientId] ? [...prev[clientId]] : [];
-      entries.unshift({
-        date,
-        amount: delta,
-        reason
-      });
-      return {
-        ...prev,
-        [clientId]: entries.slice(0, 100)
-      };
-    });
-  };
-  const applyShelfDelta = (productId, delta, date, reason) => {
-    setShelfProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p;
-      const newBal = p.balance + delta;
-      db.upsert("shelf_products", {
-        id: p.id,
-        name: p.name,
-        balance: newBal,
-        min_stock: p.minStock || 0
-      });
-      return {
-        ...p,
-        balance: newBal
-      };
-    }));
-    db.insert("shelf_stock_log", {
-      product_id: productId,
-      date,
-      amount: delta,
-      reason,
-      ts: Date.now()
-    });
-    setShelfStockLog(prev => {
-      const entries = prev[productId] ? [...prev[productId]] : [];
-      entries.unshift({
-        date,
-        amount: delta,
-        reason
-      });
-      return {
-        ...prev,
-        [productId]: entries.slice(0, 100)
-      };
-    });
-  };
-  const addSubscriberProduction = (clientId, amount) => {
-    if (amount > 0) applySubscriberDelta(clientId, amount, todayISO(), "Produção da semana");
+  const addSubscriberProduction = (cid, amt) => {
+    if (amt > 0) applySubscriberDelta(cid, amt, todayISO(), "Produção da semana");
   };
   const addShelfProduct = name => {
     const id = "p" + Date.now();
-    db.upsert("shelf_products", {
+    setShelfProducts(p => [...p, {
       id,
       name,
-      balance: 0,
-      min_stock: 0
-    });
-    setShelfProducts(prev => [...prev, {
-      id,
-      name,
-      balance: 0,
-      minStock: 0
+      balance: 0
     }]);
   };
-  const addShelfStockEntry = (productId, amount) => {
-    if (amount > 0) applyShelfDelta(productId, amount, todayISO(), "Entrada de estoque");
+  const addShelfStockEntry = (pid, amt) => {
+    if (amt > 0) applyShelfDelta(pid, amt, todayISO(), "Entrada de estoque");
   };
-  const deleteShelfProduct = productId => {
-    db.delete("shelf_products", `id=eq.${productId}`);
-    setShelfProducts(prev => prev.filter(p => p.id !== productId));
-  };
-  const addSnackProduct = name => {
-    const id = "sn" + Date.now();
-    db.upsert("snack_products", {
+  const deleteShelfProduct = pid => setShelfProducts(p => p.filter(x => x.id !== pid));
+  const addPetiscoProduct = name => {
+    const id = "pet" + Date.now();
+    setPetiscoProducts(p => [...p, {
       id,
       name,
-      balance: 0,
-      min_stock: 0
-    });
-    setSnackProducts(prev => [...prev, {
-      id,
-      name,
-      balance: 0,
-      minStock: 0
+      balance: 0
     }]);
   };
-  const addSnackStockEntry = (productId, amount) => {
-    if (amount > 0) applySnackDelta(productId, amount, todayISO(), "Entrada de estoque");
+  const addPetiscoStockEntry = (pid, amt) => {
+    if (amt > 0) applyPetiscoDelta(pid, amt, todayISO(), "Produção adicionada");
   };
-  const removeSnackStock = (productId, amount) => {
-    if (amount > 0) applySnackDelta(productId, -amount, todayISO(), "Ajuste manual");
-  };
-  const deleteSnackProduct = productId => {
-    db.delete("snack_products", `id=eq.${productId}`);
-    setSnackProducts(prev => prev.filter(p => p.id !== productId));
-  };
-  const applySnackDelta = (productId, delta, date, reason) => {
-    setSnackProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p;
-      const newBal = p.balance + delta;
-      db.upsert("snack_products", {
-        id: p.id,
-        name: p.name,
-        balance: newBal,
-        min_stock: p.minStock || 0
-      });
-      return {
-        ...p,
-        balance: newBal
-      };
-    }));
-    db.insert("snack_stock_log", {
-      product_id: productId,
-      date,
-      amount: delta,
-      reason,
-      ts: Date.now()
-    });
-    setSnackStockLog(prev => {
-      const entries = prev[productId] ? [...prev[productId]] : [];
-      entries.unshift({
-        date,
-        amount: delta,
-        reason
-      });
-      return {
-        ...prev,
-        [productId]: entries.slice(0, 100)
-      };
-    });
-  };
-  const updateSnackMinStock = (productId, minStock) => {
-    setSnackProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p;
-      const updated = {
-        ...p,
-        minStock
-      };
-      db.upsert("snack_products", {
-        id: updated.id,
-        name: updated.name,
-        balance: updated.balance,
-        min_stock: minStock
-      });
-      return updated;
-    }));
-  };
-  const updateClientMinStock = (clientId, minStock) => {
-    setClients(prev => prev.map(c => {
-      if (c.id !== clientId) return c;
-      const updated = {
-        ...c,
-        minStock
-      };
-      db.upsert("clients", {
-        id: updated.id,
-        tutor: updated.tutor,
-        dog: updated.dog,
-        address: updated.address,
-        frequency: updated.frequency,
-        next_date: updated.nextDate,
-        units: updated.units,
-        notes: updated.notes,
-        min_stock: minStock,
-        phone: updated.phone || "",
-        label_file: updated.labelFile || ""
-      });
-      return updated;
-    }));
-  };
-  const updateShelfMinStock = (productId, minStock) => {
-    setShelfProducts(prev => prev.map(p => {
-      if (p.id !== productId) return p;
-      const updated = {
-        ...p,
-        minStock
-      };
-      db.upsert("shelf_products", {
-        id: updated.id,
-        name: updated.name,
-        balance: updated.balance,
-        min_stock: minStock
-      });
-      return updated;
-    }));
-  };
-  const setRemarcar = (clientId, originalDate, newDate, applyToAll) => {
-    if (applyToAll) {
-      const client = clients.find(c => c.id === clientId);
-      if (!client) return;
-      const updated = {
-        ...client,
-        nextDate: newDate
-      };
-      db.upsert("clients", {
-        id: updated.id,
-        tutor: updated.tutor,
-        dog: updated.dog,
-        address: updated.address,
-        frequency: updated.frequency,
-        next_date: newDate,
-        units: updated.units,
-        notes: updated.notes,
-        min_stock: updated.minStock || 0,
-        phone: updated.phone || "",
-        label_file: updated.labelFile || ""
-      });
-      setClients(prev => prev.map(c => c.id === clientId ? updated : c));
-    } else {
-      const key = clientId + "|" + originalDate;
-      const id = "ex" + Date.now();
-      db.upsert("delivery_exceptions", {
-        id,
-        client_id: clientId,
-        original_date: originalDate,
-        new_date: newDate,
-        created_at: Date.now()
-      });
-      setDeliveryExceptions(prev => ({
-        ...prev,
-        [key]: newDate
-      }));
-    }
-  };
-  const saveClient = data => {
-    if (editingClient) {
-      const updated = {
-        ...editingClient,
-        ...data
-      };
-      db.upsert("clients", {
-        id: updated.id,
-        tutor: updated.tutor,
-        dog: updated.dog,
-        address: updated.address,
-        frequency: updated.frequency,
-        next_date: updated.nextDate,
-        units: updated.units,
-        notes: updated.notes,
-        min_stock: updated.minStock || 0,
-        phone: updated.phone || "",
-        label_file: updated.labelFile || ""
-      });
-      setClients(prev => prev.map(c => c.id === editingClient.id ? updated : c));
-    } else {
-      const id = "c" + Date.now();
-      const newClient = {
-        ...data,
-        id,
-        minStock: 0
-      };
-      db.upsert("clients", {
-        id,
-        tutor: data.tutor,
-        dog: data.dog,
-        address: data.address,
-        frequency: data.frequency,
-        next_date: data.nextDate,
-        units: data.units,
-        notes: data.notes,
-        min_stock: 0,
-        phone: data.phone || "",
-        label_file: data.labelFile || ""
-      });
-      setClients(prev => [...prev, newClient]);
-    }
-    setShowForm(false);
-    setEditingClient(null);
-  };
-  const deleteClient = id => {
-    db.delete("clients", `id=eq.${id}`);
-    setClients(prev => prev.filter(c => c.id !== id));
-  };
+  const deletePetiscoProduct = pid => setPetiscoProducts(p => p.filter(x => x.id !== pid));
   const weekStart = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + weekOffset * 7);
@@ -1397,276 +552,123 @@ function MainApp({
   const weekDays = useMemo(() => Array.from({
     length: 7
   }, (_, i) => addDays(weekStart, i)), [weekStart]);
-  const pendingDeliveries = useMemo(() => {
-    const yesterday = addDays(todayISO(), -1);
-    const startCheck = addDays(todayISO(), -30);
-    const items = [];
-    clients.forEach(c => {
-      const occs = getOccurrencesInRange(c, startCheck, yesterday);
-      occs.forEach(date => {
-        const exKey = c.id + "|" + date;
-        const exception = deliveryExceptions[exKey];
-        if (exception === "skip") return;
-        const effectiveDate = exception || date;
-        if (effectiveDate > yesterday) return;
-        const status = statusLog[c.id + "|" + effectiveDate] || "preparando";
-        if (status !== "entregue") {
-          items.push({
-            client: c,
-            date: effectiveDate,
-            originalDate: date
-          });
-        }
-      });
-    });
-    return items.sort((a, b) => b.date.localeCompare(a.date));
-  }, [clients, statusLog, deliveryExceptions]);
   const todayDeliveries = useMemo(() => {
-    const t = todayISO();
-    const items = [];
-    clients.forEach(c => {
-      getOccurrencesInRange(c, t, t).forEach(origDate => {
-        const exKey = c.id + "|" + origDate;
-        const newDate = deliveryExceptions[exKey];
-        if (newDate === "skip") return;
-        if (newDate && newDate === t) {
-          items.push({
-            client: c,
-            date: t,
-            originalDate: origDate
-          });
-        } else if (!newDate) {
-          items.push({
-            client: c,
-            date: t,
-            originalDate: origDate
-          });
-        }
-      });
-    });
+    const t = todayISO(),
+      items = [];
+    clients.forEach(c => getOccurrencesInRange(c, t, t).forEach(() => items.push({
+      client: c,
+      date: t
+    })));
     return items.sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
-  }, [clients, deliveryExceptions]);
+  }, [clients]);
   const weekDeliveries = useMemo(() => {
     const map = {};
     weekDays.forEach(d => map[d] = []);
-    clients.forEach(c => {
-      getOccurrencesInRange(c, weekDays[0], weekDays[6]).forEach(origDate => {
-        const exKey = c.id + "|" + origDate;
-        const newDate = deliveryExceptions[exKey];
-        if (newDate === "skip") return;
-        const effectiveDate = newDate || origDate;
-        if (map[effectiveDate]) map[effectiveDate].push({
-          ...c,
-          _originalDate: origDate
-        });
-      });
-    });
+    clients.forEach(c => getOccurrencesInRange(c, weekDays[0], weekDays[6]).forEach(d => {
+      if (map[d]) map[d].push(c);
+    }));
     Object.keys(map).forEach(d => map[d].sort((a, b) => a.tutor.localeCompare(b.tutor)));
     return map;
-  }, [clients, weekDays, deliveryExceptions]);
+  }, [clients, weekDays]);
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return clients;
     return clients.filter(c => c.tutor.toLowerCase().includes(q) || c.dog.toLowerCase().includes(q) || c.address.toLowerCase().includes(q));
   }, [clients, search]);
-  if (!loaded) return h('div', {
-    style: {
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#FDF8F2",
-      gap: 12
-    }
-  }, h('div', {
-    style: {
-      color: "#B8825A"
-    }
-  }, h(Icons.PawPrint)), h('p', {
-    style: {
-      color: "#A89A8C",
-      fontSize: 14,
-      margin: 0
-    }
-  }, "Carregando dados…"));
-  const tabs = [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"], ["producao", "Produção"], ["roteiro", "Roteiro"]];
-  return h('div', {
-    style: {
-      minHeight: "100vh",
-      background: "#FDF8F2",
-      color: "#3E332A",
-      paddingBottom: 40
-    }
-  }, h('header', {
-    style: {
-      background: "#3E332A",
-      position: "sticky",
-      top: 0,
-      zIndex: 10
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "18px 20px 14px",
-      flexWrap: "wrap",
-      gap: 12
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, h('div', {
-    style: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      background: "#B8825A",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#FBF1E8"
-    }
-  }, h(Icons.PawPrint)), h('div', null, h('h1', {
-    style: {
-      margin: 0,
-      fontSize: 18,
-      fontWeight: 700,
-      color: "#FBF1E8"
-    }
-  }, "ObentōPet"), h('p', {
-    style: {
-      margin: 0,
-      fontSize: 12,
-      color: "#C9BBA8",
-      fontWeight: 500
-    }
-  }, "Controle de Entregas"))), h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8
-    }
-  }, h('button', {
+  const saveClient = data => {
+    if (editingClient) setClients(p => p.map(c => c.id === editingClient.id ? {
+      ...c,
+      ...data
+    } : c));else setClients(p => [...p, {
+      ...data,
+      id: "c" + Date.now()
+    }]);
+    setShowForm(false);
+    setEditingClient(null);
+  };
+  const deleteClient = id => setClients(p => p.filter(c => c.id !== id));
+  if (!loaded) return /*#__PURE__*/React.createElement("div", {
+    style: styles.loadingScreen
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 32,
+    color: "#B8825A"
+  }));
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.app
+  }, /*#__PURE__*/React.createElement("style", null, globalCss), /*#__PURE__*/React.createElement("header", {
+    style: styles.header
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.headerInner
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.brandRow
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.brandMark
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 20,
+    color: "#FBF1E8",
+    strokeWidth: 2.5
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
+    style: styles.brandTitle
+  }, "ObentōPet"), /*#__PURE__*/React.createElement("p", {
+    style: styles.brandSub
+  }, "Controle de Entregas"))), /*#__PURE__*/React.createElement("button", {
+    style: styles.newBtn,
     onClick: () => {
       setEditingClient(null);
       setShowForm(true);
-    },
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 10,
-      padding: "9px 14px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      cursor: "pointer"
     }
-  }, h(Icons.Plus), " Novo cliente"), h('button', {
-    onClick: onLogout,
+  }, /*#__PURE__*/React.createElement(Plus, {
+    size: 18,
+    strokeWidth: 2.5
+  }), /*#__PURE__*/React.createElement("span", null, "Novo cliente"))), /*#__PURE__*/React.createElement("nav", {
+    style: styles.tabRow
+  }, [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => setView(k),
     style: {
-      width: 36,
-      height: 36,
-      background: "rgba(255,255,255,0.08)",
-      border: "none",
-      borderRadius: 10,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#C9BBA8",
-      cursor: "pointer"
+      ...styles.tab,
+      ...(view === k ? styles.tabActive : {})
     }
-  }, h(Icons.LogOut)))), h('nav', {
-    style: {
-      display: "flex",
-      gap: 0,
-      padding: "0 16px",
-      overflowX: "auto"
-    }
-  }, tabs.map(([key, label]) => h('button', {
-    key,
-    onClick: () => setView(key),
-    style: {
-      background: "transparent",
-      border: "none",
-      color: view === key ? "#FBF1E8" : "#9C8E7E",
-      padding: "10px 12px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      borderBottom: view === key ? "2px solid #B8825A" : "2px solid transparent",
-      cursor: "pointer",
-      whiteSpace: "nowrap"
-    }
-  }, label)))), h('main', {
-    style: {
-      maxWidth: 640,
-      margin: "0 auto",
-      padding: "20px 16px"
-    }
-  }, view === "hoje" && h(TodayView, {
+  }, l)))), /*#__PURE__*/React.createElement("main", {
+    style: styles.main
+  }, view === "hoje" && /*#__PURE__*/React.createElement(TodayView, {
     items: todayDeliveries,
-    pendingDeliveries,
-    getStatus,
-    setStatus,
-    shelfProducts,
-    deliveryExceptions,
-    setRemarcar
-  }), view === "semana" && h(WeekView, {
-    weekDays,
-    weekDeliveries,
-    weekOffset,
-    setWeekOffset,
-    getStatus,
-    setStatus,
-    shelfProducts,
-    deliveryExceptions,
-    setRemarcar
-  }), view === "clientes" && h(ClientsView, {
+    getStatus: getStatus,
+    setStatus: setStatus,
+    shelfProducts: shelfProducts
+  }), view === "semana" && /*#__PURE__*/React.createElement(WeekView, {
+    weekDays: weekDays,
+    weekDeliveries: weekDeliveries,
+    weekOffset: weekOffset,
+    setWeekOffset: setWeekOffset,
+    getStatus: getStatus,
+    setStatus: setStatus,
+    shelfProducts: shelfProducts
+  }), view === "clientes" && /*#__PURE__*/React.createElement(ClientsView, {
     clients: filteredClients,
-    search,
-    setSearch,
+    search: search,
+    setSearch: setSearch,
     onEdit: c => {
       setEditingClient(c);
       setShowForm(true);
     },
-    onDelete: deleteClient,
-    lastDeliveryMap
-  }), view === "estoque" && h(StockView, {
-    clients,
-    subscriberStock,
-    subscriberStockLog,
-    shelfProducts,
-    shelfStockLog,
+    onDelete: deleteClient
+  }), view === "estoque" && /*#__PURE__*/React.createElement(StockView, {
+    clients: clients,
+    subscriberStock: subscriberStock,
+    subscriberStockLog: subscriberStockLog,
+    shelfProducts: shelfProducts,
+    shelfStockLog: shelfStockLog,
+    petiscoProducts: petiscoProducts,
+    petiscoStockLog: petiscoStockLog,
     onAddSubscriberProduction: addSubscriberProduction,
-    onRemoveSubscriberStock: (cid, amt) => applySubscriberDelta(cid, -amt, todayISO(), "Ajuste manual"),
     onAddShelfProduct: addShelfProduct,
     onAddShelfStockEntry: addShelfStockEntry,
-    onRemoveShelfStock: (pid, amt) => applyShelfDelta(pid, -amt, todayISO(), "Ajuste manual"),
     onDeleteShelfProduct: deleteShelfProduct,
-    snackProducts,
-    snackStockLog,
-    onAddSnackProduct: addSnackProduct,
-    onAddSnackStockEntry: addSnackStockEntry,
-    onRemoveSnackStock: removeSnackStock,
-    onDeleteSnackProduct: deleteSnackProduct
-  }), view === "producao" && h(ProducaoView, {
-    clients,
-    subscriberStock,
-    shelfProducts,
-    snackProducts,
-    onUpdateClientMinStock: updateClientMinStock,
-    onUpdateShelfMinStock: updateShelfMinStock,
-    onUpdateSnackMinStock: updateSnackMinStock
-  }), view === "roteiro" && h(RoteiroView, {
-    clients
-  })), showForm && h(ClientFormModal, {
+    onAddPetiscoProduct: addPetiscoProduct,
+    onAddPetiscoStockEntry: addPetiscoStockEntry,
+    onDeletePetiscoProduct: deletePetiscoProduct
+  })), showForm && /*#__PURE__*/React.createElement(ClientFormModal, {
     initial: editingClient,
     onClose: () => {
       setShowForm(false);
@@ -1675,220 +677,44 @@ function MainApp({
     onSave: saveClient
   }));
 }
+
+// ---------- TODAY VIEW ----------
 function TodayView({
   items,
-  pendingDeliveries,
   getStatus,
   setStatus,
-  shelfProducts,
-  setRemarcar
+  shelfProducts
 }) {
-  const h = React.createElement;
   const t = todayISO();
   const d = new Date(t + "T00:00:00");
   const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", {
     month: "long"
   })}`;
-  return h('div', null, pendingDeliveries && pendingDeliveries.length > 0 && h('div', {
-    style: {
-      background: "#FBEAE6",
-      border: "1px solid #F5C6B8",
-      borderRadius: 14,
-      padding: 14,
-      marginBottom: 20
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 7,
-      marginBottom: 12
-    }
-  }, h('span', {
-    style: {
-      color: "#C0594B"
-    }
-  }, h(Icons.AlertTriangle)), h('span', {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: "#A8412F"
-    }
-  }, "Entregas pendentes"), h('span', {
-    style: {
-      background: "#C0594B",
-      color: "#FFF",
-      fontSize: 11.5,
-      fontWeight: 700,
-      padding: "2px 8px",
-      borderRadius: 20
-    }
-  }, pendingDeliveries.length)), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    }
-  }, pendingDeliveries.map(({
-    client,
-    date,
-    originalDate
-  }) => h('div', {
-    key: client.id + date,
-    style: {
-      background: "#FFF",
-      borderRadius: 11,
-      padding: 12,
-      border: "1px solid #F5C6B8"
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      marginBottom: 8,
-      gap: 8
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      flex: 1,
-      minWidth: 0
-    }
-  }, h('div', {
-    style: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      background: "#FBF1E8",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#B8825A",
-      flexShrink: 0
-    }
-  }, h(Icons.PawPrint)), h('div', {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, h('div', {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, client.dog), h('div', {
-    style: {
-      fontSize: 12,
-      color: "#8A7A6C"
-    }
-  }, client.tutor), h('div', {
-    style: {
-      fontSize: 11.5,
-      color: "#7A6C5E",
-      marginTop: 2
-    }
-  }, client.address))), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "flex-end",
-      gap: 4,
-      flexShrink: 0
-    }
-  }, h('span', {
-    style: {
-      fontSize: 12,
-      fontWeight: 700,
-      color: "#C0594B",
-      background: "#FBEAE6",
-      padding: "3px 8px",
-      borderRadius: 8
-    }
-  }, formatDateBR(date)), h('span', {
-    style: {
-      fontSize: 11,
-      fontWeight: 600,
-      color: "#8A6A48",
-      background: "#F6EEE3",
-      padding: "2px 7px",
-      borderRadius: 6
-    }
-  }, frequencyLabel[client.frequency]))), h('div', {
-    style: {
-      display: "flex",
-      gap: 6
-    }
-  }, Object.entries(statusConfig).map(([key, conf]) => {
-    const active = getStatus(client.id, originalDate || date) === key;
-    return h('button', {
-      key,
-      onClick: () => setStatus(client.id, originalDate || date, key),
-      style: {
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 4,
-        border: `1.5px solid ${active ? conf.color : "#E8DDD0"}`,
-        borderRadius: 8,
-        padding: "7px 4px",
-        fontSize: 11.5,
-        fontWeight: 600,
-        background: active ? conf.color : "#FFF7EF",
-        color: active ? "#FFF7EF" : "#8A7A6C",
-        cursor: "pointer"
-      }
-    }, key === "preparando" && h(Icons.Clock), key === "a_caminho" && h(Icons.Truck), key === "entregue" && h(Icons.Check), conf.label);
-  })))))), h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, h('h2', {
-    style: {
-      margin: 0,
-      fontSize: 19,
-      fontWeight: 700,
-      color: "#3E332A",
-      textTransform: "capitalize"
-    }
-  }, label), h('span', {
-    style: {
-      background: "#F1E6D8",
-      color: "#8A6A48",
-      fontSize: 12.5,
-      fontWeight: 600,
-      padding: "4px 10px",
-      borderRadius: 20
-    }
-  }, `${items.length} entrega${items.length !== 1 ? "s" : ""}`)), items.length === 0 ? h(EmptyState, {
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.section
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.sectionHeadRow
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: styles.sectionTitle
+  }, label), /*#__PURE__*/React.createElement("span", {
+    style: styles.countPill
+  }, items.length, " entrega", items.length !== 1 ? "s" : "")), items.length === 0 ? /*#__PURE__*/React.createElement(EmptyState, {
     text: "Nenhuma entrega marcada para hoje."
-  }) : h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: styles.cardList
   }, items.map(({
     client,
-    date,
-    originalDate
-  }) => h(DeliveryCard, {
+    date
+  }) => /*#__PURE__*/React.createElement(DeliveryCard, {
     key: client.id + date,
-    client,
-    status: getStatus(client.id, originalDate || date),
-    onStatusChange: (s, ded) => setStatus(client.id, originalDate || date, s, ded),
-    shelfProducts,
-    originalDate: originalDate || date,
-    setRemarcar
+    client: client,
+    status: getStatus(client.id, date),
+    onStatusChange: (s, ded) => setStatus(client.id, date, s, ded),
+    shelfProducts: shelfProducts
   }))));
 }
+
+// ---------- WEEK VIEW ----------
 function WeekView({
   weekDays,
   weekDeliveries,
@@ -1896,138 +722,89 @@ function WeekView({
   setWeekOffset,
   getStatus,
   setStatus,
-  shelfProducts,
-  setRemarcar
+  shelfProducts
 }) {
-  const h = React.createElement;
   const [activeDay, setActiveDay] = useState(null);
   const t = todayISO();
   const activeDate = activeDay || (weekDays.includes(t) ? t : weekDays[0]);
-  return h('div', null, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 14,
-      marginBottom: 14
-    }
-  }, h('button', {
-    onClick: () => setWeekOffset(w => w - 1),
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 8,
-      width: 32,
-      height: 32,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "pointer"
-    }
-  }, h(Icons.ChevronLeft)), h('span', {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: "#3E332A",
-      minWidth: 110,
-      textAlign: "center"
-    }
-  }, `${formatDateBR(weekDays[0])} – ${formatDateBR(weekDays[6])}`), h('button', {
-    onClick: () => setWeekOffset(w => w + 1),
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 8,
-      width: 32,
-      height: 32,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "pointer"
-    }
-  }, h(Icons.ChevronRight))), h('div', {
-    style: {
-      display: "flex",
-      gap: 6,
-      overflowX: "auto",
-      paddingBottom: 2
-    }
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.section
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.weekNav
+  }, /*#__PURE__*/React.createElement("button", {
+    style: styles.navArrow,
+    onClick: () => setWeekOffset(w => w - 1)
+  }, /*#__PURE__*/React.createElement(ChevronLeft, {
+    size: 18
+  })), /*#__PURE__*/React.createElement("span", {
+    style: styles.weekLabel
+  }, formatDateBR(weekDays[0]), " – ", formatDateBR(weekDays[6])), /*#__PURE__*/React.createElement("button", {
+    style: styles.navArrow,
+    onClick: () => setWeekOffset(w => w + 1)
+  }, /*#__PURE__*/React.createElement(ChevronRight, {
+    size: 18
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: styles.weekStrip
   }, weekDays.map((d, i) => {
-    const count = weekDeliveries[d]?.length || 0,
-      isToday = d === t,
+    const isToday = d === t,
       isActive = d === activeDate;
-    return h('button', {
+    return /*#__PURE__*/React.createElement("button", {
       key: d,
       onClick: () => setActiveDay(d),
       style: {
-        flex: "1 0 auto",
-        minWidth: 44,
-        background: isActive ? "#3E332A" : "#FFF",
-        border: isToday && !isActive ? "1.5px solid #B8825A" : "1px solid #EFE4D6",
-        borderRadius: 11,
-        padding: "8px 4px 10px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 3,
-        cursor: "pointer"
+        ...styles.dayChip,
+        ...(isActive ? styles.dayChipActive : {}),
+        ...(isToday && !isActive ? styles.dayChipToday : {})
       }
-    }, h('span', {
+    }, /*#__PURE__*/React.createElement("span", {
       style: {
-        fontSize: 10,
-        fontWeight: 700,
-        color: "#9C8E7E"
+        ...styles.dayChipDow,
+        ...(isActive ? {
+          color: "#C9BBA8"
+        } : {})
       }
-    }, weekdayShort[i]), h('span', {
+    }, weekdayShort[i]), /*#__PURE__*/React.createElement("span", {
       style: {
-        fontSize: 15,
-        fontWeight: 700,
-        color: isActive ? "#FBF1E8" : "#3E332A"
+        ...styles.dayChipNum,
+        ...(isActive ? {
+          color: "#FBF1E8"
+        } : {})
       }
-    }, d.split("-")[2]), count > 0 && h('span', {
+    }, d.split("-")[2]), (weekDeliveries[d]?.length || 0) > 0 && /*#__PURE__*/React.createElement("span", {
       style: {
-        width: 5,
-        height: 5,
-        borderRadius: 3,
-        background: isActive ? "#FBF1E8" : "#B8825A",
-        marginTop: 1
+        ...styles.dayChipDot,
+        ...(isActive ? {
+          background: "#FBF1E8"
+        } : {})
       }
     }));
-  })), h('div', {
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 20
     }
-  }, (weekDeliveries[activeDate] || []).length === 0 ? h(EmptyState, {
+  }, !weekDeliveries[activeDate]?.length ? /*#__PURE__*/React.createElement(EmptyState, {
     text: "Nenhuma entrega marcada para este dia."
-  }) : h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, weekDeliveries[activeDate].map(c => h(DeliveryCard, {
-    key: c.id + activeDate,
-    client: c,
-    status: getStatus(c.id, c._originalDate || activeDate),
-    onStatusChange: (s, ded) => setStatus(c.id, c._originalDate || activeDate, s, ded),
-    shelfProducts,
-    originalDate: c._originalDate || activeDate,
-    setRemarcar
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: styles.cardList
+  }, weekDeliveries[activeDate].map(client => /*#__PURE__*/React.createElement(DeliveryCard, {
+    key: client.id + activeDate,
+    client: client,
+    status: getStatus(client.id, activeDate),
+    onStatusChange: (s, ded) => setStatus(client.id, activeDate, s, ded),
+    shelfProducts: shelfProducts
   })))));
 }
+
+// ---------- DELIVERY CARD ----------
 function DeliveryCard({
   client,
   status,
   onStatusChange,
-  shelfProducts,
-  originalDate,
-  setRemarcar
+  shelfProducts
 }) {
-  const h = React.createElement;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
-  const [remarcarOpen, setRemarcarOpen] = useState(false);
   const isAvulsa = client.frequency === "avulsa";
   const handleStatusClick = key => {
     if (key === "entregue" && isAvulsa && status !== "entregue") {
@@ -2036,7 +813,7 @@ function DeliveryCard({
     }
     onStatusChange(key);
   };
-  const confirmAvulsaDelivery = () => {
+  const confirmAvulsa = () => {
     const amount = parseInt(selectedAmount, 10);
     if (!selectedProduct || !amount || amount < 1) return;
     onStatusChange("entregue", {
@@ -2045,612 +822,196 @@ function DeliveryCard({
     });
     setPickerOpen(false);
   };
-  return h('div', {
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 14,
-      padding: 14
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 8
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, h('div', {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 9,
-      background: "#FBF1E8",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#B8825A"
-    }
-  }, h(Icons.PawPrint)), h('div', null, h('div', {
-    style: {
-      fontSize: 15.5,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, client.dog), h('div', {
-    style: {
-      fontSize: 13,
-      color: "#8A7A6C",
-      marginTop: 1
-    }
-  }, client.tutor))), h('div', {
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.card
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.cardTop
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.cardIdentity
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.dogBadge
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 14,
+    color: "#B8825A"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: styles.cardDog
+  }, client.dog), /*#__PURE__*/React.createElement("div", {
+    style: styles.cardTutor
+  }, client.tutor))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
       alignItems: "flex-end",
       gap: 5
     }
-  }, h('span', {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: styles.freqTag
+  }, frequencyLabel[client.frequency]), client.units ? /*#__PURE__*/React.createElement("span", {
+    style: styles.unitsTag
+  }, client.units, " ", client.units === 1 ? "unidade" : "unidades") : null)), /*#__PURE__*/React.createElement("div", {
+    style: styles.cardAddress
+  }, /*#__PURE__*/React.createElement(MapPin, {
+    size: 13,
+    color: "#A89A8C",
     style: {
-      fontSize: 11.5,
-      fontWeight: 600,
-      color: "#8A6A48",
-      background: "#F6EEE3",
-      padding: "4px 9px",
-      borderRadius: 8,
-      whiteSpace: "nowrap"
-    }
-  }, frequencyLabel[client.frequency]), client.units && h('span', {
-    style: {
-      fontSize: 11.5,
-      fontWeight: 700,
-      color: "#3E7CB1",
-      background: "#EAF2F8",
-      padding: "4px 9px",
-      borderRadius: 8,
-      whiteSpace: "nowrap"
-    }
-  }, `${client.units} ${client.units === 1 ? "unidade" : "unidades"}`))), h('div', {
-    style: {
-      display: "flex",
-      gap: 6,
-      fontSize: 12.5,
-      color: "#7A6C5E",
-      marginTop: 10,
-      lineHeight: 1.4,
-      alignItems: "flex-start"
-    }
-  }, h('span', {
-    style: {
-      color: "#A89A8C",
       flexShrink: 0,
       marginTop: 2
     }
-  }, h(Icons.MapPin)), h('span', null, client.address)), client.phone && h('a', {
-    href: `tel:${client.phone}`,
-    style: {
-      display: "flex",
-      gap: 6,
-      fontSize: 12.5,
-      color: "#3E7CB1",
-      marginTop: 6,
-      alignItems: "center",
-      textDecoration: "none",
-      fontWeight: 600
-    }
-  }, "📞", h('span', null, client.phone)), pickerOpen ? h('div', {
-    style: {
-      marginTop: 12,
-      background: "#FBF8F4",
-      border: "1px solid #EFE4D6",
-      borderRadius: 11,
-      padding: 12
-    }
-  }, h('p', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C",
-      margin: "0 0 8px"
-    }
-  }, "Qual produto sai do estoque?"), shelfProducts.length === 0 ? h('p', {
-    style: {
-      fontSize: 12.5,
-      color: "#C0594B",
-      margin: 0
-    }
-  }, "Nenhum produto cadastrado.") : h('select', {
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A",
-      width: "100%"
-    },
+  }), /*#__PURE__*/React.createElement("span", null, client.address)), pickerOpen ? /*#__PURE__*/React.createElement("div", {
+    style: styles.avulsaPicker
+  }, /*#__PURE__*/React.createElement("p", {
+    style: styles.avulsaPickerLabel
+  }, "Qual produto sai do estoque?"), shelfProducts.length === 0 ? /*#__PURE__*/React.createElement("p", {
+    style: styles.avulsaPickerEmpty
+  }, "Nenhum produto cadastrado em Estoque ainda.") : /*#__PURE__*/React.createElement("select", {
+    style: styles.input,
     value: selectedProduct,
     onChange: e => setSelectedProduct(e.target.value)
-  }, h('option', {
+  }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Selecione um produto…"), shelfProducts.map(p => h('option', {
+  }, "Selecione um produto…"), shelfProducts.map(p => /*#__PURE__*/React.createElement("option", {
     key: p.id,
     value: p.id
-  }, `${p.name} (saldo: ${p.balance})`))), h('div', {
+  }, p.name, " (saldo: ", p.balance, ")"))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
       marginTop: 8
     }
-  }, h('input', {
+  }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     min: "1",
     style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A",
+      ...styles.input,
       flex: 1
     },
     value: selectedAmount,
     onChange: e => setSelectedAmount(e.target.value),
     placeholder: "Qtd"
-  }), h('button', {
-    style: {
-      flex: 1,
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 10px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer"
-    },
-    onClick: confirmAvulsaDelivery,
+  }), /*#__PURE__*/React.createElement("button", {
+    style: styles.avulsaConfirmBtn,
+    onClick: confirmAvulsa,
     disabled: !selectedProduct
-  }, "Confirmar"), h('button', {
-    style: {
-      background: "#EFE4D6",
-      color: "#8A7A6C",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 14px",
-      fontSize: 13,
-      fontWeight: 600,
-      cursor: "pointer"
-    },
+  }, "Confirmar"), /*#__PURE__*/React.createElement("button", {
+    style: styles.avulsaCancelBtn,
     onClick: () => setPickerOpen(false)
-  }, "Cancelar"))) : h('div', null, h('div', {
-    style: {
-      display: "flex",
-      gap: 6,
-      marginTop: 12
-    }
+  }, "Cancelar"))) : /*#__PURE__*/React.createElement("div", {
+    style: styles.statusRow
   }, Object.entries(statusConfig).map(([key, conf]) => {
-    const active = status === key;
-    return h('button', {
-      key,
+    const StepIcon = conf.icon,
+      active = status === key;
+    return /*#__PURE__*/React.createElement("button", {
+      key: key,
       onClick: () => handleStatusClick(key),
       style: {
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 5,
-        border: `1.5px solid ${active ? conf.color : "#E8DDD0"}`,
-        borderRadius: 9,
-        padding: "8px 6px",
-        fontSize: 12,
-        fontWeight: 600,
-        background: active ? conf.color : "#FFF7EF",
-        color: active ? "#FFF7EF" : "#8A7A6C",
-        cursor: "pointer"
+        ...styles.statusBtn,
+        ...(active ? {
+          background: conf.color,
+          color: "#FFF7EF",
+          borderColor: conf.color
+        } : {
+          background: "#FFF7EF",
+          color: "#8A7A6C",
+          borderColor: "#E8DDD0"
+        })
       }
-    }, key === "preparando" && h(Icons.Clock), key === "a_caminho" && h(Icons.Truck), key === "entregue" && h(Icons.Check), conf.label);
-  })), !isAvulsa && h('button', {
-    onClick: () => setRemarcarOpen(true),
-    style: {
-      marginTop: 8,
-      background: "transparent",
-      border: "none",
-      color: "#B8825A",
-      fontSize: 12,
-      fontWeight: 600,
-      padding: "4px 0",
-      cursor: "pointer",
-      textDecoration: "underline"
-    }
-  }, "Remarcar entrega")), remarcarOpen && h(RemarcarModal, {
-    client,
-    originalDate,
-    onClose: () => setRemarcarOpen(false),
-    onSave: (newDate, applyToAll) => {
-      setRemarcar(client.id, originalDate, newDate, applyToAll);
-      setRemarcarOpen(false);
-    }
-  }));
+    }, /*#__PURE__*/React.createElement(StepIcon, {
+      size: 13,
+      strokeWidth: 2.5
+    }), conf.label);
+  })));
 }
-function RemarcarModal({
-  client,
-  originalDate,
-  onClose,
-  onSave
-}) {
-  const h = React.createElement;
-  const [newDate, setNewDate] = useState(addDays(originalDate, 7));
-  const [applyToAll, setApplyToAll] = useState(false);
-  const freqLabel = {
-    semanal: "semana",
-    quinzenal: "quinzena",
-    mensal: "mês"
-  }[client.frequency] || "período";
-  const IS = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 14.5,
-    background: "#FFF",
-    color: "#3E332A"
-  };
-  return h('div', {
-    style: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(62,51,42,0.45)",
-      display: "flex",
-      alignItems: "flex-end",
-      justifyContent: "center",
-      zIndex: 60
-    },
-    onClick: onClose
-  }, h('div', {
-    style: {
-      background: "#FDF8F2",
-      width: "100%",
-      maxWidth: 480,
-      borderRadius: "18px 18px 0 0",
-      padding: "18px 18px 32px"
-    },
-    onClick: function (e) {
-      e.stopPropagation();
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 18
-    }
-  }, h('h3', {
-    style: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Remarcar entrega"), h('button', {
-    onClick: onClose,
-    style: {
-      background: "#F1E6D8",
-      border: "none",
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#8A7A6C",
-      cursor: "pointer"
-    }
-  }, h(Icons.X))), h('div', {
-    style: {
-      background: "#F6EEE3",
-      borderRadius: 10,
-      padding: "10px 12px",
-      marginBottom: 16,
-      fontSize: 13,
-      color: "#8A6A48"
-    }
-  }, h('strong', null, client.dog), " · entrega original: ", h('strong', null, formatDateBR(originalDate))), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 14
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#8A7A6C"
-    }
-  }, "Nova data de entrega"), h('input', {
-    type: "date",
-    style: IS,
-    value: newDate,
-    min: originalDate,
-    onChange: e => setNewDate(e.target.value)
-  })), h('div', {
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 12,
-      padding: 14,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, h('p', {
-    style: {
-      margin: 0,
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Isso afeta:"), h('label', {
-    style: {
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 10,
-      cursor: "pointer"
-    }
-  }, h('input', {
-    type: "radio",
-    name: "applyScope",
-    checked: !applyToAll,
-    onChange: () => setApplyToAll(false),
-    style: {
-      marginTop: 2,
-      accentColor: "#B8825A"
-    }
-  }), h('div', null, h('div', {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#3E332A"
-    }
-  }, "Só esta entrega"), h('div', {
-    style: {
-      fontSize: 12,
-      color: "#8A7A6C",
-      marginTop: 2
-    }
-  }, `Apenas a entrega de ${formatDateBR(originalDate)} muda.`))), h('label', {
-    style: {
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 10,
-      cursor: "pointer"
-    }
-  }, h('input', {
-    type: "radio",
-    name: "applyScope",
-    checked: applyToAll,
-    onChange: () => setApplyToAll(true),
-    style: {
-      marginTop: 2,
-      accentColor: "#B8825A"
-    }
-  }), h('div', null, h('div', {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#3E332A"
-    }
-  }, "Esta e todas as próximas"), h('div', {
-    style: {
-      fontSize: 12,
-      color: "#8A7A6C",
-      marginTop: 2
-    }
-  }, `O calendário de ${client.dog} passa a contar a partir da nova data.`)))), h('button', {
-    onClick: () => {
-      if (newDate) onSave(newDate, applyToAll);
-    },
-    disabled: !newDate,
-    style: {
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 11,
-      padding: "13px",
-      fontSize: 15,
-      fontWeight: 700,
-      cursor: "pointer"
-    }
-  }, "Confirmar remarcação"))));
-}
+
+// ---------- CLIENTS VIEW ----------
 function ClientsView({
   clients,
   search,
   setSearch,
   onEdit,
-  onDelete,
-  lastDeliveryMap
+  onDelete
 }) {
-  const h = React.createElement;
   const [confirmDelete, setConfirmDelete] = useState(null);
-  return h('div', null, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 11,
-      padding: "10px 12px",
-      marginBottom: 16
-    }
-  }, h('span', {
-    style: {
-      color: "#A89A8C"
-    }
-  }, h(Icons.Search)), h('input', {
-    style: {
-      border: "none",
-      outline: "none",
-      fontSize: 14,
-      flex: 1,
-      background: "transparent",
-      color: "#3E332A"
-    },
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.section
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.searchBar
+  }, /*#__PURE__*/React.createElement(Search, {
+    size: 16,
+    color: "#A89A8C"
+  }), /*#__PURE__*/React.createElement("input", {
+    style: styles.searchInput,
     placeholder: "Buscar por tutor, cão ou endereço…",
     value: search,
     onChange: e => setSearch(e.target.value)
-  })), clients.length === 0 ? h(EmptyState, {
+  })), clients.length === 0 ? /*#__PURE__*/React.createElement(EmptyState, {
     text: "Nenhum cliente cadastrado ainda."
-  }) : h('div', {
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: styles.cardList
+  }, clients.map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.id,
+    style: styles.clientRow
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.dogBadge
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 14,
+    color: "#B8825A"
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
+      flex: 1,
+      minWidth: 0
     }
-  }, clients.map(c => {
-    const lastDel = lastDeliveryMap[c.id];
-    return h('div', {
-      key: c.id,
-      style: {
-        background: "#FFF",
-        border: "1px solid #EFE4D6",
-        borderRadius: 14,
-        padding: 12,
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 32,
-        height: 32,
-        borderRadius: 9,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A"
-      }
-    }, h(Icons.PawPrint)), h('div', {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, h('div', {
-      style: {
-        fontSize: 15.5,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, c.dog), h('div', {
-      style: {
-        fontSize: 13,
-        color: "#8A7A6C",
-        marginTop: 1
-      }
-    }, c.tutor), c.phone && h('div', {
-      style: {
-        fontSize: 12,
-        color: "#3E7CB1",
-        marginTop: 2,
-        fontWeight: 600
-      }
-    }, `📞 ${c.phone}`), h('div', {
-      style: {
-        fontSize: 11.5,
-        color: "#A89A8C",
-        marginTop: 3
-      }
-    }, `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : ""}`), lastDel && h('div', {
-      style: {
-        fontSize: 11.5,
-        color: "#5C8A5C",
-        marginTop: 2,
-        fontWeight: 600
-      }
-    }, `✓ Última entrega: ${formatDateBR(lastDel)}`)), h('div', {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        alignItems: "flex-end"
-      }
-    }, h('button', {
-      style: {
-        background: "#B8825A",
-        color: "#FFF7EF",
-        border: "none",
-        borderRadius: 8,
-        padding: "6px 14px",
-        fontSize: 12.5,
-        fontWeight: 700,
-        cursor: "pointer",
-        whiteSpace: "nowrap"
-      },
-      onClick: () => onEdit(c)
-    }, "✏️ Alterar"), confirmDelete === c.id ? h('button', {
-      style: {
-        background: "#C0594B",
-        color: "#FFF",
-        border: "none",
-        borderRadius: 8,
-        padding: "6px 14px",
-        fontSize: 12.5,
-        fontWeight: 700,
-        cursor: "pointer",
-        whiteSpace: "nowrap"
-      },
-      onClick: () => {
-        onDelete(c.id);
-        setConfirmDelete(null);
-      }
-    }, "Confirmar") : h('button', {
-      style: {
-        background: "transparent",
-        color: "#C0594B",
-        border: "1px solid #F5C6B8",
-        borderRadius: 8,
-        padding: "6px 14px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        cursor: "pointer",
-        whiteSpace: "nowrap"
-      },
-      onClick: () => setConfirmDelete(c.id)
-    }, "🗑️ Excluir")));
-  })));
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.cardDog
+  }, c.dog), /*#__PURE__*/React.createElement("div", {
+    style: styles.cardTutor
+  }, c.tutor), /*#__PURE__*/React.createElement("div", {
+    style: styles.clientMeta
+  }, frequencyLabel[c.frequency], " · próxima: ", formatDateBR(c.nextDate), c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : "")), /*#__PURE__*/React.createElement("div", {
+    style: styles.rowActions
+  }, /*#__PURE__*/React.createElement("button", {
+    style: styles.iconBtn,
+    onClick: () => onEdit(c)
+  }, /*#__PURE__*/React.createElement(Edit3, {
+    size: 15,
+    color: "#8A7A6C"
+  })), confirmDelete === c.id ? /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...styles.iconBtn,
+      background: "#C0594B"
+    },
+    onClick: () => {
+      onDelete(c.id);
+      setConfirmDelete(null);
+    }
+  }, /*#__PURE__*/React.createElement(Check, {
+    size: 15,
+    color: "#fff"
+  })) : /*#__PURE__*/React.createElement("button", {
+    style: styles.iconBtn,
+    onClick: () => setConfirmDelete(c.id)
+  }, /*#__PURE__*/React.createElement(Trash2, {
+    size: 15,
+    color: "#8A7A6C"
+  })))))));
 }
+
+// ---------- STOCK VIEW ----------
 function StockView({
   clients,
   subscriberStock,
   subscriberStockLog,
   shelfProducts,
   shelfStockLog,
+  petiscoProducts,
+  petiscoStockLog,
   onAddSubscriberProduction,
-  onRemoveSubscriberStock,
   onAddShelfProduct,
   onAddShelfStockEntry,
-  onRemoveShelfStock,
   onDeleteShelfProduct,
-  snackProducts,
-  snackStockLog,
-  onAddSnackProduct,
-  onAddSnackStockEntry,
-  onRemoveSnackStock,
-  onDeleteSnackProduct
+  onAddPetiscoProduct,
+  onAddPetiscoStockEntry,
+  onDeletePetiscoProduct
 }) {
-  const h = React.createElement;
   const [tab, setTab] = useState("assinantes");
   const [expandedClient, setExpandedClient] = useState(null);
   const [productionInputs, setProductionInputs] = useState({});
@@ -2658,1865 +1019,409 @@ function StockView({
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [newProductName, setNewProductName] = useState("");
   const [stockInputs, setStockInputs] = useState({});
-  const [searchQ, setSearchQ] = useState("");
+  const [expandedPetisco, setExpandedPetisco] = useState(null);
+  const [showNewPetisco, setShowNewPetisco] = useState(false);
+  const [newPetiscoName, setNewPetiscoName] = useState("");
+  const [petiscoInputs, setPetiscoInputs] = useState({});
   const subscribers = clients.filter(c => c.frequency !== "avulsa");
-  const filteredSubscribers = useMemo(() => {
-    const q = searchQ.trim().toLowerCase();
-    if (!q) return subscribers;
-    return subscribers.filter(c => c.dog.toLowerCase().includes(q) || c.tutor.toLowerCase().includes(q));
-  }, [subscribers, searchQ]);
-  const filteredProducts = useMemo(() => {
-    const q = searchQ.trim().toLowerCase();
-    if (!q) return shelfProducts;
-    return shelfProducts.filter(p => p.name.toLowerCase().includes(q));
-  }, [shelfProducts, searchQ]);
-  return h('div', null, h('div', {
+  const handleAddProduction = cid => {
+    const amt = parseInt(productionInputs[cid], 10);
+    if (!amt || amt <= 0) return;
+    onAddSubscriberProduction(cid, amt);
+    setProductionInputs(p => ({
+      ...p,
+      [cid]: ""
+    }));
+  };
+  const handleAddStock = pid => {
+    const amt = parseInt(stockInputs[pid], 10);
+    if (!amt || amt <= 0) return;
+    onAddShelfStockEntry(pid, amt);
+    setStockInputs(p => ({
+      ...p,
+      [pid]: ""
+    }));
+  };
+  const handleCreateProduct = () => {
+    if (!newProductName.trim()) return;
+    onAddShelfProduct(newProductName.trim());
+    setNewProductName("");
+    setShowNewProduct(false);
+  };
+  const handleAddPetiscoStock = pid => {
+    const amt = parseInt(petiscoInputs[pid], 10);
+    if (!amt || amt <= 0) return;
+    onAddPetiscoStockEntry(pid, amt);
+    setPetiscoInputs(p => ({
+      ...p,
+      [pid]: ""
+    }));
+  };
+  const handleCreatePetisco = () => {
+    if (!newPetiscoName.trim()) return;
+    onAddPetiscoProduct(newPetiscoName.trim());
+    setNewPetiscoName("");
+    setShowNewPetisco(false);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.section
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.sectionHeadRow
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: styles.sectionTitle
+  }, "Estoque")), /*#__PURE__*/React.createElement("div", {
+    style: styles.stockTabRow
+  }, [["assinantes", "Assinantes"], ["avulsos", "Avulsos"], ["petiscos", "Petiscos"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
     style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, h('h2', {
-    style: {
-      margin: 0,
-      fontSize: 19,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Estoque")), h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 11,
-      padding: "10px 12px",
-      marginBottom: 14
-    }
-  }, h('span', {
-    style: {
-      color: "#A89A8C"
-    }
-  }, h(Icons.Search)), h('input', {
-    style: {
-      border: "none",
-      outline: "none",
-      fontSize: 14,
-      flex: 1,
-      background: "transparent",
-      color: "#3E332A"
+      ...styles.stockTabBtn,
+      ...(tab === k ? styles.stockTabBtnActive : {})
     },
-    placeholder: "Buscar…",
-    value: searchQ,
-    onChange: e => setSearchQ(e.target.value)
-  })), h('div', {
-    style: {
-      display: "flex",
-      gap: 6,
-      marginBottom: 16,
-      background: "#F1E6D8",
-      padding: 4,
-      borderRadius: 12
-    }
-  }, [["assinantes", "Assinantes"], ["avulsos", "Avulsos (prateleira)"]].map(([key, label]) => h('button', {
-    key,
-    onClick: () => setTab(key),
-    style: {
-      flex: 1,
-      background: tab === key ? "#FFF" : "transparent",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: tab === key ? "#3E332A" : "#8A7A6C",
-      boxShadow: tab === key ? "0 1px 2px rgba(62,51,42,0.08)" : "none",
-      cursor: "pointer"
-    }
-  }, label))), tab === "assinantes" && (filteredSubscribers.length === 0 ? h(EmptyState, {
-    text: "Nenhum assinante encontrado."
-  }) : h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, filteredSubscribers.map(c => {
+    onClick: () => setTab(k)
+  }, l))), tab === "assinantes" && (subscribers.length === 0 ? /*#__PURE__*/React.createElement(EmptyState, {
+    text: "Nenhum cliente assinante cadastrado ainda."
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: styles.cardList
+  }, subscribers.map(c => {
     const balance = subscriberStock[c.id] ?? 0,
       isLow = balance <= (c.units || 0),
       log = subscriberStockLog[c.id] || [],
       expanded = expandedClient === c.id;
-    return h('div', {
+    return /*#__PURE__*/React.createElement("div", {
       key: c.id,
-      style: {
-        background: "#FFF",
-        border: "1px solid #EFE4D6",
-        borderRadius: 14,
-        padding: 14
-      }
-    }, h('div', {
-      style: {
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 8
-      }
-    }, h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 32,
-        height: 32,
-        borderRadius: 9,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A"
-      }
-    }, h(Icons.PawPrint)), h('div', null, h('div', {
-      style: {
-        fontSize: 15.5,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, c.dog), h('div', {
-      style: {
-        fontSize: 13,
-        color: "#8A7A6C",
-        marginTop: 1
-      }
-    }, c.tutor))), h('div', {
+      style: styles.stockCard
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.stockCardTop
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.cardIdentity
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.dogBadge
+    }, /*#__PURE__*/React.createElement(PawPrint, {
+      size: 14,
+      color: "#B8825A"
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: styles.cardDog
+    }, c.dog), /*#__PURE__*/React.createElement("div", {
+      style: styles.cardTutor
+    }, c.tutor))), /*#__PURE__*/React.createElement("div", {
       style: {
         textAlign: "right"
       }
-    }, h('div', {
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 22,
-        fontWeight: 800,
-        lineHeight: 1,
+        ...styles.balanceNum,
         color: isLow ? "#C0594B" : "#3E332A"
       }
-    }, balance), h('div', {
-      style: {
-        fontSize: 10.5,
-        color: "#A89A8C",
-        marginTop: 2,
-        fontWeight: 600
-      }
-    }, "em estoque"))), isLow && h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        background: "#FBEAE6",
-        color: "#A8412F",
-        fontSize: 12,
-        fontWeight: 600,
-        padding: "7px 10px",
-        borderRadius: 9,
-        marginTop: 10
-      }
-    }, h('span', {
-      style: {
-        color: "#C0594B"
-      }
-    }, h(Icons.AlertTriangle)), h('span', null, `Saldo baixo (${c.units || 0} un.)`)), h('div', {
-      style: {
-        display: "flex",
-        gap: 8,
-        marginTop: 12
-      }
-    }, h('input', {
+    }, balance), /*#__PURE__*/React.createElement("div", {
+      style: styles.balanceLabel
+    }, "em estoque"))), isLow && /*#__PURE__*/React.createElement("div", {
+      style: styles.lowStockWarning
+    }, /*#__PURE__*/React.createElement(AlertTriangle, {
+      size: 13,
+      color: "#C0594B"
+    }), /*#__PURE__*/React.createElement("span", null, "Saldo baixo para a próxima entrega (", c.units || 0, " un.)")), /*#__PURE__*/React.createElement("div", {
+      style: styles.stockEntryRow
+    }, /*#__PURE__*/React.createElement("input", {
       type: "number",
       min: "1",
       style: {
-        border: "1px solid #E8DDD0",
-        borderRadius: 10,
-        padding: "10px 12px",
-        fontSize: 14.5,
-        background: "#FFF",
-        color: "#3E332A",
+        ...styles.input,
         flex: 1
       },
-      placeholder: "Qtd",
+      placeholder: "Unidades produzidas",
       value: productionInputs[c.id] || "",
       onChange: e => setProductionInputs(p => ({
         ...p,
         [c.id]: e.target.value
       }))
-    }), h('button', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#3E332A",
-        color: "#FBF1E8",
-        border: "none",
-        borderRadius: 10,
-        padding: "0 12px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        cursor: "pointer"
-      },
-      onClick: () => {
-        const a = parseInt(productionInputs[c.id], 10);
-        if (a > 0) {
-          onAddSubscriberProduction(c.id, a);
-          setProductionInputs(p => ({
-            ...p,
-            [c.id]: ""
-          }));
-        }
-      }
-    }, h(Icons.Plus), "Add"), h('button', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#C0594B",
-        color: "#FFF",
-        border: "none",
-        borderRadius: 10,
-        padding: "0 12px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        cursor: "pointer"
-      },
-      onClick: () => {
-        const a = parseInt(productionInputs[c.id], 10);
-        if (a > 0) {
-          onRemoveSubscriberStock(c.id, a);
-          setProductionInputs(p => ({
-            ...p,
-            [c.id]: ""
-          }));
-        }
-      }
-    }, "− Remover")), h('button', {
-      style: {
-        background: "transparent",
-        border: "none",
-        color: "#B8825A",
-        fontSize: 12.5,
-        fontWeight: 600,
-        padding: "10px 0 0",
-        textAlign: "left",
-        cursor: "pointer"
-      },
+    }), /*#__PURE__*/React.createElement("button", {
+      style: styles.addStockBtn,
+      onClick: () => handleAddProduction(c.id)
+    }, /*#__PURE__*/React.createElement(Plus, {
+      size: 14,
+      strokeWidth: 2.5
+    }), " Adicionar")), /*#__PURE__*/React.createElement("button", {
+      style: styles.historyToggle,
       onClick: () => setExpandedClient(expanded ? null : c.id)
-    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), expanded && h('div', {
-      style: {
-        marginTop: 8,
-        borderTop: "1px solid #F1E6D8",
-        paddingTop: 8,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8
-      }
-    }, log.length === 0 ? h('p', {
-      style: {
-        fontSize: 12.5,
-        color: "#A89A8C",
-        margin: 0
-      }
-    }, "Sem movimentações ainda.") : log.map((e, i) => h(HistoryRow, {
+    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), expanded && /*#__PURE__*/React.createElement("div", {
+      style: styles.historyList
+    }, log.length === 0 ? /*#__PURE__*/React.createElement("p", {
+      style: styles.historyEmpty
+    }, "Sem movimentações ainda.") : log.map((e, i) => /*#__PURE__*/React.createElement(HistoryRow, {
       key: i,
       entry: e
     }))));
-  }))), tab === "avulsos" && h('div', null, h('div', {
+  }))), tab === "avulsos" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 14
     }
-  }, showNewProduct ? h('div', {
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 12,
-      padding: 12
-    }
-  }, h('input', {
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A",
-      width: "100%"
-    },
+  }, showNewProduct ? /*#__PURE__*/React.createElement("div", {
+    style: styles.newProductBox
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
     placeholder: "Nome do produto (ex: Biscoito Natural 200g)",
     value: newProductName,
     onChange: e => setNewProductName(e.target.value),
     autoFocus: true
-  }), h('div', {
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
       marginTop: 8
     }
-  }, h('button', {
-    style: {
-      flex: 1,
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 10px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer"
-    },
-    onClick: () => {
-      if (newProductName.trim()) {
-        onAddShelfProduct(newProductName.trim());
-        setNewProductName("");
-        setShowNewProduct(false);
-      }
-    }
-  }, "Salvar"), h('button', {
-    style: {
-      background: "#EFE4D6",
-      color: "#8A7A6C",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 14px",
-      fontSize: 13,
-      fontWeight: 600,
-      cursor: "pointer"
-    },
+  }, /*#__PURE__*/React.createElement("button", {
+    style: styles.avulsaConfirmBtn,
+    onClick: handleCreateProduct
+  }, "Salvar"), /*#__PURE__*/React.createElement("button", {
+    style: styles.avulsaCancelBtn,
     onClick: () => setShowNewProduct(false)
-  }, "Cancelar"))) : h('button', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      width: "100%",
-      background: "#FFF",
-      border: "1.5px dashed #D9CBBC",
-      borderRadius: 12,
-      padding: "12px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#B8825A",
-      cursor: "pointer"
-    },
+  }, "Cancelar"))) : /*#__PURE__*/React.createElement("button", {
+    style: styles.newProductTrigger,
     onClick: () => setShowNewProduct(true)
-  }, h(Icons.Plus), "Cadastrar produto de prateleira")), filteredProducts.length === 0 ? h(EmptyState, {
-    text: "Nenhum produto encontrado."
-  }) : h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, filteredProducts.map(p => {
+  }, /*#__PURE__*/React.createElement(Plus, {
+    size: 16,
+    strokeWidth: 2.5
+  }), " Cadastrar produto de prateleira")), shelfProducts.length === 0 ? /*#__PURE__*/React.createElement(EmptyState, {
+    text: "Nenhum produto de prateleira cadastrado ainda."
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: styles.cardList
+  }, shelfProducts.map(p => {
     const log = shelfStockLog[p.id] || [],
       expanded = expandedProduct === p.id,
       isLow = p.balance <= 0;
-    return h('div', {
+    return /*#__PURE__*/React.createElement("div", {
       key: p.id,
-      style: {
-        background: "#FFF",
-        border: "1px solid #EFE4D6",
-        borderRadius: 14,
-        padding: 14
-      }
-    }, h('div', {
-      style: {
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 8
-      }
-    }, h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 32,
-        height: 32,
-        borderRadius: 9,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A"
-      }
-    }, h(Icons.Package)), h('div', {
-      style: {
-        fontSize: 15.5,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, p.name)), h('div', {
+      style: styles.stockCard
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.stockCardTop
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.cardIdentity
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.dogBadge
+    }, /*#__PURE__*/React.createElement(Package, {
+      size: 14,
+      color: "#B8825A"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: styles.cardDog
+    }, p.name)), /*#__PURE__*/React.createElement("div", {
       style: {
         textAlign: "right"
       }
-    }, h('div', {
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 22,
-        fontWeight: 800,
-        lineHeight: 1,
+        ...styles.balanceNum,
         color: isLow ? "#C0594B" : "#3E332A"
       }
-    }, p.balance), h('div', {
-      style: {
-        fontSize: 10.5,
-        color: "#A89A8C",
-        marginTop: 2,
-        fontWeight: 600
-      }
-    }, "em estoque"))), isLow && h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        background: "#FBEAE6",
-        color: "#A8412F",
-        fontSize: 12,
-        fontWeight: 600,
-        padding: "7px 10px",
-        borderRadius: 9,
-        marginTop: 10
-      }
-    }, h('span', {
-      style: {
-        color: "#C0594B"
-      }
-    }, h(Icons.AlertTriangle)), h('span', null, "Sem saldo disponível")), h('div', {
-      style: {
-        display: "flex",
-        gap: 8,
-        marginTop: 12
-      }
-    }, h('input', {
+    }, p.balance), /*#__PURE__*/React.createElement("div", {
+      style: styles.balanceLabel
+    }, "em estoque"))), isLow && /*#__PURE__*/React.createElement("div", {
+      style: styles.lowStockWarning
+    }, /*#__PURE__*/React.createElement(AlertTriangle, {
+      size: 13,
+      color: "#C0594B"
+    }), /*#__PURE__*/React.createElement("span", null, "Sem saldo disponível")), /*#__PURE__*/React.createElement("div", {
+      style: styles.stockEntryRow
+    }, /*#__PURE__*/React.createElement("input", {
       type: "number",
       min: "1",
       style: {
-        border: "1px solid #E8DDD0",
-        borderRadius: 10,
-        padding: "10px 12px",
-        fontSize: 14.5,
-        background: "#FFF",
-        color: "#3E332A",
+        ...styles.input,
         flex: 1
       },
-      placeholder: "Qtd",
+      placeholder: "Unidades a adicionar",
       value: stockInputs[p.id] || "",
       onChange: e => setStockInputs(prev => ({
         ...prev,
         [p.id]: e.target.value
       }))
-    }), h('button', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#3E332A",
-        color: "#FBF1E8",
-        border: "none",
-        borderRadius: 10,
-        padding: "0 12px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        cursor: "pointer"
-      },
-      onClick: () => {
-        const a = parseInt(stockInputs[p.id], 10);
-        if (a > 0) {
-          onAddShelfStockEntry(p.id, a);
-          setStockInputs(prev => ({
-            ...prev,
-            [p.id]: ""
-          }));
-        }
-      }
-    }, h(Icons.Plus), "Add"), h('button', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#C0594B",
-        color: "#FFF",
-        border: "none",
-        borderRadius: 10,
-        padding: "0 12px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        cursor: "pointer"
-      },
-      onClick: () => {
-        const a = parseInt(stockInputs[p.id], 10);
-        if (a > 0) {
-          onRemoveShelfStock(p.id, a);
-          setStockInputs(prev => ({
-            ...prev,
-            [p.id]: ""
-          }));
-        }
-      }
-    }, "− Remover")), h('div', {
+    }), /*#__PURE__*/React.createElement("button", {
+      style: styles.addStockBtn,
+      onClick: () => handleAddStock(p.id)
+    }, /*#__PURE__*/React.createElement(Plus, {
+      size: 14,
+      strokeWidth: 2.5
+    }), " Adicionar")), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         marginTop: 8
       }
-    }, h('button', {
-      style: {
-        background: "transparent",
-        border: "none",
-        color: "#B8825A",
-        fontSize: 12.5,
-        fontWeight: 600,
-        padding: "10px 0 0",
-        textAlign: "left",
-        cursor: "pointer"
-      },
+    }, /*#__PURE__*/React.createElement("button", {
+      style: styles.historyToggle,
       onClick: () => setExpandedProduct(expanded ? null : p.id)
-    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), h('button', {
-      style: {
-        width: 26,
-        height: 26,
-        borderRadius: 7,
-        border: "1px solid #EFE4D6",
-        background: "#FBF8F4",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#8A7A6C",
-        cursor: "pointer"
-      },
+    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), /*#__PURE__*/React.createElement("button", {
+      style: styles.deleteProductBtn,
       onClick: () => onDeleteShelfProduct(p.id)
-    }, h(Icons.Trash2))), expanded && h('div', {
-      style: {
-        marginTop: 8,
-        borderTop: "1px solid #F1E6D8",
-        paddingTop: 8,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8
-      }
-    }, log.length === 0 ? h('p', {
-      style: {
-        fontSize: 12.5,
-        color: "#A89A8C",
-        margin: 0
-      }
-    }, "Sem movimentações ainda.") : log.map((e, i) => h(HistoryRow, {
+    }, /*#__PURE__*/React.createElement(Trash2, {
+      size: 13,
+      color: "#A89A8C"
+    }))), expanded && /*#__PURE__*/React.createElement("div", {
+      style: styles.historyList
+    }, log.length === 0 ? /*#__PURE__*/React.createElement("p", {
+      style: styles.historyEmpty
+    }, "Sem movimentações ainda.") : log.map((e, i) => /*#__PURE__*/React.createElement(HistoryRow, {
       key: i,
       entry: e
     }))));
-  }))), tab === "petiscos" && h('div', null, h('div', {
+  }))), tab === "petiscos" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 14
     }
-  }, showNewSnack ? h('div', {
-    style: {
-      background: "#FFF",
-      border: "1px solid #EFE4D6",
-      borderRadius: 12,
-      padding: 12
-    }
-  }, h('input', {
-    style: {
-      border: "1px solid #E8DDD0",
-      borderRadius: 10,
-      padding: "10px 12px",
-      fontSize: 14.5,
-      background: "#FFF",
-      color: "#3E332A",
-      width: "100%"
-    },
-    placeholder: "Nome do petisco (ex: Orelha Bovina)",
-    value: newSnackName,
-    onChange: e => setNewSnackName(e.target.value),
+  }, showNewPetisco ? /*#__PURE__*/React.createElement("div", {
+    style: styles.newProductBox
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
+    placeholder: "Nome do petisco (ex: Biscoito de Frango 100g)",
+    value: newPetiscoName,
+    onChange: e => setNewPetiscoName(e.target.value),
     autoFocus: true
-  }), h('div', {
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
       marginTop: 8
     }
-  }, h('button', {
-    style: {
-      flex: 1,
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 10px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer"
-    },
-    onClick: () => {
-      if (newSnackName.trim()) {
-        onAddSnackProduct(newSnackName.trim());
-        setNewSnackName("");
-        setShowNewSnack(false);
-      }
-    }
-  }, "Salvar"), h('button', {
-    style: {
-      background: "#EFE4D6",
-      color: "#8A7A6C",
-      border: "none",
-      borderRadius: 9,
-      padding: "9px 14px",
-      fontSize: 13,
-      fontWeight: 600,
-      cursor: "pointer"
-    },
-    onClick: () => setShowNewSnack(false)
-  }, "Cancelar"))) : h('button', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      width: "100%",
-      background: "#FFF",
-      border: "1.5px dashed #D9CBBC",
-      borderRadius: 12,
-      padding: "12px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#B8825A",
-      cursor: "pointer"
-    },
-    onClick: () => setShowNewSnack(true)
-  }, h(Icons.Plus), "Cadastrar petisco")), snackProducts.length === 0 ? h(EmptyState, {
+  }, /*#__PURE__*/React.createElement("button", {
+    style: styles.avulsaConfirmBtn,
+    onClick: handleCreatePetisco
+  }, "Salvar"), /*#__PURE__*/React.createElement("button", {
+    style: styles.avulsaCancelBtn,
+    onClick: () => setShowNewPetisco(false)
+  }, "Cancelar"))) : /*#__PURE__*/React.createElement("button", {
+    style: styles.newProductTrigger,
+    onClick: () => setShowNewPetisco(true)
+  }, /*#__PURE__*/React.createElement(Plus, {
+    size: 16,
+    strokeWidth: 2.5
+  }), " Cadastrar petisco")), petiscoProducts.length === 0 ? /*#__PURE__*/React.createElement(EmptyState, {
     text: "Nenhum petisco cadastrado ainda."
-  }) : h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 12
-    }
-  }, snackProducts.filter(p => {
-    const q = searchQ.trim().toLowerCase();
-    return !q || p.name.toLowerCase().includes(q);
-  }).map(p => {
-    const log = snackStockLog && snackStockLog[p.id] || [],
-      expanded = expandedSnack === p.id,
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: styles.cardList
+  }, petiscoProducts.map(p => {
+    const log = petiscoStockLog[p.id] || [],
+      expanded = expandedPetisco === p.id,
       isLow = p.balance <= 0;
-    return h('div', {
+    return /*#__PURE__*/React.createElement("div", {
       key: p.id,
-      style: {
-        background: "#FFF",
-        border: "1px solid #EFE4D6",
-        borderRadius: 14,
-        padding: 14
-      }
-    }, h('div', {
-      style: {
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 8
-      }
-    }, h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 32,
-        height: 32,
-        borderRadius: 9,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A"
-      }
-    }, h(Icons.Package)), h('div', {
-      style: {
-        fontSize: 15.5,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, p.name)), h('div', {
+      style: styles.stockCard
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.stockCardTop
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.cardIdentity
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.dogBadge
+    }, /*#__PURE__*/React.createElement(Cookie, {
+      size: 14,
+      color: "#B8825A"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: styles.cardDog
+    }, p.name)), /*#__PURE__*/React.createElement("div", {
       style: {
         textAlign: "right"
       }
-    }, h('div', {
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 22,
-        fontWeight: 800,
-        lineHeight: 1,
+        ...styles.balanceNum,
         color: isLow ? "#C0594B" : "#3E332A"
       }
-    }, p.balance), h('div', {
-      style: {
-        fontSize: 10.5,
-        color: "#A89A8C",
-        marginTop: 2,
-        fontWeight: 600
-      }
-    }, "em estoque"))), isLow && h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        background: "#FBEAE6",
-        color: "#A8412F",
-        fontSize: 12,
-        fontWeight: 600,
-        padding: "7px 10px",
-        borderRadius: 9,
-        marginTop: 10
-      }
-    }, h('span', {
-      style: {
-        color: "#C0594B"
-      }
-    }, h(Icons.AlertTriangle)), h('span', null, "Sem saldo disponível")), h('div', {
-      style: {
-        display: "flex",
-        gap: 8,
-        marginTop: 12
-      }
-    }, h('input', {
+    }, p.balance), /*#__PURE__*/React.createElement("div", {
+      style: styles.balanceLabel
+    }, "em estoque"))), isLow && /*#__PURE__*/React.createElement("div", {
+      style: styles.lowStockWarning
+    }, /*#__PURE__*/React.createElement(AlertTriangle, {
+      size: 13,
+      color: "#C0594B"
+    }), /*#__PURE__*/React.createElement("span", null, "Sem saldo disponível")), /*#__PURE__*/React.createElement("div", {
+      style: styles.stockEntryRow
+    }, /*#__PURE__*/React.createElement("input", {
       type: "number",
       min: "1",
       style: {
-        border: "1px solid #E8DDD0",
-        borderRadius: 10,
-        padding: "10px 12px",
-        fontSize: 14.5,
-        background: "#FFF",
-        color: "#3E332A",
+        ...styles.input,
         flex: 1
       },
-      placeholder: "Qtd",
-      value: snackInputs[p.id] || "",
-      onChange: e => setSnackInputs(prev => ({
+      placeholder: "Unidades produzidas",
+      value: petiscoInputs[p.id] || "",
+      onChange: e => setPetiscoInputs(prev => ({
         ...prev,
         [p.id]: e.target.value
       }))
-    }), h('button', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#3E332A",
-        color: "#FBF1E8",
-        border: "none",
-        borderRadius: 10,
-        padding: "0 12px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        cursor: "pointer"
-      },
-      onClick: () => {
-        const a = parseInt(snackInputs[p.id], 10);
-        if (a > 0) {
-          onAddSnackStockEntry(p.id, a);
-          setSnackInputs(prev => ({
-            ...prev,
-            [p.id]: ""
-          }));
-        }
-      }
-    }, h(Icons.Plus), "Add"), h('button', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        background: "#C0594B",
-        color: "#FFF",
-        border: "none",
-        borderRadius: 10,
-        padding: "0 12px",
-        fontSize: 12.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        cursor: "pointer"
-      },
-      onClick: () => {
-        const a = parseInt(snackInputs[p.id], 10);
-        if (a > 0) {
-          onRemoveSnackStock(p.id, a);
-          setSnackInputs(prev => ({
-            ...prev,
-            [p.id]: ""
-          }));
-        }
-      }
-    }, "− Remover")), h('div', {
+    }), /*#__PURE__*/React.createElement("button", {
+      style: styles.addStockBtn,
+      onClick: () => handleAddPetiscoStock(p.id)
+    }, /*#__PURE__*/React.createElement(Plus, {
+      size: 14,
+      strokeWidth: 2.5
+    }), " Adicionar")), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         marginTop: 8
       }
-    }, h('button', {
-      style: {
-        background: "transparent",
-        border: "none",
-        color: "#B8825A",
-        fontSize: 12.5,
-        fontWeight: 600,
-        padding: "10px 0 0",
-        textAlign: "left",
-        cursor: "pointer"
-      },
-      onClick: () => setExpandedSnack(expanded ? null : p.id)
-    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), h('button', {
-      style: {
-        width: 26,
-        height: 26,
-        borderRadius: 7,
-        border: "1px solid #EFE4D6",
-        background: "#FBF8F4",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#8A7A6C",
-        cursor: "pointer"
-      },
-      onClick: () => onDeleteSnackProduct(p.id)
-    }, h(Icons.Trash2))), expanded && h('div', {
-      style: {
-        marginTop: 8,
-        borderTop: "1px solid #F1E6D8",
-        paddingTop: 8,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8
-      }
-    }, log.length === 0 ? h('p', {
-      style: {
-        fontSize: 12.5,
-        color: "#A89A8C",
-        margin: 0
-      }
-    }, "Sem movimentações ainda.") : log.map((e, i) => h(HistoryRow, {
+    }, /*#__PURE__*/React.createElement("button", {
+      style: styles.historyToggle,
+      onClick: () => setExpandedPetisco(expanded ? null : p.id)
+    }, expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`), /*#__PURE__*/React.createElement("button", {
+      style: styles.deleteProductBtn,
+      onClick: () => onDeletePetiscoProduct(p.id)
+    }, /*#__PURE__*/React.createElement(Trash2, {
+      size: 13,
+      color: "#A89A8C"
+    }))), expanded && /*#__PURE__*/React.createElement("div", {
+      style: styles.historyList
+    }, log.length === 0 ? /*#__PURE__*/React.createElement("p", {
+      style: styles.historyEmpty
+    }, "Sem movimentações ainda.") : log.map((e, i) => /*#__PURE__*/React.createElement(HistoryRow, {
       key: i,
       entry: e
     }))));
   }))));
 }
-function ProducaoView({
-  clients,
-  subscriberStock,
-  shelfProducts,
-  snackProducts,
-  onUpdateClientMinStock,
-  onUpdateShelfMinStock,
-  onUpdateSnackMinStock
-}) {
-  const h = React.createElement;
-  const [copied, setCopied] = useState(false);
-  const [minInputs, setMinInputs] = useState({});
-  const subscribers = clients.filter(c => c.frequency !== "avulsa");
-  const needsSubscribers = subscribers.filter(c => c.minStock > 0 && (subscriberStock[c.id] ?? 0) < c.minStock);
-  const needsProducts = shelfProducts.filter(p => p.minStock > 0 && p.balance < p.minStock);
-  const needsSnacks = (snackProducts || []).filter(p => p.minStock > 0 && p.balance < p.minStock);
-  const totalNeeds = needsSubscribers.length + needsProducts.length + needsSnacks.length;
-  const buildText = () => {
-    let text = `🐾 ObentōPet — Lista de Produção\n${new Date().toLocaleDateString("pt-BR")}\n${"─".repeat(36)}\n\n`;
-    if (totalNeeds === 0) {
-      text += "Tudo em dia! Nenhum item abaixo do estoque mínimo.\n";
-      return text;
-    }
-    if (needsSubscribers.length > 0) {
-      text += `🐶 DIETAS ASSINANTES\n\n`;
-      needsSubscribers.forEach(c => {
-        const balance = subscriberStock[c.id] ?? 0;
-        const needed = c.minStock - balance;
-        text += `• ${c.dog} (${c.tutor})\n  Estoque: ${balance} | Mínimo: ${c.minStock} | Produzir: ${needed} un.\n\n`;
-      });
-    }
-    if (needsProducts.length > 0) {
-      text += `📦 PRODUTOS DE PRATELEIRA\n\n`;
-      needsProducts.forEach(p => {
-        const needed = p.minStock - p.balance;
-        text += `• ${p.name}\n  Estoque: ${p.balance} | Mínimo: ${p.minStock} | Repor: ${needed} un.\n\n`;
-      });
-    }
-    if (needsSnacks.length > 0) {
-      text += `🍖 PETISCOS\n\n`;
-      needsSnacks.forEach(p => {
-        const needed = p.minStock - p.balance;
-        text += `• ${p.name}\n  Estoque: ${p.balance} | Mínimo: ${p.minStock} | Repor: ${needed} un.\n\n`;
-      });
-    }
-    text += `Total: ${totalNeeds} item${totalNeeds !== 1 ? "s" : ""} para repor`;
-    return text;
-  };
-  const handleCopy = () => {
-    navigator.clipboard.writeText(buildText()).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-  const handlePDF = () => {
-    let rows = "";
-    if (totalNeeds === 0) {
-      rows = `<p style="color:#5C8A5C;font-weight:600;">✓ Tudo em dia!</p>`;
-    } else {
-      if (needsSubscribers.length > 0) {
-        rows += `<div class="section-title">🐶 Dietas Assinantes</div>`;
-        needsSubscribers.forEach(c => {
-          const balance = subscriberStock[c.id] ?? 0;
-          const needed = c.minStock - balance;
-          rows += `<div class="item"><div class="item-name">${c.dog} <span class="item-sub">— ${c.tutor}</span></div><div class="item-nums"><span class="badge red">Estoque: ${balance}</span><span class="badge gray">Mínimo: ${c.minStock}</span><span class="badge orange">Produzir: ${needed} un.</span></div></div>`;
-        });
-      }
-      if (needsProducts.length > 0) {
-        rows += `<div class="section-title" style="margin-top:24px;">📦 Produtos de Prateleira</div>`;
-        needsProducts.forEach(p => {
-          const needed = p.minStock - p.balance;
-          rows += `<div class="item"><div class="item-name">${p.name}</div><div class="item-nums"><span class="badge red">Estoque: ${p.balance}</span><span class="badge gray">Mínimo: ${p.minStock}</span><span class="badge orange">Repor: ${needed} un.</span></div></div>`;
-        });
-      }
-      if (needsSnacks.length > 0) {
-        rows += `<div class="section-title" style="margin-top:24px;">🍖 Petiscos</div>`;
-        needsSnacks.forEach(p => {
-          const needed = p.minStock - p.balance;
-          rows += `<div class="item"><div class="item-name">${p.name}</div><div class="item-nums"><span class="badge red">Estoque: ${p.balance}</span><span class="badge gray">Mínimo: ${p.minStock}</span><span class="badge orange">Repor: ${needed} un.</span></div></div>`;
-        });
-      }
-    }
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Lista de Produção</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.section-title{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #F5EDE3;}.item-name{font-size:15px;font-weight:700;margin-bottom:6px;}.item-sub{font-weight:400;color:#8A7A6C;font-size:14px;}.item-nums{display:flex;gap:8px;flex-wrap:wrap;}.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}.badge.red{background:#FBEAE6;color:#A8412F;}.badge.gray{background:#F1E6D8;color:#8A6A48;}.badge.orange{background:#FBF1E8;color:#B8825A;}@media print{body{background:white;}}</style></head><body>${rows}</body></html>`;
-    const blob = new Blob([html], {
-      type: "text/html"
-    });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
-    if (win) {
-      win.onload = () => {
-        setTimeout(() => win.print(), 500);
-      };
-    }
-  };
-  const IS = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 8,
-    padding: "7px 10px",
-    fontSize: 13.5,
-    background: "#FFF",
-    color: "#3E332A",
-    width: 70,
-    textAlign: "center"
-  };
-  return h('div', null, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, h('h2', {
-    style: {
-      margin: 0,
-      fontSize: 19,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Produção"), totalNeeds > 0 && h('span', {
-    style: {
-      background: "#FBEAE6",
-      color: "#A8412F",
-      fontSize: 12.5,
-      fontWeight: 700,
-      padding: "4px 10px",
-      borderRadius: 20
-    }
-  }, `${totalNeeds} para repor`)), totalNeeds > 0 && h('div', {
-    style: {
-      background: "#FBEAE6",
-      border: "1px solid #F5C6B8",
-      borderRadius: 14,
-      padding: 14,
-      marginBottom: 20
-    }
-  }, h('div', {
-    style: {
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#A8412F",
-      marginBottom: 10,
-      display: "flex",
-      alignItems: "center",
-      gap: 6
-    }
-  }, h('span', {
-    style: {
-      color: "#C0594B"
-    }
-  }, h(Icons.AlertTriangle)), "Itens abaixo do estoque mínimo"), needsSubscribers.map(c => {
-    const balance = subscriberStock[c.id] ?? 0;
-    const needed = c.minStock - balance;
-    return h('div', {
-      key: "s" + c.id,
-      style: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "7px 0",
-        borderBottom: "1px solid #F5C6B8"
-      }
-    }, h('div', null, h('div', {
-      style: {
-        fontSize: 13.5,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, c.dog), h('div', {
-      style: {
-        fontSize: 12,
-        color: "#8A7A6C"
-      }
-    }, c.tutor)), h('div', {
-      style: {
-        textAlign: "right"
-      }
-    }, h('div', {
-      style: {
-        fontSize: 13,
-        fontWeight: 700,
-        color: "#C0594B"
-      }
-    }, `Produzir ${needed} un.`), h('div', {
-      style: {
-        fontSize: 11,
-        color: "#A89A8C"
-      }
-    }, `Saldo: ${balance} / Mín: ${c.minStock}`)));
-  }), needsProducts.map(p => {
-    const needed = p.minStock - p.balance;
-    return h('div', {
-      key: "p" + p.id,
-      style: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "7px 0",
-        borderBottom: "1px solid #F5C6B8"
-      }
-    }, h('div', {
-      style: {
-        fontSize: 13.5,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, p.name), h('div', {
-      style: {
-        textAlign: "right"
-      }
-    }, h('div', {
-      style: {
-        fontSize: 13,
-        fontWeight: 700,
-        color: "#C0594B"
-      }
-    }, `Repor ${needed} un.`), h('div', {
-      style: {
-        fontSize: 11,
-        color: "#A89A8C"
-      }
-    }, `Saldo: ${p.balance} / Mín: ${p.minStock}`)));
-  }), h('div', {
-    style: {
-      display: "flex",
-      gap: 10,
-      marginTop: 14
-    }
-  }, h('button', {
-    style: {
-      flex: 1,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      border: "1.5px solid #D9CBBC",
-      borderRadius: 11,
-      padding: "11px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#8A7A6C",
-      background: "#FFF",
-      cursor: "pointer"
-    },
-    onClick: handleCopy
-  }, copied ? h(Icons.Check) : h(Icons.Copy), copied ? "Copiado!" : "Copiar para WhatsApp"), h('button', {
-    style: {
-      flex: 1,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      border: "none",
-      borderRadius: 11,
-      padding: "11px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      background: "#3E332A",
-      color: "#FBF1E8",
-      cursor: "pointer"
-    },
-    onClick: handlePDF
-  }, h(Icons.Download), "Abrir PDF"))), totalNeeds === 0 && h('div', {
-    style: {
-      background: "#EFF6EE",
-      border: "1px solid #C3E0BF",
-      borderRadius: 14,
-      padding: 14,
-      marginBottom: 20,
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, h('span', {
-    style: {
-      fontSize: 20
-    }
-  }, "✅"), h('div', null, h('div', {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: "#3A6B3A"
-    }
-  }, "Tudo em dia!"), h('div', {
-    style: {
-      fontSize: 12.5,
-      color: "#5C8A5C"
-    }
-  }, "Nenhum item abaixo do estoque mínimo."))), h('div', {
-    style: {
-      marginBottom: 8,
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#8A7A6C",
-      textTransform: "uppercase",
-      letterSpacing: "0.4px"
-    }
-  }, "Estoque mínimo — Assinantes"), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10,
-      marginBottom: 24
-    }
-  }, subscribers.length === 0 ? h('p', {
-    style: {
-      fontSize: 13,
-      color: "#A89A8C",
-      margin: 0
-    }
-  }, "Nenhum assinante cadastrado.") : subscribers.map(c => {
-    const balance = subscriberStock[c.id] ?? 0;
-    const isLow = c.minStock > 0 && balance < c.minStock;
-    return h('div', {
-      key: c.id,
-      style: {
-        background: "#FFF",
-        border: `1px solid ${isLow ? "#F5C6B8" : "#EFE4D6"}`,
-        borderRadius: 12,
-        padding: "12px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A",
-        flexShrink: 0
-      }
-    }, h(Icons.PawPrint)), h('div', {
-      style: {
-        flex: 1
-      }
-    }, h('div', {
-      style: {
-        fontSize: 14,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, c.dog), h('div', {
-      style: {
-        fontSize: 12,
-        color: "#8A7A6C"
-      }
-    }, `Saldo atual: ${balance} un.`)), h('div', {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4
-      }
-    }, h('label', {
-      style: {
-        fontSize: 10.5,
-        color: "#A89A8C",
-        fontWeight: 600
-      }
-    }, "mín."), h('input', {
-      type: "number",
-      min: "0",
-      style: IS,
-      value: minInputs[c.id] !== undefined ? minInputs[c.id] : c.minStock,
-      onChange: e => setMinInputs(p => ({
-        ...p,
-        [c.id]: e.target.value
-      })),
-      onBlur: e => {
-        const v = parseInt(e.target.value, 10) || 0;
-        onUpdateClientMinStock(c.id, v);
-        setMinInputs(p => ({
-          ...p,
-          [c.id]: undefined
-        }));
-      },
-      placeholder: "0"
-    })));
-  })), h('div', {
-    style: {
-      marginBottom: 8,
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#8A7A6C",
-      textTransform: "uppercase",
-      letterSpacing: "0.4px"
-    }
-  }, "Estoque mínimo — Prateleira"), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    }
-  }, shelfProducts.length === 0 ? h('p', {
-    style: {
-      fontSize: 13,
-      color: "#A89A8C",
-      margin: 0
-    }
-  }, "Nenhum produto de prateleira cadastrado.") : shelfProducts.map(p => {
-    const isLow = p.minStock > 0 && p.balance < p.minStock;
-    return h('div', {
-      key: p.id,
-      style: {
-        background: "#FFF",
-        border: `1px solid ${isLow ? "#F5C6B8" : "#EFE4D6"}`,
-        borderRadius: 12,
-        padding: "12px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A",
-        flexShrink: 0
-      }
-    }, h(Icons.Package)), h('div', {
-      style: {
-        flex: 1
-      }
-    }, h('div', {
-      style: {
-        fontSize: 14,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, p.name), h('div', {
-      style: {
-        fontSize: 12,
-        color: "#8A7A6C"
-      }
-    }, `Saldo atual: ${p.balance} un.`)), h('div', {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4
-      }
-    }, h('label', {
-      style: {
-        fontSize: 10.5,
-        color: "#A89A8C",
-        fontWeight: 600
-      }
-    }, "mín."), h('input', {
-      type: "number",
-      min: "0",
-      style: IS,
-      value: minInputs["p" + p.id] !== undefined ? minInputs["p" + p.id] : p.minStock,
-      onChange: e => setMinInputs(prev => ({
-        ...prev,
-        ["p" + p.id]: e.target.value
-      })),
-      onBlur: e => {
-        const v = parseInt(e.target.value, 10) || 0;
-        onUpdateShelfMinStock(p.id, v);
-        setMinInputs(prev => ({
-          ...prev,
-          ["p" + p.id]: undefined
-        }));
-      },
-      placeholder: "0"
-    })));
-  })), h('div', {
-    style: {
-      marginBottom: 8,
-      marginTop: 24,
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#8A7A6C",
-      textTransform: "uppercase",
-      letterSpacing: "0.4px"
-    }
-  }, "Estoque mínimo — Petiscos"), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    }
-  }, (snackProducts || []).length === 0 ? h('p', {
-    style: {
-      fontSize: 13,
-      color: "#A89A8C",
-      margin: 0
-    }
-  }, "Nenhum petisco cadastrado.") : (snackProducts || []).map(p => {
-    const isLow = p.minStock > 0 && p.balance < p.minStock;
-    return h('div', {
-      key: p.id,
-      style: {
-        background: "#FFF",
-        border: `1px solid ${isLow ? "#F5C6B8" : "#EFE4D6"}`,
-        borderRadius: 12,
-        padding: "12px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      }
-    }, h('div', {
-      style: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        background: "#FBF1E8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#B8825A",
-        flexShrink: 0
-      }
-    }, h(Icons.Package)), h('div', {
-      style: {
-        flex: 1
-      }
-    }, h('div', {
-      style: {
-        fontSize: 14,
-        fontWeight: 700,
-        color: "#3E332A"
-      }
-    }, p.name), h('div', {
-      style: {
-        fontSize: 12,
-        color: "#8A7A6C"
-      }
-    }, `Saldo atual: ${p.balance} un.`)), h('div', {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4
-      }
-    }, h('label', {
-      style: {
-        fontSize: 10.5,
-        color: "#A89A8C",
-        fontWeight: 600
-      }
-    }, "mín."), h('input', {
-      type: "number",
-      min: "0",
-      style: IS,
-      value: minInputs["sn" + p.id] !== undefined ? minInputs["sn" + p.id] : p.minStock,
-      onChange: e => setMinInputs(prev => ({
-        ...prev,
-        ["sn" + p.id]: e.target.value
-      })),
-      onBlur: e => {
-        const v = parseInt(e.target.value, 10) || 0;
-        onUpdateSnackMinStock(p.id, v);
-        setMinInputs(prev => ({
-          ...prev,
-          ["sn" + p.id]: undefined
-        }));
-      },
-      placeholder: "0"
-    })));
-  })));
-}
-function RoteiroView({
-  clients
-}) {
-  const h = React.createElement;
-  const [startDate, setStartDate] = useState(todayISO());
-  const [endDate, setEndDate] = useState(addDays(todayISO(), 6));
-  const [copied, setCopied] = useState(false);
-  const [copiedLabels, setCopiedLabels] = useState(false);
-  const roteiroItems = useMemo(() => {
-    const items = [];
-    clients.forEach(c => {
-      getOccurrencesInRange(c, startDate, endDate).forEach(date => items.push({
-        client: c,
-        date
-      }));
-    });
-    items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.client.tutor.localeCompare(b.client.tutor));
-    return items;
-  }, [clients, startDate, endDate]);
-  const grouped = useMemo(() => {
-    const map = {};
-    roteiroItems.forEach(({
-      client,
-      date
-    }) => {
-      if (!map[date]) map[date] = [];
-      map[date].push(client);
-    });
-    return map;
-  }, [roteiroItems]);
-  const formatDateFull = iso => {
-    const d = new Date(iso + "T00:00:00");
-    return d.toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long"
-    });
-  };
-  const buildTextRoteiro = () => {
-    const periodLabel = startDate === endDate ? formatDateFull(startDate) : `${formatDateFull(startDate)} a ${formatDateFull(endDate)}`;
-    let text = `🐾 ObentoPet — Roteiro de Entregas\n${periodLabel}\n${"─".repeat(36)}\n\n`;
-    if (roteiroItems.length === 0) {
-      text += "Nenhuma entrega no período.\n";
-      return text;
-    }
-    Object.entries(grouped).forEach(([date, cls]) => {
-      const dl = formatDateFull(date);
-      text += `📅 ${dl.charAt(0).toUpperCase() + dl.slice(1)}\n`;
-      cls.forEach((c, i) => {
-        text += `\n${i + 1}. ${c.dog} (${c.tutor})\n   📍 ${c.address}\n`;
-        if (c.phone) text += `   📞 ${c.phone}\n`;
-        if (c.notes) text += `   💬 ${c.notes}\n`;
-      });
-      text += "\n";
-    });
-    text += `Total: ${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""}`;
-    return text;
-  };
-  const handleCopy = () => {
-    navigator.clipboard.writeText(buildTextRoteiro()).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-  const handleDownloadPDF = () => {
-    const periodLabel = startDate === endDate ? formatDateFull(startDate) : `${formatDateFull(startDate)} a ${formatDateFull(endDate)}`;
-    let rows = "";
-    if (roteiroItems.length === 0) {
-      rows = `<p style="color:#8A7A6C;font-style:italic;">Nenhuma entrega no período.</p>`;
-    } else {
-      Object.entries(grouped).forEach(([date, cls]) => {
-        const dl = formatDateFull(date);
-        rows += `<div class="day-block"><div class="day-header">${dl.charAt(0).toUpperCase() + dl.slice(1)}</div>`;
-        cls.forEach((c, i) => {
-          rows += `<div class="entry"><div class="entry-num">${i + 1}</div><div class="entry-body"><div class="entry-name">${c.dog} <span class="entry-tutor">— ${c.tutor}</span></div><div class="entry-address">📍 ${c.address}</div>${c.phone ? `<div class="entry-phone">📞 ${c.phone}</div>` : ""}${c.notes ? `<div class="entry-notes">💬 ${c.notes}</div>` : ""}</div></div>`;
-        });
-        rows += `</div>`;
-      });
-    }
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Roteiro ObentoPet</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:sans-serif;background:#FDF8F2;color:#3E332A;padding:32px;max-width:680px;margin:0 auto;}.day-block{margin-bottom:28px;}.day-header{font-size:13px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #EFE4D6;}.entry{display:flex;gap:12px;margin-bottom:14px;}.entry-num{min-width:26px;height:26px;background:#F1E6D8;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#8A6A48;flex-shrink:0;}.entry-body{flex:1;}.entry-name{font-size:15px;font-weight:700;}.entry-tutor{font-weight:400;color:#8A7A6C;font-size:14px;}.entry-address,.entry-phone,.entry-notes{font-size:13px;color:#7A6C5E;margin-top:3px;}.footer{margin-top:28px;padding-top:14px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between;}@media print{body{background:white;}}</style></head><body><h2 style="margin-bottom:4px;">ObentōPet</h2><p style="color:#8A7A6C;font-size:13px;margin-bottom:20px;">Roteiro — ${periodLabel}</p>${rows}<div class="footer"><span>ObentōPet</span><span>${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""}</span></div></body></html>`;
-    const blob = new Blob([html], {
-      type: "text/html"
-    });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
-    if (win) {
-      win.onload = () => {
-        setTimeout(() => win.print(), 500);
-      };
-    }
-  };
-  const IS = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 14.5,
-    background: "#FFF",
-    color: "#3E332A"
-  };
-  const LS = {
-    fontSize: 12.5,
-    fontWeight: 600,
-    color: "#8A7A6C"
-  };
-  return h('div', null, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 16
-    }
-  }, h('h2', {
-    style: {
-      margin: 0,
-      fontSize: 19,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, "Roteiro"), h('span', {
-    style: {
-      background: "#F1E6D8",
-      color: "#8A6A48",
-      fontSize: 12.5,
-      fontWeight: 600,
-      padding: "4px 10px",
-      borderRadius: 20
-    }
-  }, `${roteiroItems.length} entrega${roteiroItems.length !== 1 ? "s" : ""}`)), h('div', {
-    style: {
-      display: "flex",
-      gap: 12,
-      marginBottom: 14
-    }
-  }, h('div', {
-    style: {
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "De"), h('input', {
-    type: "date",
-    style: IS,
-    value: startDate,
-    onChange: e => {
-      setStartDate(e.target.value);
-      if (e.target.value > endDate) setEndDate(e.target.value);
-    }
-  })), h('div', {
-    style: {
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Até"), h('input', {
-    type: "date",
-    style: IS,
-    value: endDate,
-    min: startDate,
-    onChange: e => setEndDate(e.target.value)
-  }))), h('div', {
-    style: {
-      display: "flex",
-      gap: 10,
-      marginBottom: 12
-    }
-  }, h('button', {
-    style: {
-      flex: 1,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      border: "1.5px solid #D9CBBC",
-      borderRadius: 11,
-      padding: "11px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#8A7A6C",
-      background: "#FFF",
-      cursor: "pointer"
-    },
-    onClick: handleCopy
-  }, copied ? h(Icons.Check) : h(Icons.Copy), copied ? "Copiado!" : "Copiar texto"), h('button', {
-    style: {
-      flex: 1,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      border: "none",
-      borderRadius: 11,
-      padding: "11px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      background: "#3E332A",
-      color: "#FBF1E8",
-      cursor: "pointer"
-    },
-    onClick: handleDownloadPDF
-  }, h(Icons.Download), "Abrir PDF")), h('button', {
-    style: {
-      width: "100%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      border: "1.5px solid #B8825A",
-      borderRadius: 11,
-      padding: "11px 8px",
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: "#B8825A",
-      background: "#FBF1E8",
-      cursor: "pointer",
-      marginBottom: 20
-    },
-    onClick: () => {
-      const semLabel = roteiroItems.filter(i => !i.client.labelFile);
-      const comLabel = roteiroItems.filter(i => i.client.labelFile);
-      let txt = comLabel.map(i => i.client.labelFile).join("\n");
-      if (semLabel.length > 0) {
-        txt += "\n\n// SEM ARQUIVO CONFIGURADO:\n" + semLabel.map(i => "// " + i.client.dog + " (" + i.client.tutor + ")").join("\n");
-      }
-      const blob = new Blob([txt], {
-        type: "text/plain;charset=utf-8"
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "lista_etiquetas.txt";
-      a.click();
-      URL.revokeObjectURL(url);
-      setCopiedLabels(true);
-      setTimeout(() => setCopiedLabels(false), 2000);
-    }
-  }, copiedLabels ? h(Icons.Check) : h('span', null, "📋"), copiedLabels ? "Arquivo gerado!" : "Exportar lista de etiquetas (.txt)"), roteiroItems.length === 0 ? h(EmptyState, {
-    text: "Nenhuma entrega no período selecionado."
-  }) : h('div', {
-    style: {
-      marginTop: 8
-    }
-  }, Object.entries(grouped).map(([date, cls]) => h('div', {
-    key: date,
-    style: {
-      marginBottom: 20
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 10,
-      paddingBottom: 8,
-      borderBottom: "1.5px solid #EFE4D6"
-    }
-  }, h('span', {
-    style: {
-      fontSize: 13,
-      fontWeight: 700,
-      color: "#B8825A",
-      textTransform: "capitalize"
-    }
-  }, formatDateFull(date).charAt(0).toUpperCase() + formatDateFull(date).slice(1)), h('span', {
-    style: {
-      fontSize: 11.5,
-      fontWeight: 700,
-      color: "#8A6A48",
-      background: "#F6EEE3",
-      padding: "3px 9px",
-      borderRadius: 20
-    }
-  }, cls.length)), cls.map((c, i) => h('div', {
-    key: c.id,
-    style: {
-      display: "flex",
-      gap: 10,
-      alignItems: "flex-start",
-      paddingBottom: 12,
-      borderBottom: "1px solid #F5EDE3",
-      marginBottom: 12
-    }
-  }, h('div', {
-    style: {
-      minWidth: 26,
-      height: 26,
-      background: "#F1E6D8",
-      borderRadius: 7,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 12,
-      fontWeight: 700,
-      color: "#8A6A48",
-      flexShrink: 0,
-      marginTop: 1
-    }
-  }, i + 1), h('div', {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, h('div', {
-    style: {
-      fontSize: 15,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, c.dog, " ", h('span', {
-    style: {
-      fontWeight: 400,
-      color: "#8A7A6C",
-      fontSize: 13.5
-    }
-  }, `— ${c.tutor}`)), h('div', {
-    style: {
-      display: "flex",
-      gap: 5,
-      fontSize: 12.5,
-      color: "#7A6C5E",
-      marginTop: 4,
-      lineHeight: 1.4,
-      alignItems: "flex-start"
-    }
-  }, h('span', {
-    style: {
-      color: "#A89A8C",
-      flexShrink: 0,
-      marginTop: 2
-    }
-  }, h(Icons.MapPin)), c.address), c.phone && h('div', {
-    style: {
-      fontSize: 12.5,
-      color: "#3E7CB1",
-      marginTop: 3
-    }
-  }, "📞 ", c.phone), c.notes && h('div', {
-    style: {
-      fontSize: 12,
-      color: "#9A7A5A",
-      marginTop: 4,
-      fontStyle: "italic"
-    }
-  }, `💬 ${c.notes}`))))))));
-}
 function HistoryRow({
   entry
 }) {
-  const h = React.createElement;
   const positive = entry.amount > 0;
-  return h('div', {
+  const Icon = positive ? ArrowUpCircle : ArrowDownCircle;
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.historyRow
+  }, /*#__PURE__*/React.createElement(Icon, {
+    size: 15,
+    color: positive ? "#5C8A5C" : "#C0594B",
     style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8
-    }
-  }, h('span', {
-    style: {
-      color: positive ? "#5C8A5C" : "#C0594B",
       flexShrink: 0
     }
-  }, positive ? h(Icons.ArrowUp) : h(Icons.ArrowDown)), h('div', {
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
-  }, h('div', {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.historyReason
+  }, entry.reason), /*#__PURE__*/React.createElement("div", {
+    style: styles.historyDate
+  }, formatDateBR(entry.date))), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: "#3E332A"
-    }
-  }, entry.reason), h('div', {
-    style: {
-      fontSize: 11,
-      color: "#A89A8C"
-    }
-  }, formatDateBR(entry.date))), h('div', {
-    style: {
-      fontSize: 13,
-      fontWeight: 700,
+      ...styles.historyAmount,
       color: positive ? "#5C8A5C" : "#C0594B"
     }
-  }, `${positive ? "+" : ""}${entry.amount}`));
+  }, positive ? "+" : "", entry.amount));
 }
+
+// ---------- CLIENT FORM MODAL ----------
 function ClientFormModal({
   initial,
   onClose,
   onSave
 }) {
-  const h = React.createElement;
-  const [tutor, setTutor] = useState(initial ? initial.tutor : "");
-  const [dog, setDog] = useState(initial ? initial.dog : "");
-  const [address, setAddress] = useState(initial ? initial.address : "");
-  const [phone, setPhone] = useState(initial ? initial.phone || "" : "");
-  const [labelFile, setLabelFile] = useState(initial ? initial.labelFile || "" : "");
-  const [frequency, setFrequency] = useState(initial ? initial.frequency : "semanal");
-  const [nextDate, setNextDate] = useState(initial ? initial.nextDate : todayISO());
-  const [units, setUnits] = useState(initial ? String(initial.units) : "1");
-  const [notes, setNotes] = useState(initial ? initial.notes || "" : "");
+  const [tutor, setTutor] = useState(initial?.tutor || "");
+  const [dog, setDog] = useState(initial?.dog || "");
+  const [address, setAddress] = useState(initial?.address || "");
+  const [frequency, setFrequency] = useState(initial?.frequency || "semanal");
+  const [nextDate, setNextDate] = useState(initial?.nextDate || todayISO());
+  const [units, setUnits] = useState(initial?.units ? String(initial.units) : "1");
+  const [notes, setNotes] = useState(initial?.notes || "");
   const [error, setError] = useState("");
-  const IS = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 14.5,
-    background: "#FFF",
-    color: "#3E332A"
-  };
-  const LS = {
-    fontSize: 12.5,
-    fontWeight: 600,
-    color: "#8A7A6C"
-  };
-  const TS = {
-    border: "1px solid #E8DDD0",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 14.5,
-    background: "#FFF",
-    color: "#3E332A",
-    minHeight: 60,
-    resize: "vertical",
-    fontFamily: "inherit"
-  };
   const handleSubmit = () => {
     if (!tutor.trim() || !dog.trim() || !address.trim()) {
       setError("Preencha tutor, cão e endereço.");
@@ -4531,287 +1436,743 @@ function ClientFormModal({
       tutor: tutor.trim(),
       dog: dog.trim(),
       address: address.trim(),
-      phone: phone.trim(),
       frequency,
       nextDate,
       units: unitsNum,
-      notes,
-      labelFile: labelFile.trim()
+      notes
     });
   };
-  return h('div', {
-    style: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(62,51,42,0.45)",
-      display: "flex",
-      alignItems: "flex-end",
-      justifyContent: "center",
-      zIndex: 50
-    },
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.modalOverlay,
     onClick: onClose
-  }, h('div', {
-    style: {
-      background: "#FDF8F2",
-      width: "100%",
-      maxWidth: 480,
-      maxHeight: "88vh",
-      overflowY: "auto",
-      borderRadius: "18px 18px 0 0"
-    },
-    onClick: function (e) {
-      e.stopPropagation();
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "18px 18px 10px",
-      position: "sticky",
-      top: 0,
-      background: "#FDF8F2"
-    }
-  }, h('h3', {
-    style: {
-      margin: 0,
-      fontSize: 17,
-      fontWeight: 700,
-      color: "#3E332A"
-    }
-  }, initial ? "Editar cliente" : "Novo cliente"), h('button', {
-    style: {
-      background: "#F1E6D8",
-      border: "none",
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#8A7A6C",
-      cursor: "pointer"
-    },
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modal,
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modalHead
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: styles.modalTitle
+  }, initial ? "Editar cliente" : "Novo cliente"), /*#__PURE__*/React.createElement("button", {
+    style: styles.modalClose,
     onClick: onClose
-  }, h(Icons.X))), h('div', {
-    style: {
-      padding: "8px 18px 26px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 14
-    }
-  }, h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Nome do tutor"), h('input', {
-    style: IS,
+  }, /*#__PURE__*/React.createElement(X, {
+    size: 18,
+    color: "#8A7A6C"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: styles.formBody
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Nome do tutor"
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
     value: tutor,
-    onChange: function (e) {
-      setTutor(e.target.value);
-    },
+    onChange: e => setTutor(e.target.value),
     placeholder: "Ex: Marina Costa"
-  })), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Nome do cão"), h('input', {
-    style: IS,
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Nome do cão"
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
     value: dog,
-    onChange: function (e) {
-      setDog(e.target.value);
-    },
+    onChange: e => setDog(e.target.value),
     placeholder: "Ex: Mia"
-  })), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Endereço de entrega"), h('input', {
-    style: IS,
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Endereço de entrega"
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
     value: address,
-    onChange: function (e) {
-      setAddress(e.target.value);
-    },
+    onChange: e => setAddress(e.target.value),
     placeholder: "Rua, número, bairro"
-  })), h('div', {
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Frequência"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.freqGrid
+  }, Object.entries(frequencyLabel).map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    type: "button",
+    onClick: () => setFrequency(k),
     style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
+      ...styles.freqOption,
+      ...(frequency === k ? styles.freqOptionActive : {})
     }
-  }, h('label', {
-    style: LS
-  }, "Telefone (WhatsApp)"), h('input', {
-    style: IS,
-    value: phone,
-    onChange: function (e) {
-      setPhone(e.target.value);
-    },
-    placeholder: "Ex: 11 99999-9999"
-  })), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Arquivo de etiqueta (.btw)"), h('input', {
-    style: IS,
-    value: labelFile,
-    onChange: function (e) {
-      setLabelFile(e.target.value);
-    },
-    placeholder: "Ex: Amora - S"
-  }), h('span', {
-    style: {
-      fontSize: 11,
-      color: "#A89A8C"
-    }
-  }, 'Nome do arquivo sem o .btw — deve ser idêntico ao arquivo na pasta de etiquetas')), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Frequência"), h('div', {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 8
-    }
-  }, Object.entries(frequencyLabel).map(function (entry) {
-    var key = entry[0],
-      label = entry[1];
-    return h('button', {
-      key: key,
-      type: "button",
-      onClick: function () {
-        setFrequency(key);
-      },
-      style: {
-        border: frequency === key ? "1.5px solid #B8825A" : "1.5px solid #E8DDD0",
-        borderRadius: 10,
-        padding: "9px 8px",
-        fontSize: 13.5,
-        fontWeight: 600,
-        color: frequency === key ? "#8A6A48" : "#8A7A6C",
-        background: frequency === key ? "#FBF1E8" : "#FFF",
-        cursor: "pointer"
-      }
-    }, label);
-  }))), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, frequency === "avulsa" ? "Data da entrega" : "Próxima entrega"), h('input', {
+  }, l)))), /*#__PURE__*/React.createElement(Field, {
+    label: frequency === "avulsa" ? "Data da entrega" : "Próxima entrega"
+  }, /*#__PURE__*/React.createElement("input", {
     type: "date",
-    style: IS,
+    style: styles.input,
     value: nextDate,
-    onChange: function (e) {
-      setNextDate(e.target.value);
-    }
-  })), h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Quantidade de unidades"), h('input', {
+    onChange: e => setNextDate(e.target.value)
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Quantidade de unidades"
+  }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     min: "1",
-    style: IS,
+    style: styles.input,
     value: units,
-    onChange: function (e) {
-      setUnits(e.target.value);
-    },
+    onChange: e => setUnits(e.target.value),
     placeholder: "Ex: 4"
-  })), h('div', {
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Observações (opcional)"
+  }, /*#__PURE__*/React.createElement("textarea", {
     style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 6
-    }
-  }, h('label', {
-    style: LS
-  }, "Observações (opcional)"), h('textarea', {
-    style: TS,
+      ...styles.input,
+      minHeight: 60,
+      resize: "vertical",
+      fontFamily: "inherit"
+    },
     value: notes,
-    onChange: function (e) {
-      setNotes(e.target.value);
-    },
+    onChange: e => setNotes(e.target.value),
     placeholder: "Ex: portaria pede documento"
-  })), error && h('p', {
-    style: {
-      color: "#C0594B",
-      fontSize: 13,
-      margin: 0
-    }
-  }, error), h('button', {
-    style: {
-      background: "#B8825A",
-      color: "#FFF7EF",
-      border: "none",
-      borderRadius: 11,
-      padding: "13px",
-      fontSize: 15,
-      fontWeight: 700,
-      marginTop: 4,
-      cursor: "pointer"
-    },
+  })), error && /*#__PURE__*/React.createElement("p", {
+    style: styles.errorText
+  }, error), /*#__PURE__*/React.createElement("button", {
+    style: styles.saveBtn,
     onClick: handleSubmit
   }, initial ? "Salvar alterações" : "Adicionar cliente"))));
+}
+function Field({
+  label,
+  children
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.field
+  }, /*#__PURE__*/React.createElement("label", {
+    style: styles.fieldLabel
+  }, label), children);
 }
 function EmptyState({
   text
 }) {
-  const h = React.createElement;
-  return h('div', {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 10,
-      padding: "48px 20px",
-      textAlign: "center"
-    }
-  }, h('div', {
-    style: {
-      color: "#D9CBBC"
-    }
-  }, h(Icons.PawPrint)), h('p', {
-    style: {
-      color: "#A89A8C",
-      fontSize: 14,
-      margin: 0
-    }
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.empty
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 26,
+    color: "#D9CBBC"
+  }), /*#__PURE__*/React.createElement("p", {
+    style: styles.emptyText
   }, text));
 }
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
-  </script>
-  <script>
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(App));
-  </script>
+
+// ---------- Styles ----------
+const globalCss = `
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  input:focus, textarea:focus { outline: 2px solid #B8825A; outline-offset: 1px; }
+  button:focus-visible { outline: 2px solid #B8825A; outline-offset: 2px; }
+  button { font-family: inherit; cursor: pointer; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
+`;
+const styles = {
+  app: {
+    minHeight: "100vh",
+    background: "#FDF8F2",
+    fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
+    color: "#3E332A",
+    paddingBottom: 40
+  },
+  loadingScreen: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#FDF8F2"
+  },
+  header: {
+    background: "#3E332A",
+    paddingBottom: 0,
+    position: "sticky",
+    top: 0,
+    zIndex: 10
+  },
+  headerInner: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "18px 20px 14px",
+    flexWrap: "wrap",
+    gap: 12
+  },
+  brandRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10
+  },
+  brandMark: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    background: "#B8825A",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0
+  },
+  brandTitle: {
+    margin: 0,
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#FBF1E8",
+    letterSpacing: "0.2px"
+  },
+  brandSub: {
+    margin: 0,
+    fontSize: 12,
+    color: "#C9BBA8",
+    fontWeight: 500
+  },
+  newBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    background: "#B8825A",
+    color: "#FFF7EF",
+    border: "none",
+    borderRadius: 10,
+    padding: "9px 14px",
+    fontSize: 13.5,
+    fontWeight: 600
+  },
+  tabRow: {
+    display: "flex",
+    gap: 4,
+    padding: "0 16px"
+  },
+  tab: {
+    background: "transparent",
+    border: "none",
+    color: "#9C8E7E",
+    padding: "10px 14px",
+    fontSize: 14,
+    fontWeight: 600,
+    borderBottom: "2px solid transparent"
+  },
+  tabActive: {
+    color: "#FBF1E8",
+    borderBottom: "2px solid #B8825A"
+  },
+  main: {
+    maxWidth: 640,
+    margin: "0 auto",
+    padding: "20px 16px"
+  },
+  section: {},
+  sectionHeadRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: 19,
+    fontWeight: 700,
+    textTransform: "capitalize",
+    color: "#3E332A"
+  },
+  countPill: {
+    background: "#F1E6D8",
+    color: "#8A6A48",
+    fontSize: 12.5,
+    fontWeight: 600,
+    padding: "4px 10px",
+    borderRadius: 20
+  },
+  cardList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12
+  },
+  card: {
+    background: "#FFFFFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 14,
+    padding: 14
+  },
+  cardTop: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8
+  },
+  cardIdentity: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10
+  },
+  dogBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    background: "#FBF1E8",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0
+  },
+  cardDog: {
+    fontSize: 15.5,
+    fontWeight: 700,
+    color: "#3E332A"
+  },
+  cardTutor: {
+    fontSize: 13,
+    color: "#8A7A6C",
+    marginTop: 1
+  },
+  freqTag: {
+    fontSize: 11.5,
+    fontWeight: 600,
+    color: "#8A6A48",
+    background: "#F6EEE3",
+    padding: "4px 9px",
+    borderRadius: 8,
+    whiteSpace: "nowrap"
+  },
+  unitsTag: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: "#3E7CB1",
+    background: "#EAF2F8",
+    padding: "4px 9px",
+    borderRadius: 8,
+    whiteSpace: "nowrap"
+  },
+  cardAddress: {
+    display: "flex",
+    gap: 6,
+    fontSize: 12.5,
+    color: "#7A6C5E",
+    marginTop: 10,
+    lineHeight: 1.4
+  },
+  statusRow: {
+    display: "flex",
+    gap: 6,
+    marginTop: 12
+  },
+  statusBtn: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    border: "1.5px solid",
+    borderRadius: 9,
+    padding: "8px 6px",
+    fontSize: 12,
+    fontWeight: 600,
+    transition: "all 0.15s"
+  },
+  weekNav: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    marginBottom: 14
+  },
+  navArrow: {
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 8,
+    width: 32,
+    height: 32,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  weekLabel: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#3E332A",
+    minWidth: 110,
+    textAlign: "center"
+  },
+  weekStrip: {
+    display: "flex",
+    gap: 6,
+    overflowX: "auto",
+    paddingBottom: 2
+  },
+  dayChip: {
+    flex: "1 0 auto",
+    minWidth: 44,
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 11,
+    padding: "8px 4px 10px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 3
+  },
+  dayChipActive: {
+    background: "#3E332A",
+    borderColor: "#3E332A"
+  },
+  dayChipToday: {
+    borderColor: "#B8825A",
+    borderWidth: 1.5
+  },
+  dayChipDow: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: "#9C8E7E"
+  },
+  dayChipNum: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#3E332A"
+  },
+  dayChipDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    background: "#B8825A",
+    marginTop: 1
+  },
+  searchBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 11,
+    padding: "10px 12px",
+    marginBottom: 16
+  },
+  searchInput: {
+    border: "none",
+    outline: "none",
+    fontSize: 14,
+    flex: 1,
+    background: "transparent",
+    color: "#3E332A"
+  },
+  clientRow: {
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 14,
+    padding: 12,
+    display: "flex",
+    alignItems: "center",
+    gap: 10
+  },
+  clientMeta: {
+    fontSize: 11.5,
+    color: "#A89A8C",
+    marginTop: 3
+  },
+  rowActions: {
+    display: "flex",
+    gap: 6
+  },
+  iconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    border: "1px solid #EFE4D6",
+    background: "#FBF8F4",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  empty: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+    padding: "48px 20px",
+    textAlign: "center"
+  },
+  emptyText: {
+    color: "#A89A8C",
+    fontSize: 14,
+    margin: 0
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(62,51,42,0.45)",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    zIndex: 50
+  },
+  modal: {
+    background: "#FDF8F2",
+    width: "100%",
+    maxWidth: 480,
+    maxHeight: "88vh",
+    overflowY: "auto",
+    borderRadius: "18px 18px 0 0",
+    padding: 0
+  },
+  modalHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "18px 18px 10px",
+    position: "sticky",
+    top: 0,
+    background: "#FDF8F2"
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: 17,
+    fontWeight: 700,
+    color: "#3E332A"
+  },
+  modalClose: {
+    background: "#F1E6D8",
+    border: "none",
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  formBody: {
+    padding: "8px 18px 26px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 14
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6
+  },
+  fieldLabel: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#8A7A6C"
+  },
+  input: {
+    border: "1px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 14.5,
+    background: "#FFF",
+    color: "#3E332A"
+  },
+  freqGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8
+  },
+  freqOption: {
+    border: "1.5px solid #E8DDD0",
+    borderRadius: 10,
+    padding: "9px 8px",
+    fontSize: 13.5,
+    fontWeight: 600,
+    color: "#8A7A6C",
+    background: "#FFF"
+  },
+  freqOptionActive: {
+    borderColor: "#B8825A",
+    background: "#FBF1E8",
+    color: "#8A6A48"
+  },
+  errorText: {
+    color: "#C0594B",
+    fontSize: 13,
+    margin: 0
+  },
+  saveBtn: {
+    background: "#B8825A",
+    color: "#FFF7EF",
+    border: "none",
+    borderRadius: 11,
+    padding: "13px",
+    fontSize: 15,
+    fontWeight: 700,
+    marginTop: 4
+  },
+  stockTabRow: {
+    display: "flex",
+    gap: 6,
+    marginBottom: 16,
+    background: "#F1E6D8",
+    padding: 4,
+    borderRadius: 12
+  },
+  stockTabBtn: {
+    flex: 1,
+    background: "transparent",
+    border: "none",
+    borderRadius: 9,
+    padding: "9px 8px",
+    fontSize: 13.5,
+    fontWeight: 600,
+    color: "#8A7A6C"
+  },
+  stockTabBtnActive: {
+    background: "#FFF",
+    color: "#3E332A",
+    boxShadow: "0 1px 2px rgba(62,51,42,0.08)"
+  },
+  stockCard: {
+    background: "#FFFFFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 14,
+    padding: 14
+  },
+  stockCardTop: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8
+  },
+  balanceNum: {
+    fontSize: 22,
+    fontWeight: 800,
+    lineHeight: 1
+  },
+  balanceLabel: {
+    fontSize: 10.5,
+    color: "#A89A8C",
+    marginTop: 2,
+    fontWeight: 600
+  },
+  lowStockWarning: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    background: "#FBEAE6",
+    color: "#A8412F",
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "7px 10px",
+    borderRadius: 9,
+    marginTop: 10
+  },
+  stockEntryRow: {
+    display: "flex",
+    gap: 8,
+    marginTop: 12
+  },
+  addStockBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    background: "#3E332A",
+    color: "#FBF1E8",
+    border: "none",
+    borderRadius: 10,
+    padding: "0 14px",
+    fontSize: 12.5,
+    fontWeight: 600,
+    whiteSpace: "nowrap"
+  },
+  historyToggle: {
+    background: "transparent",
+    border: "none",
+    color: "#B8825A",
+    fontSize: 12.5,
+    fontWeight: 600,
+    padding: "10px 0 0",
+    textAlign: "left"
+  },
+  historyList: {
+    marginTop: 8,
+    borderTop: "1px solid #F1E6D8",
+    paddingTop: 8,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8
+  },
+  historyRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8
+  },
+  historyReason: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#3E332A"
+  },
+  historyDate: {
+    fontSize: 11,
+    color: "#A89A8C"
+  },
+  historyAmount: {
+    fontSize: 13,
+    fontWeight: 700
+  },
+  historyEmpty: {
+    fontSize: 12.5,
+    color: "#A89A8C",
+    margin: 0
+  },
+  avulsaPicker: {
+    marginTop: 12,
+    background: "#FBF8F4",
+    border: "1px solid #EFE4D6",
+    borderRadius: 11,
+    padding: 12
+  },
+  avulsaPickerLabel: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "#8A7A6C",
+    margin: "0 0 8px"
+  },
+  avulsaPickerEmpty: {
+    fontSize: 12.5,
+    color: "#C0594B",
+    margin: 0
+  },
+  avulsaConfirmBtn: {
+    flex: 1,
+    background: "#B8825A",
+    color: "#FFF7EF",
+    border: "none",
+    borderRadius: 9,
+    padding: "9px 10px",
+    fontSize: 13,
+    fontWeight: 700
+  },
+  avulsaCancelBtn: {
+    background: "#EFE4D6",
+    color: "#8A7A6C",
+    border: "none",
+    borderRadius: 9,
+    padding: "9px 14px",
+    fontSize: 13,
+    fontWeight: 600
+  },
+  newProductTrigger: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    width: "100%",
+    background: "#FFF",
+    border: "1.5px dashed #D9CBBC",
+    borderRadius: 12,
+    padding: "12px",
+    fontSize: 13.5,
+    fontWeight: 600,
+    color: "#B8825A"
+  },
+  newProductBox: {
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 12,
+    padding: 12
+  },
+  deleteProductBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    border: "1px solid #EFE4D6",
+    background: "#FBF8F4",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  }
+};
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));  </script>
 </body>
 </html>
