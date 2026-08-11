@@ -409,7 +409,7 @@
               </div>
             </div>
             <nav style={S.tabRow}>
-              {[["hoje","Hoje"],["semana","Semana"],["roteiro","Roteiro"],["clientes","Clientes"],["estoque","Estoque"]].map(([k,l])=>(
+              {[["clientes","Clientes"],["estoque","Estoque"],["hoje","Hoje"],["roteiro","Roteiro"],["semana","Semana"]].map(([k,l])=>(
                 <button key={k} onClick={()=>setView(k)} style={{...S.tab,...(view===k?S.tabActive:{})}}>{l}</button>
               ))}
             </nav>
@@ -419,7 +419,7 @@
             {view==="hoje"     && <TodayView  items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
             {view==="semana"   && <WeekView   weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
             {view==="roteiro"  && <RoteiröView clients={clients} getStatus={getStatus}/>}
-            {view==="clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient}/>}
+            {view==="clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient} statusLog={statusLog}/>}
             {view==="estoque"  && <StockView
               clients={clients}
               subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog}
@@ -718,9 +718,15 @@
     }
 
     // ─── CLIENTS VIEW ─────────────────────────────────────────────────────────────
-    function ClientsView({clients,search,setSearch,onEdit,onDelete}) {
+    function ClientsView({clients,search,setSearch,onEdit,onDelete,statusLog}) {
       const [confirmDel,setConfirmDel] = useState(null);
       const [deleting,  setDeleting]   = useState(null);
+      const getLastDelivery = (clientId) => {
+        const dates = Object.entries(statusLog||{})
+          .filter(([k,v])=>k.startsWith(clientId+"|")&&v==="entregue")
+          .map(([k])=>k.split("|")[1]).sort().reverse();
+        return dates[0]||null;
+      };
       const handleDel = async (id) => {
         setDeleting(id);
         await onDelete(id);
@@ -745,8 +751,9 @@
                       {freqLabel[c.frequency]}
                       {c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}
                     </div>
-                    <div style={{fontSize:12,color:"#8A6A48",fontWeight:600,marginTop:2}}>
-                      📅 Próxima entrega: {formatDateBR(c.nextDate)||"—"}
+                    <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:3}}>
+                      <span style={{fontSize:12,color:"#8A6A48",fontWeight:600}}>📅 Próxima: {formatDateBR(c.nextDate)||"—"}</span>
+                      {getLastDelivery(c.id) && <span style={{fontSize:12,color:"#5C8A5C",fontWeight:600}}>✅ Última: {formatDateBR(getLastDelivery(c.id))}</span>}
                     </div>
                     {c.address && <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#C9BBA8",marginTop:3}}><MapPin size={11} color="#C9BBA8"/>{c.address}</div>}
                   </div>
