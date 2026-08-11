@@ -73,8 +73,8 @@
     function formatDateBR(iso) { if(!iso) return "—"; const [,m,d] = iso.split("-"); return `${d}/${m}`; }
     function addDays(iso, days) { const d = new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return dateToISO(d); }
 
-    const dbToClient = (r) => ({ id:r.id, tutor:r.tutor, dog:r.dog, address:r.address, frequency:r.frequency, nextDate:r.next_date, units:r.units, notes:r.notes||"" });
-    const clientToDb = (data, id) => ({ id, tutor:data.tutor, dog:data.dog, address:data.address, frequency:data.frequency, next_date:data.nextDate, units:data.units, notes:data.notes });
+    const dbToClient = (r) => ({ id:r.id, tutor:r.tutor, dog:r.dog, address:r.address, frequency:r.frequency, nextDate:r.next_date, units:r.units, notes:r.notes||"", phone:r.phone||"" });
+    const clientToDb = (data, id) => ({ id, tutor:data.tutor, dog:data.dog, address:data.address, frequency:data.frequency, next_date:data.nextDate, units:data.units, notes:data.notes, phone:data.phone||"" });
 
     function getOccurrencesInRange(client, startISO, endISO) {
       const out = [];
@@ -404,7 +404,7 @@
               </div>
             </div>
             <nav style={S.tabRow}>
-              {[["hoje","Hoje"],["semana","Semana"],["clientes","Clientes"],["estoque","Estoque"]].map(([k,l])=>(
+              {[["hoje","Hoje"],["semana","Semana"],["roteiro","Roteiro"],["clientes","Clientes"],["estoque","Estoque"]].map(([k,l])=>(
                 <button key={k} onClick={()=>setView(k)} style={{...S.tab,...(view===k?S.tabActive:{})}}>{l}</button>
               ))}
             </nav>
@@ -413,6 +413,7 @@
           <main style={S.main}>
             {view==="hoje"     && <TodayView  items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
             {view==="semana"   && <WeekView   weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
+            {view==="roteiro"  && <RoteiröView items={todayDeliveries} getStatus={getStatus}/>}
             {view==="clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient}/>}
             {view==="estoque"  && <StockView
               clients={clients}
@@ -483,6 +484,82 @@
               ))}</div>
             )}
           </div>
+        </div>
+      );
+    }
+
+    // ─── ROTEIRO VIEW ────────────────────────────────────────────────────────────
+    function RoteiröView({items,getStatus}) {
+      const t = todayISO();
+      const d = new Date(t+"T00:00:00");
+      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`;
+      // Ordena por endereço para facilitar o roteiro
+      const sorted = [...items].sort((a,b)=>a.client.address.localeCompare(b.client.address));
+      const entregues = sorted.filter(({client,date})=>getStatus(client.id,date)==="entregue").length;
+
+      const statusColors = {preparando:"#B8825A",a_caminho:"#3E7CB1",entregue:"#5C8A5C"};
+      const statusLabels = {preparando:"Preparando",a_caminho:"A caminho",entregue:"Entregue"};
+
+      return (
+        <div style={S.section}>
+          <div style={S.headRow}>
+            <div>
+              <h2 style={S.sectionTitle}>Roteiro de hoje</h2>
+              <p style={{margin:"4px 0 0",fontSize:13,color:"#8A7A6C"}}>{label}</p>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+              <span style={S.countPill}>{sorted.length} entrega{sorted.length!==1?"s":""}</span>
+              <span style={{...S.countPill,background:"#E6F0E6",color:"#3A6B3A"}}>{entregues} entregue{entregues!==1?"s":""}</span>
+            </div>
+          </div>
+
+          {sorted.length===0 ? <Empty text="Nenhuma entrega para hoje."/> : (
+            <>
+              <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:6,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13,fontWeight:600,marginBottom:16,cursor:"pointer"}}>
+                🖨️ Imprimir roteiro
+              </button>
+              <div style={S.list}>
+                {sorted.map(({client,date},i)=>{
+                  const status = getStatus(client.id,date);
+                  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`;
+                  return (
+                    <div key={client.id+date} style={{...S.card,borderLeft:`4px solid ${statusColors[status]}`,opacity:status==="entregue"?0.65:1}}>
+                      <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                        <div style={{minWidth:28,height:28,borderRadius:8,background:statusColors[status],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800,flexShrink:0}}>
+                          {i+1}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+                            <div>
+                              <span style={S.cardDog}>{client.dog}</span>
+                              <span style={{fontSize:13,color:"#8A7A6C",marginLeft:8}}>{client.tutor}</span>
+                            </div>
+                            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                              <span style={{fontSize:11,fontWeight:700,color:statusColors[status],background:status==="entregue"?"#E8F5E8":status==="a_caminho"?"#E8F0F8":"#FBF1E8",padding:"3px 8px",borderRadius:6}}>
+                                {statusLabels[status]}
+                              </span>
+                              <span style={{...S.freqTag,fontSize:11}}>{freqLabel[client.frequency]}</span>
+                            </div>
+                          </div>
+                          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginTop:6,gap:8}}>
+                            <div style={{display:"flex",gap:5,fontSize:12.5,color:"#7A6C5E",lineHeight:1.4,flex:1}}>
+                              <MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/>
+                              <span>{client.address}</span>
+                            </div>
+                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                              style={{display:"flex",alignItems:"center",gap:4,background:"#E8F4EA",color:"#2E7D32",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>
+                              📍 Maps
+                            </a>
+                          </div>
+                          {client.notes ? <div style={{marginTop:6,fontSize:12,color:"#9C8E7E",background:"#FBF8F4",borderRadius:7,padding:"5px 8px"}}>📝 {client.notes}</div> : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       );
     }
@@ -572,10 +649,13 @@
                   <div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={S.cardDog}>{c.dog}</div>
-                    <div style={S.cardTutor}>{c.tutor}</div>
-                    <div style={{fontSize:11.5,color:"#A89A8C",marginTop:2}}>
-                      {freqLabel[c.frequency]} · próxima: {formatDateBR(c.nextDate)}
+                    <div style={S.cardTutor}>{c.tutor}{c.phone ? ` · ${c.phone}` : ""}</div>
+                    <div style={{fontSize:11.5,color:"#A89A8C",marginTop:3}}>
+                      {freqLabel[c.frequency]}
                       {c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}
+                    </div>
+                    <div style={{fontSize:12,color:"#8A6A48",fontWeight:600,marginTop:2}}>
+                      📅 Próxima entrega: {formatDateBR(c.nextDate)||"—"}
                     </div>
                     {c.address && <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#C9BBA8",marginTop:3}}><MapPin size={11} color="#C9BBA8"/>{c.address}</div>}
                   </div>
@@ -768,8 +848,9 @@
 
     // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
     function ClientFormModal({initial,onClose,onSave}) {
-      const [tutor,    setTutor]    = useState(initial?.tutor    ||"");
       const [dog,      setDog]      = useState(initial?.dog      ||"");
+      const [tutor,    setTutor]    = useState(initial?.tutor    ||"");
+      const [phone,    setPhone]    = useState(initial?.phone    ||"");
       const [address,  setAddress]  = useState(initial?.address  ||"");
       const [freq,     setFreq]     = useState(initial?.frequency||"semanal");
       const [nextDate, setNextDate] = useState(initial?.nextDate ||todayISO());
@@ -779,12 +860,12 @@
       const [saving,   setSaving]   = useState(false);
 
       const submit = async () => {
-        if (!tutor.trim()||!dog.trim()||!address.trim()) { setError("Preencha tutor, cão e endereço."); return; }
+        if (!tutor.trim()||!dog.trim()||!address.trim()) { setError("Preencha nome do pet, tutor e endereço."); return; }
         const u = parseInt(units,10);
         if (!u||u<1) { setError("Informe uma quantidade de unidades válida."); return; }
         setError(""); setSaving(true);
         try {
-          await onSave({tutor:tutor.trim(),dog:dog.trim(),address:address.trim(),frequency:freq,nextDate,units:u,notes});
+          await onSave({tutor:tutor.trim(),dog:dog.trim(),phone:phone.trim(),address:address.trim(),frequency:freq,nextDate,units:u,notes});
         } catch(e) {
           setError("Erro ao salvar. Verifique a conexão e tente novamente.");
           setSaving(false);
@@ -799,8 +880,9 @@
               <button style={S.modalClose} onClick={onClose} disabled={saving}><X size={18} color="#8A7A6C"/></button>
             </div>
             <div style={S.formBody}>
+              <Fld label="Nome do pet"><input style={S.input} value={dog} onChange={e=>setDog(e.target.value)} placeholder="Ex: Mia"/></Fld>
               <Fld label="Nome do tutor"><input style={S.input} value={tutor} onChange={e=>setTutor(e.target.value)} placeholder="Ex: Marina Costa"/></Fld>
-              <Fld label="Nome do cão"><input style={S.input} value={dog} onChange={e=>setDog(e.target.value)} placeholder="Ex: Mia"/></Fld>
+              <Fld label="Telefone do cliente (opcional)"><input style={S.input} type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Ex: (11) 99999-9999"/></Fld>
               <Fld label="Endereço de entrega"><input style={S.input} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Rua, número, bairro"/></Fld>
               <Fld label="Frequência">
                 <div style={S.freqGrid}>
@@ -843,7 +925,7 @@
       refreshBtn:   {width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center"},
       newBtn:       {display:"flex",alignItems:"center",gap:6,background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13.5,fontWeight:600},
       tabRow:       {display:"flex",gap:4,padding:"0 12px"},
-      tab:          {background:"transparent",border:"none",color:"#9C8E7E",padding:"10px 14px",fontSize:14,fontWeight:600,borderBottom:"2px solid transparent"},
+      tab:          {background:"transparent",border:"none",color:"#9C8E7E",padding:"10px 10px",fontSize:13,fontWeight:600,borderBottom:"2px solid transparent"},
       tabActive:    {color:"#FBF1E8",borderBottom:"2px solid #B8825A"},
       main:         {maxWidth:640,margin:"0 auto",padding:"20px 16px"},
       section:      {},
