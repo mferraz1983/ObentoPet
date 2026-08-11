@@ -19,6 +19,11 @@
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    @media print {
+      header, .no-print { display: none !important; }
+      body { background: #fff !important; }
+      .print-area { display: block !important; }
+    }
   </style>
 </head>
 <body>
@@ -413,7 +418,7 @@
           <main style={S.main}>
             {view==="hoje"     && <TodayView  items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
             {view==="semana"   && <WeekView   weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
-            {view==="roteiro"  && <RoteiröView items={todayDeliveries} getStatus={getStatus}/>}
+            {view==="roteiro"  && <RoteiröView clients={clients} getStatus={getStatus}/>}
             {view==="clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient}/>}
             {view==="estoque"  && <StockView
               clients={clients}
@@ -489,76 +494,162 @@
     }
 
     // ─── ROTEIRO VIEW ────────────────────────────────────────────────────────────
-    function RoteiröView({items,getStatus}) {
-      const t = todayISO();
-      const d = new Date(t+"T00:00:00");
-      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`;
-      // Ordena por endereço para facilitar o roteiro
-      const sorted = [...items].sort((a,b)=>a.client.address.localeCompare(b.client.address));
-      const entregues = sorted.filter(({client,date})=>getStatus(client.id,date)==="entregue").length;
+    function RoteiröView({clients,getStatus}) {
+      const [range,       setRange]       = useState("hoje");
+      const [custStart,   setCustStart]   = useState(todayISO());
+      const [custEnd,     setCustEnd]     = useState(todayISO());
+      const [copied,      setCopied]      = useState(false);
 
-      const statusColors = {preparando:"#B8825A",a_caminho:"#3E7CB1",entregue:"#5C8A5C"};
-      const statusLabels = {preparando:"Preparando",a_caminho:"A caminho",entregue:"Entregue"};
+      const {startDate,endDate,rangeLabel} = useMemo(()=>{
+        const today = todayISO();
+        if (range==="hoje") return {startDate:today,endDate:today,rangeLabel:""};
+        if (range==="amanha") { const t=addDays(today,1); return {startDate:t,endDate:t,rangeLabel:""}; }
+        if (range==="semana") {
+          const d=new Date(today+"T00:00:00"); d.setDate(d.getDate()-d.getDay());
+          const s=dateToISO(d), e=addDays(s,6);
+          return {startDate:s,endDate:e,rangeLabel:`${formatDateBR(s)} – ${formatDateBR(e)}`};
+        }
+        if (range==="proxSemana") {
+          const d=new Date(today+"T00:00:00"); d.setDate(d.getDate()-d.getDay()+7);
+          const s=dateToISO(d), e=addDays(s,6);
+          return {startDate:s,endDate:e,rangeLabel:`${formatDateBR(s)} – ${formatDateBR(e)}`};
+        }
+        return {startDate:custStart,endDate:custEnd,rangeLabel:`${formatDateBR(custStart)} – ${formatDateBR(custEnd)}`};
+      },[range,custStart,custEnd]);
+
+      const deliveries = useMemo(()=>{
+        const items=[];
+        clients.forEach(c=>getOccurrencesInRange(c,startDate,endDate).forEach(date=>items.push({client:c,date})));
+        items.sort((a,b)=>a.date!==b.date?a.date.localeCompare(b.date):a.client.address.localeCompare(b.client.address));
+        return items;
+      },[clients,startDate,endDate]);
+
+      const entregues = deliveries.filter(({client,date})=>getStatus(client.id,date)==="entregue").length;
+
+      const statusColors={preparando:"#B8825A",a_caminho:"#3E7CB1",entregue:"#5C8A5C"};
+      const statusLabels={preparando:"Preparando",a_caminho:"A caminho",entregue:"Entregue"};
+
+      const getLabelData = () => {
+        const today=todayISO();
+        if (range==="hoje") { const d=new Date(today+"T00:00:00"); return `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`; }
+        if (range==="amanha") { const t=addDays(today,1); const d=new Date(t+"T00:00:00"); return `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`; }
+        return rangeLabel;
+      };
+
+      const copyWhatsApp = () => {
+        const header = `🐾 *ROTEIRO OBENTOPET*\n📅 ${getLabelData()}\n📦 ${deliveries.length} entrega${deliveries.length!==1?"s":""}\n`;
+        let text = header;
+        let lastDate="";
+        deliveries.forEach(({client,date},i)=>{
+          if (date!==lastDate) {
+            const dd=new Date(date+"T00:00:00");
+            text+=`\n📆 *${weekdayNames[dd.getDay()]}, ${dd.getDate()}/${String(dd.getMonth()+1).padStart(2,"0")}*\n`;
+            lastDate=date;
+          }
+          const st=getStatus(client.id,date);
+          const em=st==="entregue"?"✅":st==="a_caminho"?"🚗":"⏳";
+          text+=`${em} *${client.dog}* — ${client.tutor}\n`;
+          text+=`   📍 ${client.address}\n`;
+          if(client.phone) text+=`   📞 ${client.phone}\n`;
+          if(client.notes) text+=`   📝 ${client.notes}\n`;
+        });
+        navigator.clipboard.writeText(text).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);}).catch(()=>{});
+      };
+
+      const rangeBtns=[["hoje","Hoje"],["amanha","Amanhã"],["semana","Esta semana"],["proxSemana","Próx. semana"],["custom","Período"]];
 
       return (
         <div style={S.section}>
-          <div style={S.headRow}>
+          <div style={{...S.headRow,flexWrap:"wrap",gap:8}}>
             <div>
-              <h2 style={S.sectionTitle}>Roteiro de hoje</h2>
-              <p style={{margin:"4px 0 0",fontSize:13,color:"#8A7A6C"}}>{label}</p>
+              <h2 style={S.sectionTitle}>Roteiro</h2>
+              <p style={{margin:"3px 0 0",fontSize:13,color:"#8A7A6C"}}>{getLabelData()}</p>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-              <span style={S.countPill}>{sorted.length} entrega{sorted.length!==1?"s":""}</span>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              <span style={S.countPill}>{deliveries.length} entrega{deliveries.length!==1?"s":""}</span>
               <span style={{...S.countPill,background:"#E6F0E6",color:"#3A6B3A"}}>{entregues} entregue{entregues!==1?"s":""}</span>
             </div>
           </div>
 
-          {sorted.length===0 ? <Empty text="Nenhuma entrega para hoje."/> : (
-            <>
-              <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:6,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13,fontWeight:600,marginBottom:16,cursor:"pointer"}}>
-                🖨️ Imprimir roteiro
+          {/* Seletor de período */}
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+            {rangeBtns.map(([k,l])=>(
+              <button key={k} onClick={()=>setRange(k)} style={{border:"1.5px solid",borderColor:range===k?"#B8825A":"#E8DDD0",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,background:range===k?"#FBF1E8":"#FFF",color:range===k?"#8A6A48":"#8A7A6C",cursor:"pointer"}}>{l}</button>
+            ))}
+          </div>
+          {range==="custom" && (
+            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+              <div style={{display:"flex",flexDirection:"column",gap:4,flex:1}}>
+                <label style={{fontSize:11.5,fontWeight:600,color:"#8A7A6C"}}>De</label>
+                <input type="date" style={S.input} value={custStart} onChange={e=>setCustStart(e.target.value)}/>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:4,flex:1}}>
+                <label style={{fontSize:11.5,fontWeight:600,color:"#8A7A6C"}}>Até</label>
+                <input type="date" style={S.input} value={custEnd} onChange={e=>setCustEnd(e.target.value)}/>
+              </div>
+            </div>
+          )}
+
+          {/* Botões de ação */}
+          {deliveries.length>0 && (
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}} className="no-print">
+              <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:6,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",flex:1,justifyContent:"center"}}>
+                🖨️ Gerar PDF / Imprimir
               </button>
-              <div style={S.list}>
-                {sorted.map(({client,date},i)=>{
-                  const status = getStatus(client.id,date);
-                  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`;
-                  return (
-                    <div key={client.id+date} style={{...S.card,borderLeft:`4px solid ${statusColors[status]}`,opacity:status==="entregue"?0.65:1}}>
+              <button onClick={copyWhatsApp} style={{display:"flex",alignItems:"center",gap:6,background:copied?"#5C8A5C":"#25D366",color:"#FFF",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",flex:1,justifyContent:"center"}}>
+                {copied?"✅ Copiado!":"📲 Copiar p/ WhatsApp"}
+              </button>
+            </div>
+          )}
+
+          {deliveries.length===0 ? <Empty text="Nenhuma entrega neste período."/> : (
+            <div style={S.list}>
+              {deliveries.map(({client,date},i)=>{
+                const status=getStatus(client.id,date);
+                const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`;
+                const showDateLabel = i===0 || deliveries[i-1].date!==date;
+                return (
+                  <React.Fragment key={client.id+date}>
+                    {showDateLabel && (() => {
+                      const dd=new Date(date+"T00:00:00");
+                      return <div style={{fontSize:12.5,fontWeight:700,color:"#8A7A6C",marginTop:i>0?8:0,marginBottom:4,paddingLeft:2}}>
+                        📆 {weekdayNames[dd.getDay()]}, {dd.getDate()}/{String(dd.getMonth()+1).padStart(2,"0")}
+                      </div>;
+                    })()}
+                    <div style={{...S.card,borderLeft:`4px solid ${statusColors[status]}`,opacity:status==="entregue"?0.6:1}}>
                       <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-                        <div style={{minWidth:28,height:28,borderRadius:8,background:statusColors[status],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800,flexShrink:0}}>
+                        <div style={{minWidth:26,height:26,borderRadius:7,background:statusColors[status],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12,fontWeight:800,flexShrink:0}}>
                           {i+1}
                         </div>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
                             <div>
                               <span style={S.cardDog}>{client.dog}</span>
-                              <span style={{fontSize:13,color:"#8A7A6C",marginLeft:8}}>{client.tutor}</span>
+                              <span style={{fontSize:13,color:"#8A7A6C",marginLeft:6}}>{client.tutor}</span>
                             </div>
-                            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                              <span style={{fontSize:11,fontWeight:700,color:statusColors[status],background:status==="entregue"?"#E8F5E8":status==="a_caminho"?"#E8F0F8":"#FBF1E8",padding:"3px 8px",borderRadius:6}}>
-                                {statusLabels[status]}
-                              </span>
-                              <span style={{...S.freqTag,fontSize:11}}>{freqLabel[client.frequency]}</span>
-                            </div>
+                            <span style={{fontSize:11,fontWeight:700,color:statusColors[status],background:status==="entregue"?"#E8F5E8":status==="a_caminho"?"#E8F0F8":"#FBF1E8",padding:"3px 8px",borderRadius:6,flexShrink:0}}>
+                              {statusLabels[status]}
+                            </span>
                           </div>
                           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginTop:6,gap:8}}>
                             <div style={{display:"flex",gap:5,fontSize:12.5,color:"#7A6C5E",lineHeight:1.4,flex:1}}>
                               <MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/>
                               <span>{client.address}</span>
                             </div>
-                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="no-print"
                               style={{display:"flex",alignItems:"center",gap:4,background:"#E8F4EA",color:"#2E7D32",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>
                               📍 Maps
                             </a>
                           </div>
-                          {client.notes ? <div style={{marginTop:6,fontSize:12,color:"#9C8E7E",background:"#FBF8F4",borderRadius:7,padding:"5px 8px"}}>📝 {client.notes}</div> : null}
+                          {client.phone && <div style={{fontSize:12,color:"#8A7A6C",marginTop:4}}>📞 {client.phone}</div>}
+                          {client.notes && <div style={{marginTop:5,fontSize:12,color:"#9C8E7E",background:"#FBF8F4",borderRadius:7,padding:"5px 8px"}}>📝 {client.notes}</div>}
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </>
+                  </React.Fragment>
+                );
+              })}
+            </div>
           )}
         </div>
       );
