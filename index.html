@@ -8,25 +8,23 @@
 </head>
 <body>
   <div id="root"></div>
+  <!-- React -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-    window.storage = {
-      get: function(key) {
-        try { var v = localStorage.getItem('obp_' + key); return Promise.resolve(v ? { value: v } : { value: null }); }
-        catch(e) { return Promise.resolve({ value: null }); }
-      },
-      set: function(key, value) {
-        try { localStorage.setItem('obp_' + key, value); } catch(e) {}
-        return Promise.resolve();
-      }
-    };
+    window.sb = supabase.createClient(
+      "https://jyrujdfwdwkwynolpbni.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A"
+    );
   </script>
   <script>
 const {
   useState,
   useEffect,
-  useMemo
+  useMemo,
+  useRef
 } = React;
 
 // ---------- Inline SVG Icons ----------
@@ -196,6 +194,26 @@ const ArrowUpCircle = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*
   x2: "12",
   y2: "8"
 }));
+const Download = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "7 10 12 15 17 10"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "15",
+  x2: "12",
+  y2: "3"
+}));
+const Upload = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "17 8 12 3 7 8"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "3",
+  x2: "12",
+  y2: "15"
+}));
 const AlertTriangle = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
   d: "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
 }), /*#__PURE__*/React.createElement("line", {
@@ -217,6 +235,46 @@ const Cookie = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.
   d: "M16 15.5v.01"
 }), /*#__PURE__*/React.createElement("path", {
   d: "M12 12v.01"
+}));
+const FileText = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "14 2 14 8 20 8"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "16",
+  y1: "13",
+  x2: "8",
+  y2: "13"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "16",
+  y1: "17",
+  x2: "8",
+  y2: "17"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "10 9 9 9 8 9"
+}));
+const Copy = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("rect", {
+  x: "9",
+  y: "9",
+  width: "13",
+  height: "13",
+  rx: "2",
+  ry: "2"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+}));
+const Phone = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.76a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
+}));
+const LogOut = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "16 17 21 12 16 7"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "21",
+  y1: "12",
+  x2: "9",
+  y2: "12"
 }));
 
 // ---------- Helpers ----------
@@ -298,28 +356,121 @@ const statusConfig = {
     icon: Check
   }
 };
-const seedClients = [{
-  id: "c1",
-  tutor: "Marina Costa",
-  dog: "Mia",
-  address: "Rua dos Pinheiros, 480 — Pinheiros, São Paulo",
-  frequency: "semanal",
-  nextDate: todayISO(),
-  units: 4,
-  notes: ""
-}, {
-  id: "c2",
-  tutor: "Carlos Eduardo",
-  dog: "Margot",
-  address: "Av. Brigadeiro Faria Lima, 1200 — Itaim Bibi, São Paulo",
-  frequency: "quinzenal",
-  nextDate: addDays(todayISO(), 1),
-  units: 8,
-  notes: "Portaria pede documento"
-}];
+
+// Supabase client (initialized in HTML as window.sb)
+const sb = window.sb;
+
+// ---------- LOGIN SCREEN ----------
+function LoginScreen({
+  expired
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const handleLogin = async e => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const {
+      error: authErr
+    } = await sb.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (authErr) {
+      setError(authErr.message.includes("Invalid login") ? "Email ou senha incorretos." : authErr.message);
+      setLoading(false);
+    }
+    // On success, onAuthStateChange updates the parent session state automatically
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.loginScreen
+  }, /*#__PURE__*/React.createElement("style", null, globalCss), expired && /*#__PURE__*/React.createElement("div", {
+    style: styles.sessionExpiredBanner
+  }, /*#__PURE__*/React.createElement(AlertTriangle, {
+    size: 16,
+    color: "#C0594B",
+    style: {
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("span", null, "Sua sessão expirou. Faça login novamente antes de fazer alterações.")), /*#__PURE__*/React.createElement("div", {
+    style: styles.loginCard
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...styles.brandMark,
+      width: 52,
+      height: 52,
+      borderRadius: 14,
+      margin: "0 auto 12px"
+    }
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 26,
+    color: "#FBF1E8",
+    strokeWidth: 2.5
+  })), /*#__PURE__*/React.createElement("h1", {
+    style: {
+      margin: 0,
+      fontSize: 22,
+      fontWeight: 700,
+      color: "#3E332A"
+    }
+  }, "ObentōPet"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      margin: "4px 0 0",
+      fontSize: 13.5,
+      color: "#8A7A6C"
+    }
+  }, "Controle de Entregas")), /*#__PURE__*/React.createElement("form", {
+    onSubmit: handleLogin,
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Email"
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
+    type: "email",
+    value: email,
+    onChange: e => setEmail(e.target.value),
+    placeholder: "seu@email.com",
+    autoComplete: "email",
+    required: true
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Senha"
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
+    type: "password",
+    value: password,
+    onChange: e => setPassword(e.target.value),
+    placeholder: "••••••••",
+    autoComplete: "current-password",
+    required: true
+  })), error && /*#__PURE__*/React.createElement("p", {
+    style: styles.errorText
+  }, error), /*#__PURE__*/React.createElement("button", {
+    type: "submit",
+    style: {
+      ...styles.saveBtn,
+      marginTop: 4,
+      opacity: loading ? 0.7 : 1
+    },
+    disabled: loading
+  }, loading ? "Entrando…" : "Entrar"))));
+}
 
 // ---------- App ----------
 function App() {
+  const [session, setSession] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [clients, setClients] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [statusLog, setStatusLog] = useState({});
@@ -335,75 +486,196 @@ function App() {
   const [deliveryDeduction, setDeliveryDeduction] = useState({});
   const [petiscoProducts, setPetiscoProducts] = useState([]);
   const [petiscoStockLog, setPetiscoStockLog] = useState({});
+  const [showBackup, setShowBackup] = useState(false);
+  const logoutIntentRef = useRef(false);
+
+  // ---- Auth listener ----
   useEffect(() => {
-    (async () => {
-      const load = async (key, set) => {
-        try {
-          const r = await window.storage.get(key);
-          if (r && r.value) set(JSON.parse(r.value));
-        } catch (e) {}
-      };
-      try {
-        const r = await window.storage.get("clients");
-        if (r && r.value) {
-          setClients(JSON.parse(r.value));
-        } else {
-          setClients(seedClients);
-          await window.storage.set("clients", JSON.stringify(seedClients));
-        }
-      } catch (e) {
-        setClients(seedClients);
+    let hadSession = false;
+    sb.auth.getSession().then(({
+      data: {
+        session
       }
-      await load("statusLog", setStatusLog);
-      await load("subscriberStock", setSubscriberStock);
-      await load("subscriberStockLog", setSubscriberStockLog);
-      await load("shelfProducts", setShelfProducts);
-      await load("shelfStockLog", setShelfStockLog);
-      await load("deliveryDeduction", setDeliveryDeduction);
-      await load("petiscoProducts", setPetiscoProducts);
-      await load("petiscoStockLog", setPetiscoStockLog);
-      setLoaded(true);
-    })();
+    }) => {
+      hadSession = !!session;
+      setSession(session);
+      setAuthChecked(true);
+    });
+    const {
+      data: {
+        subscription
+      }
+    } = sb.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        const wasExpired = hadSession && !logoutIntentRef.current;
+        logoutIntentRef.current = false;
+        hadSession = false;
+        setSessionExpired(wasExpired);
+        setSession(null);
+        setLoaded(false);
+        setClients([]);
+        setStatusLog({});
+        setSubscriberStock({});
+        setShelfProducts([]);
+        setPetiscoProducts([]);
+      } else if (event === "SIGNED_IN" && session) {
+        hadSession = true;
+        setSessionExpired(false);
+        setSession(session);
+        setAuthChecked(true);
+      } else if (session) {
+        hadSession = true;
+        setSession(session);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
-  const persist = (key, val) => {
-    if (window.storage) window.storage.set(key, JSON.stringify(val)).catch(() => {});
+
+  // ---- Load data when session is ready ----
+  useEffect(() => {
+    if (!session) return;
+    loadAllData();
+  }, [session]);
+  const loadAllData = async () => {
+    try {
+      // Clients
+      const {
+        data: clientsData,
+        error: clientsErr
+      } = await sb.from("clients").select("*");
+      if (clientsErr) throw clientsErr;
+      const clientsList = (clientsData || []).map(row => ({
+        id: row.id,
+        tutor: row.tutor,
+        dog: row.dog,
+        address: row.address,
+        frequency: row.frequency,
+        nextDate: row.next_date,
+        units: row.units,
+        notes: row.notes || "",
+        phone: row.phone || "",
+        minStock: row.min_stock || 0
+      }));
+      setClients(clientsList);
+
+      // Status log
+      const {
+        data: statusData
+      } = await sb.from("status_log").select("*");
+      const slog = {};
+      (statusData || []).forEach(row => {
+        slog[row.key] = row.status;
+      });
+      setStatusLog(slog);
+
+      // Subscriber stock
+      const {
+        data: subStockData
+      } = await sb.from("subscriber_stock").select("*");
+      const ss = {};
+      (subStockData || []).forEach(row => {
+        ss[row.client_id] = row.balance;
+      });
+      setSubscriberStock(ss);
+
+      // Shelf products (avulsos)
+      const {
+        data: shelfData
+      } = await sb.from("shelf_products").select("*");
+      setShelfProducts((shelfData || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        balance: p.balance,
+        minStock: p.min_stock || 0
+      })));
+
+      // Snack products (petiscos)
+      const {
+        data: snackData
+      } = await sb.from("snack_products").select("*");
+      setPetiscoProducts((snackData || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        balance: p.balance,
+        minStock: p.min_stock || 0
+      })));
+
+      // Log tables (best-effort — silently ignore schema mismatches)
+      try {
+        const {
+          data: ssLog
+        } = await sb.from("subscriber_stock_log").select("*").order("ts", {
+          ascending: false
+        });
+        const ssMap = {};
+        (ssLog || []).forEach(row => {
+          if (!ssMap[row.client_id]) ssMap[row.client_id] = [];
+          ssMap[row.client_id].push({
+            date: row.date,
+            amount: row.amount,
+            reason: row.reason,
+            ts: row.ts
+          });
+        });
+        setSubscriberStockLog(ssMap);
+      } catch (e) {}
+      try {
+        const {
+          data: shelfLog
+        } = await sb.from("shelf_stock_log").select("*").order("ts", {
+          ascending: false
+        });
+        const shMap = {};
+        (shelfLog || []).forEach(row => {
+          if (!shMap[row.product_id]) shMap[row.product_id] = [];
+          shMap[row.product_id].push({
+            date: row.date,
+            amount: row.amount,
+            reason: row.reason,
+            ts: row.ts
+          });
+        });
+        setShelfStockLog(shMap);
+      } catch (e) {}
+      try {
+        const {
+          data: snackLog
+        } = await sb.from("snack_stock_log").select("*").order("ts", {
+          ascending: false
+        });
+        const snMap = {};
+        (snackLog || []).forEach(row => {
+          if (!snMap[row.product_id]) snMap[row.product_id] = [];
+          snMap[row.product_id].push({
+            date: row.date,
+            amount: row.amount,
+            reason: row.reason,
+            ts: row.ts
+          });
+        });
+        setPetiscoStockLog(snMap);
+      } catch (e) {}
+      try {
+        const {
+          data: ddData
+        } = await sb.from("delivery_deduction").select("*");
+        const dd = {};
+        (ddData || []).forEach(row => {
+          dd[row.key] = {
+            productId: row.product_id,
+            amount: row.amount
+          };
+        });
+        setDeliveryDeduction(dd);
+      } catch (e) {}
+      setLoaded(true);
+    } catch (e) {
+      console.error("Erro ao carregar dados:", e);
+      setLoaded(true);
+    }
   };
-  useEffect(() => {
-    if (!loaded) return;
-    persist("clients", clients);
-  }, [clients, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("statusLog", statusLog);
-  }, [statusLog, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("subscriberStock", subscriberStock);
-  }, [subscriberStock, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("subscriberStockLog", subscriberStockLog);
-  }, [subscriberStockLog, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("shelfProducts", shelfProducts);
-  }, [shelfProducts, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("shelfStockLog", shelfStockLog);
-  }, [shelfStockLog, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("deliveryDeduction", deliveryDeduction);
-  }, [deliveryDeduction, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("petiscoProducts", petiscoProducts);
-  }, [petiscoProducts, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    persist("petiscoStockLog", petiscoStockLog);
-  }, [petiscoStockLog, loaded]);
+
+  // ---- Ensure subscriber_stock row exists for every subscriber ----
   useEffect(() => {
     if (!loaded) return;
     setSubscriberStock(prev => {
@@ -415,100 +687,172 @@ function App() {
         if (!(c.id in next)) {
           next[c.id] = 0;
           changed = true;
+          sb.from("subscriber_stock").upsert({
+            client_id: c.id,
+            balance: 0
+          }).catch(() => {});
         }
       });
       return changed ? next : prev;
     });
   }, [clients, loaded]);
-  const getStatus = (cid, date) => statusLog[`${cid}|${date}`] || "preparando";
+
+  // ---- Stock delta helpers (optimistic + Supabase persist) ----
   const applySubscriberDelta = (cid, delta, date, reason) => {
-    setSubscriberStock(p => ({
-      ...p,
-      [cid]: (p[cid] || 0) + delta
-    }));
-    setSubscriberStockLog(p => {
-      const n = {
-          ...p
-        },
-        e = [...(n[cid] || [])];
-      e.unshift({
+    const ts = Date.now();
+    const logId = `ssl_${cid}_${ts}`;
+    setSubscriberStock(prev => {
+      const newBalance = (prev[cid] || 0) + delta;
+      sb.from("subscriber_stock").upsert({
+        client_id: cid,
+        balance: newBalance
+      }).catch(() => {});
+      return {
+        ...prev,
+        [cid]: newBalance
+      };
+    });
+    setSubscriberStockLog(prev => {
+      const entry = {
         date,
         amount: delta,
         reason,
-        ts: Date.now()
-      });
-      n[cid] = e.slice(0, 100);
-      return n;
+        ts
+      };
+      const entries = [entry, ...(prev[cid] || [])].slice(0, 100);
+      sb.from("subscriber_stock_log").insert({
+        id: logId,
+        client_id: cid,
+        date,
+        amount: delta,
+        reason,
+        ts
+      }).catch(() => {});
+      return {
+        ...prev,
+        [cid]: entries
+      };
     });
   };
   const applyShelfDelta = (pid, delta, date, reason) => {
-    setShelfProducts(p => p.map(x => x.id === pid ? {
-      ...x,
-      balance: x.balance + delta
-    } : x));
-    setShelfStockLog(p => {
-      const n = {
-          ...p
-        },
-        e = [...(n[pid] || [])];
-      e.unshift({
+    const ts = Date.now();
+    const logId = `shl_${pid}_${ts}`;
+    setShelfProducts(prev => prev.map(x => {
+      if (x.id !== pid) return x;
+      const newBalance = x.balance + delta;
+      sb.from("shelf_products").update({
+        balance: newBalance
+      }).eq("id", pid).catch(() => {});
+      return {
+        ...x,
+        balance: newBalance
+      };
+    }));
+    setShelfStockLog(prev => {
+      const entry = {
         date,
         amount: delta,
         reason,
-        ts: Date.now()
-      });
-      n[pid] = e.slice(0, 100);
-      return n;
+        ts
+      };
+      const entries = [entry, ...(prev[pid] || [])].slice(0, 100);
+      sb.from("shelf_stock_log").insert({
+        id: logId,
+        product_id: pid,
+        date,
+        amount: delta,
+        reason,
+        ts
+      }).catch(() => {});
+      return {
+        ...prev,
+        [pid]: entries
+      };
     });
   };
   const applyPetiscoDelta = (pid, delta, date, reason) => {
-    setPetiscoProducts(p => p.map(x => x.id === pid ? {
-      ...x,
-      balance: x.balance + delta
-    } : x));
-    setPetiscoStockLog(p => {
-      const n = {
-          ...p
-        },
-        e = [...(n[pid] || [])];
-      e.unshift({
+    const ts = Date.now();
+    const logId = `snk_${pid}_${ts}`;
+    setPetiscoProducts(prev => prev.map(x => {
+      if (x.id !== pid) return x;
+      const newBalance = x.balance + delta;
+      sb.from("snack_products").update({
+        balance: newBalance
+      }).eq("id", pid).catch(() => {});
+      return {
+        ...x,
+        balance: newBalance
+      };
+    }));
+    setPetiscoStockLog(prev => {
+      const entry = {
         date,
         amount: delta,
         reason,
-        ts: Date.now()
-      });
-      n[pid] = e.slice(0, 100);
-      return n;
+        ts
+      };
+      const entries = [entry, ...(prev[pid] || [])].slice(0, 100);
+      sb.from("snack_stock_log").insert({
+        id: logId,
+        product_id: pid,
+        date,
+        amount: delta,
+        reason,
+        ts
+      }).catch(() => {});
+      return {
+        ...prev,
+        [pid]: entries
+      };
     });
   };
+
+  // ---- Delivery status ----
+  const getStatus = (cid, date) => statusLog[`${cid}|${date}`] || "preparando";
   const setStatus = (cid, date, status, deduction) => {
     const key = `${cid}|${date}`;
     const wasEntregue = getStatus(cid, date) === "entregue";
     const willEntregue = status === "entregue";
     const client = clients.find(c => c.id === cid);
-    setStatusLog(p => ({
-      ...p,
-      [key]: status
-    }));
+    setStatusLog(prev => {
+      sb.from("status_log").upsert({
+        key,
+        status
+      }).catch(() => {});
+      return {
+        ...prev,
+        [key]: status
+      };
+    });
     if (!client) return;
     if (client.frequency === "avulsa") {
       if (!wasEntregue && willEntregue && deduction?.productId) {
         applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
-        setDeliveryDeduction(p => ({
-          ...p,
-          [key]: deduction
-        }));
+        setDeliveryDeduction(prev => {
+          sb.from("delivery_deduction").upsert({
+            key,
+            product_id: deduction.productId,
+            amount: deduction.amount
+          }).catch(() => {});
+          return {
+            ...prev,
+            [key]: deduction
+          };
+        });
       }
       if (wasEntregue && !willEntregue) {
         const prev = deliveryDeduction[key];
-        if (prev?.productId) applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
-        setDeliveryDeduction(p => {
-          const n = {
-            ...p
-          };
-          delete n[key];
-          return n;
-        });
+        if (prev?.productId) {
+          applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
+          setDeliveryDeduction(p => {
+            const n = {
+              ...p
+            };
+            delete n[key];
+            sb.from("delivery_deduction").delete().eq("key", key).catch(() => {});
+            return n;
+          });
+        }
       }
     } else {
       const amt = client.units || 0;
@@ -516,6 +860,60 @@ function App() {
       if (wasEntregue && !willEntregue) applySubscriberDelta(cid, amt, date, "Estorno (status revertido)");
     }
   };
+
+  // ---- Client CRUD ----
+  const saveClient = data => {
+    if (editingClient) {
+      setClients(p => p.map(c => c.id === editingClient.id ? {
+        ...c,
+        ...data
+      } : c));
+      sb.from("clients").update({
+        tutor: data.tutor,
+        dog: data.dog,
+        address: data.address,
+        frequency: data.frequency,
+        next_date: data.nextDate,
+        units: data.units,
+        notes: data.notes || "",
+        phone: data.phone || ""
+      }).eq("id", editingClient.id).catch(() => {});
+    } else {
+      const id = "c" + Date.now();
+      const newClient = {
+        ...data,
+        id
+      };
+      setClients(p => [...p, newClient]);
+      sb.from("clients").insert({
+        id,
+        tutor: data.tutor,
+        dog: data.dog,
+        address: data.address,
+        frequency: data.frequency,
+        next_date: data.nextDate,
+        units: data.units,
+        notes: data.notes || "",
+        phone: data.phone || "",
+        min_stock: 0,
+        label_file: ""
+      }).catch(() => {});
+      if (data.frequency !== "avulsa") {
+        sb.from("subscriber_stock").upsert({
+          client_id: id,
+          balance: 0
+        }).catch(() => {});
+      }
+    }
+    setShowForm(false);
+    setEditingClient(null);
+  };
+  const deleteClient = id => {
+    setClients(p => p.filter(c => c.id !== id));
+    sb.from("clients").delete().eq("id", id).catch(() => {});
+  };
+
+  // ---- Stock operations ----
   const addSubscriberProduction = (cid, amt) => {
     if (amt > 0) applySubscriberDelta(cid, amt, todayISO(), "Produção da semana");
   };
@@ -524,25 +922,97 @@ function App() {
     setShelfProducts(p => [...p, {
       id,
       name,
-      balance: 0
+      balance: 0,
+      minStock: 0
     }]);
+    sb.from("shelf_products").insert({
+      id,
+      name,
+      balance: 0,
+      min_stock: 0
+    }).catch(() => {});
   };
   const addShelfStockEntry = (pid, amt) => {
     if (amt > 0) applyShelfDelta(pid, amt, todayISO(), "Entrada de estoque");
   };
-  const deleteShelfProduct = pid => setShelfProducts(p => p.filter(x => x.id !== pid));
+  const deleteShelfProduct = pid => {
+    setShelfProducts(p => p.filter(x => x.id !== pid));
+    sb.from("shelf_products").delete().eq("id", pid).catch(() => {});
+  };
   const addPetiscoProduct = name => {
     const id = "pet" + Date.now();
     setPetiscoProducts(p => [...p, {
       id,
       name,
-      balance: 0
+      balance: 0,
+      minStock: 0
     }]);
+    sb.from("snack_products").insert({
+      id,
+      name,
+      balance: 0,
+      min_stock: 0
+    }).catch(() => {});
   };
   const addPetiscoStockEntry = (pid, amt) => {
     if (amt > 0) applyPetiscoDelta(pid, amt, todayISO(), "Produção adicionada");
   };
-  const deletePetiscoProduct = pid => setPetiscoProducts(p => p.filter(x => x.id !== pid));
+  const deletePetiscoProduct = pid => {
+    setPetiscoProducts(p => p.filter(x => x.id !== pid));
+    sb.from("snack_products").delete().eq("id", pid).catch(() => {});
+  };
+
+  // ---- Backup ----
+  const exportBackup = () => {
+    const data = {
+      clients,
+      statusLog,
+      subscriberStock,
+      subscriberStockLog,
+      shelfProducts,
+      shelfStockLog,
+      deliveryDeduction,
+      petiscoProducts,
+      petiscoStockLog
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `obentopet-backup-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importBackup = file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.clients) setClients(data.clients);
+        if (data.statusLog) setStatusLog(data.statusLog);
+        if (data.subscriberStock) setSubscriberStock(data.subscriberStock);
+        if (data.subscriberStockLog) setSubscriberStockLog(data.subscriberStockLog);
+        if (data.shelfProducts) setShelfProducts(data.shelfProducts);
+        if (data.shelfStockLog) setShelfStockLog(data.shelfStockLog);
+        if (data.deliveryDeduction) setDeliveryDeduction(data.deliveryDeduction);
+        if (data.petiscoProducts) setPetiscoProducts(data.petiscoProducts);
+        if (data.petiscoStockLog) setPetiscoStockLog(data.petiscoStockLog);
+        setShowBackup(false);
+        alert("Backup restaurado com sucesso!");
+      } catch (err) {
+        alert("Arquivo inválido. Use um backup gerado pelo ObentōPet.");
+      }
+    };
+    reader.readAsText(file);
+  };
+  const handleLogout = () => {
+    logoutIntentRef.current = true;
+    sb.auth.signOut();
+  };
+
+  // ---- Computed ----
   const weekStart = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + weekOffset * 7);
@@ -575,18 +1045,17 @@ function App() {
     if (!q) return clients;
     return clients.filter(c => c.tutor.toLowerCase().includes(q) || c.dog.toLowerCase().includes(q) || c.address.toLowerCase().includes(q));
   }, [clients, search]);
-  const saveClient = data => {
-    if (editingClient) setClients(p => p.map(c => c.id === editingClient.id ? {
-      ...c,
-      ...data
-    } : c));else setClients(p => [...p, {
-      ...data,
-      id: "c" + Date.now()
-    }]);
-    setShowForm(false);
-    setEditingClient(null);
-  };
-  const deleteClient = id => setClients(p => p.filter(c => c.id !== id));
+
+  // ---- Render guards ----
+  if (!authChecked) return /*#__PURE__*/React.createElement("div", {
+    style: styles.loadingScreen
+  }, /*#__PURE__*/React.createElement(PawPrint, {
+    size: 32,
+    color: "#B8825A"
+  }));
+  if (!session) return /*#__PURE__*/React.createElement(LoginScreen, {
+    expired: sessionExpired
+  });
   if (!loaded) return /*#__PURE__*/React.createElement("div", {
     style: styles.loadingScreen
   }, /*#__PURE__*/React.createElement(PawPrint, {
@@ -611,7 +1080,26 @@ function App() {
     style: styles.brandTitle
   }, "ObentōPet"), /*#__PURE__*/React.createElement("p", {
     style: styles.brandSub
-  }, "Controle de Entregas"))), /*#__PURE__*/React.createElement("button", {
+  }, "Controle de Entregas"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    style: styles.backupBtn,
+    onClick: () => setShowBackup(true),
+    title: "Backup"
+  }, /*#__PURE__*/React.createElement(Download, {
+    size: 16,
+    strokeWidth: 2
+  })), /*#__PURE__*/React.createElement("button", {
+    style: styles.backupBtn,
+    onClick: handleLogout,
+    title: "Sair"
+  }, /*#__PURE__*/React.createElement(LogOut, {
+    size: 16,
+    strokeWidth: 2
+  })), /*#__PURE__*/React.createElement("button", {
     style: styles.newBtn,
     onClick: () => {
       setEditingClient(null);
@@ -620,9 +1108,9 @@ function App() {
   }, /*#__PURE__*/React.createElement(Plus, {
     size: 18,
     strokeWidth: 2.5
-  }), /*#__PURE__*/React.createElement("span", null, "Novo cliente"))), /*#__PURE__*/React.createElement("nav", {
+  }), /*#__PURE__*/React.createElement("span", null, "Novo cliente")))), /*#__PURE__*/React.createElement("nav", {
     style: styles.tabRow
-  }, [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [["hoje", "Hoje"], ["semana", "Semana"], ["clientes", "Clientes"], ["estoque", "Estoque"], ["roteiro", "Roteiro"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => setView(k),
     style: {
@@ -646,6 +1134,7 @@ function App() {
     shelfProducts: shelfProducts
   }), view === "clientes" && /*#__PURE__*/React.createElement(ClientsView, {
     clients: filteredClients,
+    statusLog: statusLog,
     search: search,
     setSearch: setSearch,
     onEdit: c => {
@@ -668,6 +1157,8 @@ function App() {
     onAddPetiscoProduct: addPetiscoProduct,
     onAddPetiscoStockEntry: addPetiscoStockEntry,
     onDeletePetiscoProduct: deletePetiscoProduct
+  }), view === "roteiro" && /*#__PURE__*/React.createElement(RoteiroView, {
+    clients: clients
   })), showForm && /*#__PURE__*/React.createElement(ClientFormModal, {
     initial: editingClient,
     onClose: () => {
@@ -675,6 +1166,10 @@ function App() {
       setEditingClient(null);
     },
     onSave: saveClient
+  }), showBackup && /*#__PURE__*/React.createElement(BackupModal, {
+    onClose: () => setShowBackup(false),
+    onExport: exportBackup,
+    onImport: importBackup
   }));
 }
 
@@ -925,12 +1420,17 @@ function DeliveryCard({
 // ---------- CLIENTS VIEW ----------
 function ClientsView({
   clients,
+  statusLog,
   search,
   setSearch,
   onEdit,
   onDelete
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const getLastDelivery = clientId => {
+    const dates = Object.entries(statusLog).filter(([key, st]) => key.startsWith(clientId + "|") && st === "entregue").map(([key]) => key.split("|")[1]).sort();
+    return dates.length ? dates[dates.length - 1] : null;
+  };
   return /*#__PURE__*/React.createElement("div", {
     style: styles.section
   }, /*#__PURE__*/React.createElement("div", {
@@ -947,52 +1447,95 @@ function ClientsView({
     text: "Nenhum cliente cadastrado ainda."
   }) : /*#__PURE__*/React.createElement("div", {
     style: styles.cardList
-  }, clients.map(c => /*#__PURE__*/React.createElement("div", {
-    key: c.id,
-    style: styles.clientRow
-  }, /*#__PURE__*/React.createElement("div", {
-    style: styles.dogBadge
-  }, /*#__PURE__*/React.createElement(PawPrint, {
-    size: 14,
-    color: "#B8825A"
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: styles.cardDog
-  }, c.dog), /*#__PURE__*/React.createElement("div", {
-    style: styles.cardTutor
-  }, c.tutor), /*#__PURE__*/React.createElement("div", {
-    style: styles.clientMeta
-  }, frequencyLabel[c.frequency], " · próxima: ", formatDateBR(c.nextDate), c.units ? ` · ${c.units} ${c.units === 1 ? "unidade" : "unidades"}` : "")), /*#__PURE__*/React.createElement("div", {
-    style: styles.rowActions
-  }, /*#__PURE__*/React.createElement("button", {
-    style: styles.iconBtn,
-    onClick: () => onEdit(c)
-  }, /*#__PURE__*/React.createElement(Edit3, {
-    size: 15,
-    color: "#8A7A6C"
-  })), confirmDelete === c.id ? /*#__PURE__*/React.createElement("button", {
-    style: {
-      ...styles.iconBtn,
-      background: "#C0594B"
-    },
-    onClick: () => {
-      onDelete(c.id);
-      setConfirmDelete(null);
-    }
-  }, /*#__PURE__*/React.createElement(Check, {
-    size: 15,
-    color: "#fff"
-  })) : /*#__PURE__*/React.createElement("button", {
-    style: styles.iconBtn,
-    onClick: () => setConfirmDelete(c.id)
-  }, /*#__PURE__*/React.createElement(Trash2, {
-    size: 15,
-    color: "#8A7A6C"
-  })))))));
+  }, clients.map(c => {
+    const lastDelivery = getLastDelivery(c.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: styles.clientRow
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.dogBadge
+    }, /*#__PURE__*/React.createElement(PawPrint, {
+      size: 14,
+      color: "#B8825A"
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.cardDog
+    }, c.dog), /*#__PURE__*/React.createElement("div", {
+      style: styles.cardTutor
+    }, c.tutor), c.phone ? /*#__PURE__*/React.createElement("div", {
+      style: styles.clientPhone
+    }, /*#__PURE__*/React.createElement(Phone, {
+      size: 11,
+      color: "#A89A8C"
+    }), c.phone) : null, /*#__PURE__*/React.createElement("div", {
+      style: styles.clientInfoGrid
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.clientInfoItem
+    }, /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoLabel
+    }, "Frequência"), /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoValue
+    }, frequencyLabel[c.frequency])), /*#__PURE__*/React.createElement("div", {
+      style: styles.clientInfoItem
+    }, /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoLabel
+    }, "Por entrega"), /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoValue
+    }, c.units ? `${c.units} un.` : "—")), /*#__PURE__*/React.createElement("div", {
+      style: styles.clientInfoItem
+    }, /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoLabel
+    }, "Última entrega"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...styles.clientInfoValue,
+        color: lastDelivery ? "#5C8A5C" : "#A89A8C"
+      }
+    }, lastDelivery ? formatDateBR(lastDelivery) : "Nenhuma")), /*#__PURE__*/React.createElement("div", {
+      style: styles.clientInfoItem
+    }, /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoLabel
+    }, c.frequency === "avulsa" ? "Data" : "Próxima"), /*#__PURE__*/React.createElement("span", {
+      style: styles.clientInfoValue
+    }, formatDateBR(c.nextDate))))), /*#__PURE__*/React.createElement("div", {
+      style: styles.rowActions
+    }, /*#__PURE__*/React.createElement("button", {
+      style: styles.iconBtn,
+      onClick: () => onEdit(c)
+    }, /*#__PURE__*/React.createElement(Edit3, {
+      size: 15,
+      color: "#8A7A6C"
+    })), confirmDelete === c.id ? /*#__PURE__*/React.createElement("button", {
+      style: {
+        ...styles.iconBtn,
+        background: "#C0594B"
+      },
+      onClick: () => {
+        onDelete(c.id);
+        setConfirmDelete(null);
+      }
+    }, /*#__PURE__*/React.createElement(Check, {
+      size: 15,
+      color: "#fff"
+    })) : /*#__PURE__*/React.createElement("button", {
+      style: styles.iconBtn,
+      onClick: () => setConfirmDelete(c.id)
+    }, /*#__PURE__*/React.createElement(Trash2, {
+      size: 15,
+      color: "#8A7A6C"
+    }))));
+  })));
 }
 
 // ---------- STOCK VIEW ----------
@@ -1379,6 +1922,274 @@ function StockView({
     }))));
   }))));
 }
+
+// ---------- ROTEIRO VIEW ----------
+function RoteiroView({
+  clients
+}) {
+  const [rangeType, setRangeType] = useState("semana");
+  const [customStart, setCustomStart] = useState(todayISO());
+  const [customEnd, setCustomEnd] = useState(addDays(todayISO(), 6));
+  const [copied, setCopied] = useState(false);
+  const {
+    startDate,
+    endDate
+  } = useMemo(() => {
+    const today = todayISO();
+    if (rangeType === "hoje") return {
+      startDate: today,
+      endDate: today
+    };
+    if (rangeType === "semana") {
+      const d = new Date(today + "T00:00:00");
+      d.setDate(d.getDate() - d.getDay());
+      const start = dateToISO(d);
+      return {
+        startDate: start,
+        endDate: addDays(start, 6)
+      };
+    }
+    if (rangeType === "proxima") {
+      const d = new Date(today + "T00:00:00");
+      d.setDate(d.getDate() - d.getDay() + 7);
+      const start = dateToISO(d);
+      return {
+        startDate: start,
+        endDate: addDays(start, 6)
+      };
+    }
+    const end = customEnd >= customStart ? customEnd : customStart;
+    return {
+      startDate: customStart,
+      endDate: end
+    };
+  }, [rangeType, customStart, customEnd]);
+  const grouped = useMemo(() => {
+    const map = {};
+    clients.forEach(c => {
+      getOccurrencesInRange(c, startDate, endDate).forEach(date => {
+        if (!map[date]) map[date] = [];
+        map[date].push(c);
+      });
+    });
+    return Object.keys(map).sort().map(date => ({
+      date,
+      deliveries: map[date].sort((a, b) => a.tutor.localeCompare(b.tutor))
+    }));
+  }, [clients, startDate, endDate]);
+  const totalDeliveries = grouped.reduce((sum, g) => sum + g.deliveries.length, 0);
+  const rangeLabel = startDate === endDate ? formatDateBR(startDate) : `${formatDateBR(startDate)} a ${formatDateBR(endDate)}`;
+  const buildWhatsAppText = () => {
+    const lines = ["🐾 *Roteiro ObentōPet*", `📅 ${rangeLabel}`, ""];
+    grouped.forEach(({
+      date,
+      deliveries
+    }) => {
+      const d = new Date(date + "T00:00:00");
+      lines.push(`*${weekdayNames[d.getDay()]}, ${formatDateBR(date)}*`);
+      deliveries.forEach(c => {
+        const units = c.units ? ` — ${c.units} un.` : "";
+        lines.push(`• ${c.dog} (${c.tutor}) — ${c.address}${units}`);
+      });
+      lines.push("");
+    });
+    lines.push(`Total: ${totalDeliveries} entrega${totalDeliveries !== 1 ? "s" : ""}`);
+    return lines.join("\n");
+  };
+  const buildPrintHTML = () => {
+    const dayBlocks = grouped.map(({
+      date,
+      deliveries
+    }) => {
+      const d = new Date(date + "T00:00:00");
+      const dayLabel = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", {
+        month: "long"
+      })}`;
+      const rows = deliveries.map(c => `<tr><td><strong>${c.dog}</strong></td><td>${c.tutor}</td><td>${c.address}</td><td style="text-align:center;white-space:nowrap">${c.units ? c.units + " un." : "—"}</td><td style="width:90px"></td></tr>`).join("");
+      return `<div class="day"><h3>${dayLabel} <span class="day-count">${deliveries.length} entrega${deliveries.length !== 1 ? "s" : ""}</span></h3><table><thead><tr><th>Cão</th><th>Tutor</th><th>Endereço</th><th>Qtd</th><th>✓</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }).join("");
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Roteiro ObentōPet — ${rangeLabel}</title><style>*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#2a2a2a;margin:0;padding:28px 32px}.header{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #B8825A;padding-bottom:10px;margin-bottom:22px}.header h1{margin:0;font-size:19px;color:#3E332A}.header .range{font-size:13px;color:#8A7A6C}h3{font-size:13px;font-weight:700;color:#B8825A;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}.day-count{font-size:11px;color:#A89A8C;font-weight:600;text-transform:none;letter-spacing:0}table{width:100%;border-collapse:collapse}th{background:#F6EEE3;text-align:left;padding:6px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#8A6A48}td{padding:8px 10px;border-bottom:1px solid #F1E6D8;vertical-align:top}td:first-child{font-weight:600}.footer{margin-top:24px;padding-top:10px;border-top:1px solid #EFE4D6;font-size:12px;color:#A89A8C;display:flex;justify-content:space-between}.day{page-break-inside:avoid}@media print{body{padding:14px 18px}}</style></head><body><div class="header"><h1>🐾 ObentōPet — Roteiro de Entregas</h1><span class="range">${rangeLabel}</span></div>${dayBlocks}<div class="footer"><span>Total: ${totalDeliveries} entrega${totalDeliveries !== 1 ? "s" : ""}</span><span>Gerado em ${formatDateBR(todayISO())}</span></div></body></html>`;
+  };
+  const handleCopy = async () => {
+    const text = buildWhatsAppText();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;opacity:0;top:0;left:0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+  const handlePrint = () => {
+    const w = window.open("", "_blank", "width=860,height=700");
+    w.document.write(buildPrintHTML());
+    w.document.close();
+    setTimeout(() => {
+      w.focus();
+      w.print();
+    }, 400);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.section
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.sectionHeadRow
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: styles.sectionTitle
+  }, "Roteiro"), totalDeliveries > 0 && /*#__PURE__*/React.createElement("span", {
+    style: styles.countPill
+  }, totalDeliveries, " entrega", totalDeliveries !== 1 ? "s" : "")), /*#__PURE__*/React.createElement("div", {
+    style: styles.roteiroRangeRow
+  }, [["hoje", "Hoje"], ["semana", "Esta semana"], ["proxima", "Próx. semana"], ["custom", "Personalizado"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    style: {
+      ...styles.roteiroRangeBtn,
+      ...(rangeType === k ? styles.roteiroRangeBtnActive : {})
+    },
+    onClick: () => setRangeType(k)
+  }, l))), rangeType === "custom" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 14,
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    style: {
+      ...styles.input,
+      flex: 1
+    },
+    value: customStart,
+    onChange: e => setCustomStart(e.target.value)
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#A89A8C",
+      fontSize: 13,
+      flexShrink: 0
+    }
+  }, "até"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    style: {
+      ...styles.input,
+      flex: 1
+    },
+    value: customEnd,
+    onChange: e => setCustomEnd(e.target.value)
+  })), totalDeliveries > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    style: styles.roteiroActionBtn,
+    onClick: handlePrint
+  }, /*#__PURE__*/React.createElement(FileText, {
+    size: 15,
+    strokeWidth: 2
+  }), " Gerar PDF"), /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...styles.roteiroActionBtn,
+      ...(copied ? {
+        background: "#5C8A5C"
+      } : {})
+    },
+    onClick: handleCopy
+  }, copied ? /*#__PURE__*/React.createElement(Check, {
+    size: 15,
+    strokeWidth: 2.5
+  }) : /*#__PURE__*/React.createElement(Copy, {
+    size: 15,
+    strokeWidth: 2
+  }), copied ? "Copiado!" : "Copiar p/ WhatsApp")), grouped.length === 0 ? /*#__PURE__*/React.createElement(EmptyState, {
+    text: "Nenhuma entrega no período selecionado."
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 20
+    }
+  }, grouped.map(({
+    date,
+    deliveries
+  }) => {
+    const d = new Date(date + "T00:00:00");
+    const isToday = date === todayISO();
+    const dayLabel = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", {
+      month: "long"
+    })}`;
+    return /*#__PURE__*/React.createElement("div", {
+      key: date
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.roteiroDayHeader
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...styles.roteiroDayLabel,
+        ...(isToday ? {
+          color: "#B8825A"
+        } : {})
+      }
+    }, dayLabel, isToday ? " · Hoje" : ""), /*#__PURE__*/React.createElement("span", {
+      style: styles.roteiroDayCount
+    }, deliveries.length)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }
+    }, deliveries.map(c => /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: styles.roteiroCard
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.dogBadge
+    }, /*#__PURE__*/React.createElement(PawPrint, {
+      size: 14,
+      color: "#B8825A"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: styles.cardDog
+    }, c.dog, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 400,
+        color: "#8A7A6C",
+        fontSize: 13
+      }
+    }, "(", c.tutor, ")")), c.phone ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...styles.clientPhone,
+        marginTop: 3
+      }
+    }, /*#__PURE__*/React.createElement(Phone, {
+      size: 11,
+      color: "#A89A8C"
+    }), c.phone) : null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...styles.cardAddress,
+        marginTop: 4
+      }
+    }, /*#__PURE__*/React.createElement(MapPin, {
+      size: 12,
+      color: "#A89A8C",
+      style: {
+        flexShrink: 0,
+        marginTop: 1
+      }
+    }), /*#__PURE__*/React.createElement("span", null, c.address))), c.units ? /*#__PURE__*/React.createElement("span", {
+      style: styles.unitsTag
+    }, c.units, " un.") : null))));
+  })));
+}
 function HistoryRow({
   entry
 }) {
@@ -1414,8 +2225,9 @@ function ClientFormModal({
   onClose,
   onSave
 }) {
-  const [tutor, setTutor] = useState(initial?.tutor || "");
   const [dog, setDog] = useState(initial?.dog || "");
+  const [tutor, setTutor] = useState(initial?.tutor || "");
+  const [phone, setPhone] = useState(initial?.phone || "");
   const [address, setAddress] = useState(initial?.address || "");
   const [frequency, setFrequency] = useState(initial?.frequency || "semanal");
   const [nextDate, setNextDate] = useState(initial?.nextDate || todayISO());
@@ -1423,8 +2235,8 @@ function ClientFormModal({
   const [notes, setNotes] = useState(initial?.notes || "");
   const [error, setError] = useState("");
   const handleSubmit = () => {
-    if (!tutor.trim() || !dog.trim() || !address.trim()) {
-      setError("Preencha tutor, cão e endereço.");
+    if (!dog.trim() || !tutor.trim() || !address.trim()) {
+      setError("Preencha nome do pet, tutor e endereço.");
       return;
     }
     const unitsNum = parseInt(units, 10);
@@ -1433,8 +2245,9 @@ function ClientFormModal({
       return;
     }
     onSave({
-      tutor: tutor.trim(),
       dog: dog.trim(),
+      tutor: tutor.trim(),
+      phone: phone.trim(),
       address: address.trim(),
       frequency,
       nextDate,
@@ -1461,6 +2274,13 @@ function ClientFormModal({
   }))), /*#__PURE__*/React.createElement("div", {
     style: styles.formBody
   }, /*#__PURE__*/React.createElement(Field, {
+    label: "Nome do pet"
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.input,
+    value: dog,
+    onChange: e => setDog(e.target.value),
+    placeholder: "Ex: Mia"
+  })), /*#__PURE__*/React.createElement(Field, {
     label: "Nome do tutor"
   }, /*#__PURE__*/React.createElement("input", {
     style: styles.input,
@@ -1468,12 +2288,13 @@ function ClientFormModal({
     onChange: e => setTutor(e.target.value),
     placeholder: "Ex: Marina Costa"
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Nome do cão"
+    label: "Telefone"
   }, /*#__PURE__*/React.createElement("input", {
     style: styles.input,
-    value: dog,
-    onChange: e => setDog(e.target.value),
-    placeholder: "Ex: Mia"
+    type: "tel",
+    value: phone,
+    onChange: e => setPhone(e.target.value),
+    placeholder: "Ex: (11) 99999-9999"
   })), /*#__PURE__*/React.createElement(Field, {
     label: "Endereço de entrega"
   }, /*#__PURE__*/React.createElement("input", {
@@ -1528,6 +2349,89 @@ function ClientFormModal({
     onClick: handleSubmit
   }, initial ? "Salvar alterações" : "Adicionar cliente"))));
 }
+
+// ---------- BACKUP MODAL ----------
+function BackupModal({
+  onClose,
+  onExport,
+  onImport
+}) {
+  const fileRef = React.useRef();
+  return /*#__PURE__*/React.createElement("div", {
+    style: styles.modalOverlay,
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modal,
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modalHead
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: styles.modalTitle
+  }, "Backup de dados"), /*#__PURE__*/React.createElement("button", {
+    style: styles.modalClose,
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement(X, {
+    size: 18,
+    color: "#8A7A6C"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: styles.formBody
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      margin: 0,
+      fontSize: 13.5,
+      color: "#5C4A3A",
+      lineHeight: 1.6
+    }
+  }, "Seus dados ficam salvos na nuvem (Supabase) e estão disponíveis em qualquer dispositivo. Use o backup abaixo como cópia de segurança adicional."), /*#__PURE__*/React.createElement("div", {
+    style: styles.backupOption
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 14,
+      color: "#3E332A"
+    }
+  }, "Exportar backup"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: "#8A7A6C",
+      marginTop: 2
+    }
+  }, "Baixa um arquivo .json com todos os dados")), /*#__PURE__*/React.createElement("button", {
+    style: styles.backupActionBtn,
+    onClick: onExport
+  }, /*#__PURE__*/React.createElement(Download, {
+    size: 15
+  }), " Exportar")), /*#__PURE__*/React.createElement("div", {
+    style: styles.backupOption
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 14,
+      color: "#3E332A"
+    }
+  }, "Restaurar backup"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: "#8A7A6C",
+      marginTop: 2
+    }
+  }, "Importa um arquivo .json salvo anteriormente")), /*#__PURE__*/React.createElement("button", {
+    style: styles.backupActionBtn,
+    onClick: () => fileRef.current.click()
+  }, /*#__PURE__*/React.createElement(Upload, {
+    size: 15
+  }), " Restaurar")), /*#__PURE__*/React.createElement("input", {
+    ref: fileRef,
+    type: "file",
+    accept: ".json",
+    style: {
+      display: "none"
+    },
+    onChange: e => {
+      if (e.target.files[0]) onImport(e.target.files[0]);
+    }
+  }))));
+}
 function Field({
   label,
   children
@@ -1575,6 +2479,40 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     background: "#FDF8F2"
+  },
+  loginScreen: {
+    minHeight: "100vh",
+    background: "#FDF8F2",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px 16px",
+    fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif"
+  },
+  loginCard: {
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 18,
+    padding: "28px 24px",
+    width: "100%",
+    maxWidth: 360
+  },
+  sessionExpiredBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    background: "#FBEAE6",
+    border: "1px solid #F0C4BC",
+    borderRadius: 10,
+    padding: "10px 14px",
+    marginBottom: 16,
+    color: "#A8412F",
+    fontSize: 13.5,
+    fontWeight: 600,
+    width: "100%",
+    maxWidth: 360,
+    lineHeight: 1.4
   },
   header: {
     background: "#3E332A",
@@ -1633,17 +2571,20 @@ const styles = {
   },
   tabRow: {
     display: "flex",
-    gap: 4,
-    padding: "0 16px"
+    gap: 0,
+    padding: "0 12px",
+    overflowX: "auto"
   },
   tab: {
     background: "transparent",
     border: "none",
     color: "#9C8E7E",
-    padding: "10px 14px",
-    fontSize: 14,
+    padding: "10px 12px",
+    fontSize: 13.5,
     fontWeight: 600,
-    borderBottom: "2px solid transparent"
+    borderBottom: "2px solid transparent",
+    whiteSpace: "nowrap",
+    flexShrink: 0
   },
   tabActive: {
     color: "#FBF1E8",
@@ -1855,6 +2796,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 10
+  },
+  clientPhone: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 12,
+    color: "#8A7A6C",
+    marginTop: 3
   },
   clientMeta: {
     fontSize: 11.5,
@@ -2171,8 +3120,138 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
+  },
+  backupBtn: {
+    background: "rgba(255,255,255,0.15)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    borderRadius: 9,
+    width: 36,
+    height: 36,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#FBF1E8"
+  },
+  backupOption: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    background: "#FBF8F4",
+    border: "1px solid #EFE4D6",
+    borderRadius: 12,
+    padding: "12px 14px"
+  },
+  backupActionBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    background: "#3E332A",
+    color: "#FBF1E8",
+    border: "none",
+    borderRadius: 9,
+    padding: "8px 13px",
+    fontSize: 13,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    flexShrink: 0
+  },
+  roteiroRangeRow: {
+    display: "flex",
+    gap: 6,
+    marginBottom: 14,
+    overflowX: "auto",
+    paddingBottom: 2
+  },
+  roteiroRangeBtn: {
+    background: "#FBF8F4",
+    border: "1.5px solid #EFE4D6",
+    borderRadius: 9,
+    padding: "8px 13px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#8A7A6C",
+    whiteSpace: "nowrap",
+    flexShrink: 0
+  },
+  roteiroRangeBtnActive: {
+    background: "#3E332A",
+    borderColor: "#3E332A",
+    color: "#FBF1E8"
+  },
+  roteiroActionBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    background: "#3E332A",
+    color: "#FBF1E8",
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 14px",
+    fontSize: 13,
+    fontWeight: 600,
+    flex: 1
+  },
+  roteiroDayHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingBottom: 7,
+    borderBottom: "1px solid #EFE4D6"
+  },
+  roteiroDayLabel: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#3E332A"
+  },
+  roteiroDayCount: {
+    background: "#F1E6D8",
+    color: "#8A6A48",
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "2px 9px",
+    borderRadius: 10
+  },
+  roteiroCard: {
+    background: "#FFF",
+    border: "1px solid #EFE4D6",
+    borderRadius: 12,
+    padding: "10px 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: 10
+  },
+  clientInfoGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "6px 10px",
+    marginTop: 10,
+    background: "#FBF8F4",
+    border: "1px solid #EFE4D6",
+    borderRadius: 10,
+    padding: "9px 12px"
+  },
+  clientInfoItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2
+  },
+  clientInfoLabel: {
+    fontSize: 10.5,
+    fontWeight: 600,
+    color: "#A89A8C",
+    textTransform: "uppercase",
+    letterSpacing: "0.4px"
+  },
+  clientInfoValue: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#3E332A"
   }
 };
-ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));  </script>
+ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));
+  </script>
 </body>
 </html>
