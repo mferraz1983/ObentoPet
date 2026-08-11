@@ -9,30 +9,53 @@
   <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.23.3/babel.min.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
-  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
 
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; }
+    body { margin: 0; background: #FDF8F2; }
     input:focus, textarea:focus, select:focus { outline: 2px solid #B8825A; outline-offset: 1px; }
     button:focus-visible { outline: 2px solid #B8825A; outline-offset: 2px; }
     button { font-family: inherit; cursor: pointer; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+    const { useState, useEffect, useMemo, useCallback } = React;
     const { createClient } = supabase;
-    const {
-      Plus, Check, Clock, Truck, PawPrint, MapPin, X, Search,
-      ChevronLeft, ChevronRight, Trash2, Edit3, Package,
-      ArrowDownCircle, ArrowUpCircle, AlertTriangle, Cookie,
-      CheckCircle, RefreshCw,
-    } = LucideReact;
+
+    // ─── Ícones SVG inline (sem dependência de CDN) ───────────────────────────────
+    function Ico({ size = 16, color = "currentColor", sw = 2, style, children }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+          stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={style}>
+          {children}
+        </svg>
+      );
+    }
+    const Plus         = (p) => <Ico {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ico>;
+    const Check        = (p) => <Ico {...p}><polyline points="20 6 9 17 4 12"/></Ico>;
+    const Clock        = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Ico>;
+    const Truck        = (p) => <Ico {...p}><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></Ico>;
+    const PawPrint     = (p) => <Ico {...p}><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/><circle cx="4" cy="8" r="2"/></Ico>;
+    const MapPin       = (p) => <Ico {...p}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></Ico>;
+    const X            = (p) => <Ico {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>;
+    const Search       = (p) => <Ico {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Ico>;
+    const ChevronLeft  = (p) => <Ico {...p}><polyline points="15 18 9 12 15 6"/></Ico>;
+    const ChevronRight = (p) => <Ico {...p}><polyline points="9 18 15 12 9 6"/></Ico>;
+    const Trash2       = (p) => <Ico {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Ico>;
+    const Edit3        = (p) => <Ico {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></Ico>;
+    const Package      = (p) => <Ico {...p}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></Ico>;
+    const ArrowUpCircle   = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></Ico>;
+    const ArrowDownCircle = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></Ico>;
+    const AlertTriangle= (p) => <Ico {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Ico>;
+    const Cookie       = (p) => <Ico {...p}><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></Ico>;
+    const CheckCircle  = (p) => <Ico {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Ico>;
+    const RefreshCw    = (p) => <Ico {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></Ico>;
 
     // ─── Supabase ────────────────────────────────────────────────────────────────
     const SUPABASE_URL = "https://jyrudfwdwkwynolpbni.supabase.co";
@@ -40,40 +63,19 @@
     const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-    // FIX: usa data local em vez de UTC — evita bug de fuso horário (Brasil UTC-3)
     function todayISO() {
       const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
     }
-
     const weekdayNames = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
     const weekdayShort = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
-
     function dateToISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-    function formatDateBR(iso) { const [,m,d] = iso.split("-"); return `${d}/${m}`; }
-    function addDays(iso, days) {
-      const d = new Date(iso + "T00:00:00");
-      d.setDate(d.getDate() + days);
-      return dateToISO(d);
-    }
+    function formatDateBR(iso) { if(!iso) return "—"; const [,m,d] = iso.split("-"); return `${d}/${m}`; }
+    function addDays(iso, days) { const d = new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return dateToISO(d); }
 
-    // DB ↔ App mapping
-    const dbToClient = (r) => ({
-      id: r.id, tutor: r.tutor, dog: r.dog, address: r.address,
-      frequency: r.frequency, nextDate: r.next_date,
-      units: r.units, notes: r.notes || "",
-    });
-    const clientToDb = (data, id) => ({
-      id, tutor: data.tutor, dog: data.dog, address: data.address,
-      frequency: data.frequency, next_date: data.nextDate,
-      units: data.units, notes: data.notes,
-    });
+    const dbToClient = (r) => ({ id:r.id, tutor:r.tutor, dog:r.dog, address:r.address, frequency:r.frequency, nextDate:r.next_date, units:r.units, notes:r.notes||"" });
+    const clientToDb = (data, id) => ({ id, tutor:data.tutor, dog:data.dog, address:data.address, frequency:data.frequency, next_date:data.nextDate, units:data.units, notes:data.notes });
 
-    // ─── Frequências / Status ─────────────────────────────────────────────────────
     function getOccurrencesInRange(client, startISO, endISO) {
       const out = [];
       if (!client.nextDate) return out;
@@ -82,36 +84,40 @@
         return out;
       }
       if (client.frequency === "mensal") {
-        let cur = new Date(client.nextDate + "T00:00:00");
-        const start = new Date(startISO + "T00:00:00");
-        const end   = new Date(endISO   + "T00:00:00");
+        let cur = new Date(client.nextDate+"T00:00:00");
+        const start = new Date(startISO+"T00:00:00"), end = new Date(endISO+"T00:00:00");
         while (cur > start) { const p = new Date(cur); p.setMonth(p.getMonth()-1); cur = p; }
         while (cur <= end)  { if (cur >= start) out.push(dateToISO(cur)); const n = new Date(cur); n.setMonth(n.getMonth()+1); cur = n; }
         return out;
       }
       const step = client.frequency === "semanal" ? 7 : 14;
       let cur = client.nextDate;
-      while (cur > startISO) cur = addDays(cur, -step);
-      while (cur <= endISO)  { if (cur >= startISO) out.push(cur); cur = addDays(cur, step); }
+      while (cur > startISO) cur = addDays(cur,-step);
+      while (cur <= endISO) { if (cur >= startISO) out.push(cur); cur = addDays(cur,step); }
       return out;
     }
 
-    const frequencyLabel = { semanal:"Semanal", quinzenal:"Quinzenal", mensal:"Mensal", avulsa:"Avulsa" };
-    const statusConfig   = {
-      preparando: { label:"Preparando", color:"#B8825A", icon:Clock },
-      a_caminho:  { label:"A caminho",  color:"#3E7CB1", icon:Truck },
-      entregue:   { label:"Entregue",   color:"#5C8A5C", icon:Check },
+    const freqLabel = { semanal:"Semanal", quinzenal:"Quinzenal", mensal:"Mensal", avulsa:"Avulsa" };
+    const statusCfg = {
+      preparando: { label:"Preparando", color:"#B8825A", Icon:Clock },
+      a_caminho:  { label:"A caminho",  color:"#3E7CB1", Icon:Truck },
+      entregue:   { label:"Entregue",   color:"#5C8A5C", Icon:Check },
     };
 
     // ─── Toast ────────────────────────────────────────────────────────────────────
-    function Toast({ message, type = "success", onDismiss }) {
-      useEffect(() => { const t = setTimeout(onDismiss, 4000); return () => clearTimeout(t); }, [onDismiss]);
-      const bg = type === "error" ? "#C0594B" : "#5C8A5C";
-      const Icon = type === "error" ? AlertTriangle : CheckCircle;
+    function Toast({ msg, type="success", onDismiss }) {
+      useEffect(() => { const t = setTimeout(onDismiss,4000); return ()=>clearTimeout(t); }, []);
       return (
-        <div style={{ ...styles.toast, background: bg }} onClick={onDismiss}>
-          <Icon size={16} color="#fff" strokeWidth={2.5} />
-          <span>{message}</span>
+        <div onClick={onDismiss} style={{
+          position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)",
+          display:"flex", alignItems:"center", gap:8,
+          background: type==="error" ? "#C0594B" : "#5C8A5C",
+          color:"#fff", fontSize:14, fontWeight:600, padding:"12px 20px",
+          borderRadius:12, boxShadow:"0 4px 16px rgba(0,0,0,0.2)",
+          zIndex:200, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"calc(100vw - 32px)"
+        }}>
+          {type==="error" ? <AlertTriangle size={16} color="#fff" sw={2.5}/> : <CheckCircle size={16} color="#fff" sw={2.5}/>}
+          <span>{msg}</span>
         </div>
       );
     }
@@ -122,13 +128,6 @@
       const [loaded,             setLoaded]             = useState(false);
       const [refreshing,         setRefreshing]         = useState(false);
       const [statusLog,          setStatusLog]          = useState({});
-      const [view,               setView]               = useState("hoje");
-      const [weekOffset,         setWeekOffset]         = useState(0);
-      const [search,             setSearch]             = useState("");
-      const [showForm,           setShowForm]           = useState(false);
-      const [editingClient,      setEditingClient]      = useState(null);
-      const [toast,              setToast]              = useState(null);
-
       const [subscriberStock,    setSubscriberStock]    = useState({});
       const [subscriberStockLog, setSubscriberStockLog] = useState({});
       const [shelfProducts,      setShelfProducts]      = useState([]);
@@ -136,508 +135,411 @@
       const [deliveryDeduction,  setDeliveryDeduction]  = useState({});
       const [petiscoProducts,    setPetiscoProducts]    = useState([]);
       const [petiscoStockLog,    setPetiscoStockLog]    = useState({});
+      const [view,               setView]               = useState("hoje");
+      const [weekOffset,         setWeekOffset]         = useState(0);
+      const [search,             setSearch]             = useState("");
+      const [showForm,           setShowForm]           = useState(false);
+      const [editingClient,      setEditingClient]      = useState(null);
+      const [toast,              setToast]              = useState(null);
 
-      const showToast = useCallback((msg, type = "success") => setToast({ msg, type }), []);
+      const showToast = useCallback((msg, type="success") => setToast({msg,type}), []);
 
-      // ── Carrega todos os dados do Supabase ────────────────────────────────────
-      const loadData = useCallback(async (silent = false) => {
-        if (!silent) setLoaded(false);
-        else setRefreshing(true);
+      // ── Carrega dados ─────────────────────────────────────────────────────────
+      const loadData = useCallback(async (silent=false) => {
+        if (silent) setRefreshing(true); else setLoaded(false);
         try {
           const [
-            { data: cData,   error: e1 },
-            { data: sData,   error: e2 },
-            { data: ssData,  error: e3 },
-            { data: sslData, error: e4 },
-            { data: spData,  error: e5 },
-            { data: splData, error: e6 },
-            { data: ddData,  error: e7 },
-            { data: ppData,  error: e8 },
-            { data: pplData, error: e9 },
+            {data:cData,  error:e1}, {data:sData,  error:e2}, {data:ssData, error:e3},
+            {data:sslData,error:e4}, {data:spData, error:e5}, {data:splData,error:e6},
+            {data:ddData, error:e7}, {data:ppData, error:e8}, {data:pplData,error:e9},
           ] = await Promise.all([
             db.from("clients").select("*"),
             db.from("status_log").select("*"),
             db.from("subscriber_stock").select("*"),
-            db.from("subscriber_stock_log").select("*").order("ts", { ascending: false }),
+            db.from("subscriber_stock_log").select("*").order("ts",{ascending:false}),
             db.from("shelf_products").select("*"),
-            db.from("shelf_stock_log").select("*").order("ts", { ascending: false }),
+            db.from("shelf_stock_log").select("*").order("ts",{ascending:false}),
             db.from("delivery_deduction").select("*"),
             db.from("snack_products").select("*"),
-            db.from("snack_stock_log").select("*").order("ts", { ascending: false }),
+            db.from("snack_stock_log").select("*").order("ts",{ascending:false}),
           ]);
+          if (e1||e2||e3||e4||e5||e6||e7||e8||e9) throw new Error("Erro Supabase");
 
-          // FIX: verifica erro do Supabase antes de processar
-          const firstError = e1||e2||e3||e4||e5||e6||e7||e8||e9;
-          if (firstError) throw new Error(firstError.message);
+          setClients((cData||[]).map(dbToClient));
 
-          setClients((cData || []).map(dbToClient));
+          const sl={};  (sData||[]).forEach(r=>{sl[r.key]=r.status;}); setStatusLog(sl);
+          const ss={};  (ssData||[]).forEach(r=>{ss[r.client_id]=r.balance;}); setSubscriberStock(ss);
 
-          const sl = {};
-          (sData || []).forEach(r => { sl[r.key] = r.status; });
-          setStatusLog(sl);
-
-          const ss = {};
-          (ssData || []).forEach(r => { ss[r.client_id] = r.balance; });
-          setSubscriberStock(ss);
-
-          const ssl = {};
-          (sslData || []).forEach(r => {
-            if (!ssl[r.client_id]) ssl[r.client_id] = [];
-            if (ssl[r.client_id].length < 100)
-              ssl[r.client_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+          const ssl={};
+          (sslData||[]).forEach(r=>{
+            if(!ssl[r.client_id]) ssl[r.client_id]=[];
+            if(ssl[r.client_id].length<100) ssl[r.client_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
           });
           setSubscriberStockLog(ssl);
 
-          setShelfProducts((spData || []).map(p => ({ id: p.id, name: p.name, balance: p.balance })));
+          setShelfProducts((spData||[]).map(p=>({id:p.id,name:p.name,balance:p.balance})));
 
-          const spl = {};
-          (splData || []).forEach(r => {
-            if (!spl[r.product_id]) spl[r.product_id] = [];
-            if (spl[r.product_id].length < 100)
-              spl[r.product_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+          const spl={};
+          (splData||[]).forEach(r=>{
+            if(!spl[r.product_id]) spl[r.product_id]=[];
+            if(spl[r.product_id].length<100) spl[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
           });
           setShelfStockLog(spl);
 
-          const dd = {};
-          (ddData || []).forEach(r => { dd[r.key] = { productId: r.product_id, amount: r.amount }; });
-          setDeliveryDeduction(dd);
+          const dd={};  (ddData||[]).forEach(r=>{dd[r.key]={productId:r.product_id,amount:r.amount};}); setDeliveryDeduction(dd);
+          setPetiscoProducts((ppData||[]).map(p=>({id:p.id,name:p.name,balance:p.balance})));
 
-          setPetiscoProducts((ppData || []).map(p => ({ id: p.id, name: p.name, balance: p.balance })));
-
-          const ppl = {};
-          (pplData || []).forEach(r => {
-            if (!ppl[r.product_id]) ppl[r.product_id] = [];
-            if (ppl[r.product_id].length < 100)
-              ppl[r.product_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+          const ppl={};
+          (pplData||[]).forEach(r=>{
+            if(!ppl[r.product_id]) ppl[r.product_id]=[];
+            if(ppl[r.product_id].length<100) ppl[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
           });
           setPetiscoStockLog(ppl);
 
           if (silent) showToast("Dados atualizados!");
-        } catch (e) {
-          console.error("Erro ao carregar dados:", e);
-          showToast("Erro ao conectar com o banco de dados. Verifique a internet.", "error");
+        } catch(e) {
+          console.error(e);
+          showToast("Erro ao conectar. Verifique a internet.", "error");
         } finally {
           setLoaded(true);
           setRefreshing(false);
         }
       }, [showToast]);
 
-      // Carrega na primeira vez
       useEffect(() => { loadData(); }, [loadData]);
 
-      // FIX: sincronização para uso simultâneo — recarrega quando o app volta ao foco
+      // Recarrega quando o usuário volta para a aba/app (uso simultâneo)
       useEffect(() => {
-        const handleVisibility = () => {
-          if (!document.hidden) loadData(true);
-        };
-        document.addEventListener("visibilitychange", handleVisibility);
-        return () => document.removeEventListener("visibilitychange", handleVisibility);
+        const fn = () => { if(!document.hidden) loadData(true); };
+        document.addEventListener("visibilitychange", fn);
+        return () => document.removeEventListener("visibilitychange", fn);
       }, [loadData]);
 
-      // ── Clientes ───────────────────────────────────────────────────────────────
+      // ── Clientes ──────────────────────────────────────────────────────────────
       const saveClient = async (data) => {
         const isEditing = !!editingClient;
-        const id = isEditing ? editingClient.id : "c" + Date.now();
+        const id = isEditing ? editingClient.id : "c"+Date.now();
         const row = clientToDb(data, id);
-
-        // FIX: verifica erro do Supabase e propaga para o modal tratar
         if (isEditing) {
-          const { error } = await db.from("clients").update(row).eq("id", id);
-          if (error) throw new Error("Falha ao atualizar: " + error.message);
-          setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+          const {error} = await db.from("clients").update(row).eq("id",id);
+          if (error) throw new Error(error.message);
+          setClients(prev => prev.map(c => c.id===id ? {...c,...data} : c));
         } else {
-          const { error } = await db.from("clients").insert(row);
-          if (error) throw new Error("Falha ao inserir: " + error.message);
-          setClients(prev => [...prev, { ...data, id }]);
+          const {error} = await db.from("clients").insert(row);
+          if (error) throw new Error(error.message);
+          setClients(prev => [...prev,{...data,id}]);
           if (data.frequency !== "avulsa") {
-            await db.from("subscriber_stock").upsert({ client_id: id, balance: 0 });
-            setSubscriberStock(prev => ({ ...prev, [id]: 0 }));
+            await db.from("subscriber_stock").upsert({client_id:id,balance:0});
+            setSubscriberStock(prev => ({...prev,[id]:0}));
           }
         }
-
-        setShowForm(false);
-        setEditingClient(null);
-        showToast(isEditing ? `${data.dog} atualizado com sucesso!` : `${data.dog} adicionado com sucesso!`);
+        setShowForm(false); setEditingClient(null);
+        showToast(isEditing ? `${data.dog} atualizado!` : `${data.dog} adicionado com sucesso!`);
       };
 
-      // FIX: deleta também dados relacionados no banco
       const deleteClient = async (id) => {
-        const { error } = await db.from("clients").delete().eq("id", id);
-        if (error) { showToast("Erro ao excluir cliente.", "error"); return; }
-        await db.from("subscriber_stock").delete().eq("client_id", id);
-        await db.from("subscriber_stock_log").delete().eq("client_id", id);
-        setClients(prev => prev.filter(c => c.id !== id));
-        setSubscriberStock(prev => { const n = {...prev}; delete n[id]; return n; });
-        setSubscriberStockLog(prev => { const n = {...prev}; delete n[id]; return n; });
+        const {error} = await db.from("clients").delete().eq("id",id);
+        if (error) { showToast("Erro ao excluir cliente.","error"); return; }
+        await db.from("subscriber_stock").delete().eq("client_id",id);
+        await db.from("subscriber_stock_log").delete().eq("client_id",id);
+        setClients(prev => prev.filter(c=>c.id!==id));
+        setSubscriberStock(prev => { const n={...prev}; delete n[id]; return n; });
+        setSubscriberStockLog(prev => { const n={...prev}; delete n[id]; return n; });
       };
 
-      // ── Status de entrega ─────────────────────────────────────────────────────
+      // ── Status ────────────────────────────────────────────────────────────────
       const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
 
       const setStatus = (clientId, date, newStatus, deduction) => {
         const key = `${clientId}|${date}`;
-        const wasEntregue  = (statusLog[key] || "preparando") === "entregue";
+        const wasEntregue  = (statusLog[key]||"preparando") === "entregue";
         const willEntregue = newStatus === "entregue";
-        const client = clients.find(c => c.id === clientId);
+        const client = clients.find(c=>c.id===clientId);
 
-        setStatusLog(prev => ({ ...prev, [key]: newStatus }));
-        db.from("status_log").upsert({ key, status: newStatus });
+        setStatusLog(prev => ({...prev,[key]:newStatus}));
+        db.from("status_log").upsert({key, status:newStatus});
 
         if (!client) return;
-
         if (client.frequency === "avulsa") {
           if (!wasEntregue && willEntregue && deduction?.productId) {
             applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
-            setDeliveryDeduction(prev => ({ ...prev, [key]: deduction }));
-            db.from("delivery_deduction").upsert({ key, product_id: deduction.productId, amount: deduction.amount });
+            setDeliveryDeduction(prev => ({...prev,[key]:deduction}));
+            db.from("delivery_deduction").upsert({key, product_id:deduction.productId, amount:deduction.amount});
           }
           if (wasEntregue && !willEntregue) {
             setDeliveryDeduction(prev => {
               const ded = prev[key];
-              if (ded?.productId) applyShelfDelta(ded.productId, ded.amount, date, "Estorno (status revertido)");
-              const n = { ...prev }; delete n[key]; return n;
+              if (ded?.productId) applyShelfDelta(ded.productId, ded.amount, date, "Estorno");
+              const n={...prev}; delete n[key]; return n;
             });
-            db.from("delivery_deduction").delete().eq("key", key);
+            db.from("delivery_deduction").delete().eq("key",key);
           }
         } else {
-          const amount = client.units || 0;
-          if (!wasEntregue && willEntregue)  applySubscriberDelta(clientId, -amount, date, "Entrega realizada");
-          if (wasEntregue  && !willEntregue) applySubscriberDelta(clientId,  amount, date, "Estorno (status revertido)");
+          const amt = client.units||0;
+          if (!wasEntregue && willEntregue)  applySubscriberDelta(clientId,-amt,date,"Entrega realizada");
+          if (wasEntregue  && !willEntregue) applySubscriberDelta(clientId, amt,date,"Estorno");
         }
       };
 
-      // FIX: usa setState funcional para evitar closure desatualizada
+      // ── Estoque assinantes (setState funcional evita closure desatualizada) ──
       const applySubscriberDelta = (clientId, delta, date, reason) => {
         const ts = Date.now();
         setSubscriberStock(prev => {
-          const newBalance = (prev[clientId] || 0) + delta;
-          db.from("subscriber_stock").upsert({ client_id: clientId, balance: newBalance });
-          return { ...prev, [clientId]: newBalance };
+          const newBal = (prev[clientId]||0)+delta;
+          db.from("subscriber_stock").upsert({client_id:clientId,balance:newBal});
+          return {...prev,[clientId]:newBal};
         });
-        setSubscriberStockLog(prev => ({
-          ...prev,
-          [clientId]: [{ date, amount: delta, reason, ts }, ...(prev[clientId] || [])].slice(0, 100),
-        }));
-        db.from("subscriber_stock_log").insert({ client_id: clientId, date, amount: delta, reason, ts });
+        setSubscriberStockLog(prev => ({...prev,[clientId]:[{date,amount:delta,reason,ts},...(prev[clientId]||[])].slice(0,100)}));
+        db.from("subscriber_stock_log").insert({client_id:clientId,date,amount:delta,reason,ts});
       };
 
       const addSubscriberProduction = (clientId, amount) => {
-        if (!amount || amount <= 0) return;
-        applySubscriberDelta(clientId, amount, todayISO(), "Produção adicionada");
+        if (!amount||amount<=0) return;
+        applySubscriberDelta(clientId,amount,todayISO(),"Produção adicionada");
       };
 
-      // FIX: usa setState funcional para evitar closure desatualizada
+      // ── Estoque prateleira ────────────────────────────────────────────────────
       const applyShelfDelta = (productId, delta, date, reason) => {
         const ts = Date.now();
         setShelfProducts(prev => {
-          const product = prev.find(p => p.id === productId);
-          const newBalance = (product?.balance || 0) + delta;
-          db.from("shelf_products").update({ balance: newBalance }).eq("id", productId);
-          return prev.map(p => p.id === productId ? { ...p, balance: newBalance } : p);
+          const p = prev.find(x=>x.id===productId);
+          const newBal = (p?.balance||0)+delta;
+          db.from("shelf_products").update({balance:newBal}).eq("id",productId);
+          return prev.map(x => x.id===productId ? {...x,balance:newBal} : x);
         });
-        setShelfStockLog(prev => ({
-          ...prev,
-          [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
-        }));
-        db.from("shelf_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
+        setShelfStockLog(prev => ({...prev,[productId]:[{date,amount:delta,reason,ts},...(prev[productId]||[])].slice(0,100)}));
+        db.from("shelf_stock_log").insert({product_id:productId,date,amount:delta,reason,ts});
       };
 
       const addShelfProduct = async (name) => {
-        const id = "p" + Date.now();
-        const { error } = await db.from("shelf_products").insert({ id, name, balance: 0 });
-        if (error) { showToast("Erro ao criar produto.", "error"); return null; }
-        setShelfProducts(prev => [...prev, { id, name, balance: 0 }]);
-        return id;
+        const id = "p"+Date.now();
+        const {error} = await db.from("shelf_products").insert({id,name,balance:0});
+        if (error) { showToast("Erro ao criar produto.","error"); return; }
+        setShelfProducts(prev => [...prev,{id,name,balance:0}]);
       };
-
-      const addShelfStockEntry = (productId, amount) => {
-        if (!amount || amount <= 0) return;
-        applyShelfDelta(productId, amount, todayISO(), "Entrada de estoque");
-      };
-
+      const addShelfStockEntry = (productId, amount) => { if(amount>0) applyShelfDelta(productId,amount,todayISO(),"Entrada de estoque"); };
       const deleteShelfProduct = async (productId) => {
-        const { error } = await db.from("shelf_products").delete().eq("id", productId);
-        if (error) { showToast("Erro ao excluir produto.", "error"); return; }
-        setShelfProducts(prev => prev.filter(p => p.id !== productId));
+        const {error} = await db.from("shelf_products").delete().eq("id",productId);
+        if (error) { showToast("Erro ao excluir.","error"); return; }
+        setShelfProducts(prev => prev.filter(p=>p.id!==productId));
       };
 
-      // FIX: usa setState funcional para evitar closure desatualizada
+      // ── Estoque petiscos ──────────────────────────────────────────────────────
       const applyPetiscoDelta = (productId, delta, date, reason) => {
         const ts = Date.now();
         setPetiscoProducts(prev => {
-          const product = prev.find(p => p.id === productId);
-          const newBalance = (product?.balance || 0) + delta;
-          db.from("snack_products").update({ balance: newBalance }).eq("id", productId);
-          return prev.map(p => p.id === productId ? { ...p, balance: newBalance } : p);
+          const p = prev.find(x=>x.id===productId);
+          const newBal = (p?.balance||0)+delta;
+          db.from("snack_products").update({balance:newBal}).eq("id",productId);
+          return prev.map(x => x.id===productId ? {...x,balance:newBal} : x);
         });
-        setPetiscoStockLog(prev => ({
-          ...prev,
-          [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
-        }));
-        db.from("snack_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
+        setPetiscoStockLog(prev => ({...prev,[productId]:[{date,amount:delta,reason,ts},...(prev[productId]||[])].slice(0,100)}));
+        db.from("snack_stock_log").insert({product_id:productId,date,amount:delta,reason,ts});
       };
 
       const addPetiscoProduct = async (name) => {
-        const id = "pet" + Date.now();
-        const { error } = await db.from("snack_products").insert({ id, name, balance: 0 });
-        if (error) { showToast("Erro ao criar petisco.", "error"); return null; }
-        setPetiscoProducts(prev => [...prev, { id, name, balance: 0 }]);
-        return id;
+        const id = "pet"+Date.now();
+        const {error} = await db.from("snack_products").insert({id,name,balance:0});
+        if (error) { showToast("Erro ao criar petisco.","error"); return; }
+        setPetiscoProducts(prev => [...prev,{id,name,balance:0}]);
       };
-
-      const addPetiscoStockEntry = (productId, amount) => {
-        if (!amount || amount <= 0) return;
-        applyPetiscoDelta(productId, amount, todayISO(), "Produção adicionada");
-      };
-
+      const addPetiscoStockEntry = (productId, amount) => { if(amount>0) applyPetiscoDelta(productId,amount,todayISO(),"Produção adicionada"); };
       const deletePetiscoProduct = async (productId) => {
-        const { error } = await db.from("snack_products").delete().eq("id", productId);
-        if (error) { showToast("Erro ao excluir petisco.", "error"); return; }
-        setPetiscoProducts(prev => prev.filter(p => p.id !== productId));
+        const {error} = await db.from("snack_products").delete().eq("id",productId);
+        if (error) { showToast("Erro ao excluir.","error"); return; }
+        setPetiscoProducts(prev => prev.filter(p=>p.id!==productId));
       };
 
-      // ── Semana ────────────────────────────────────────────────────────────────
+      // ── Calendário ───────────────────────────────────────────────────────────
       const weekStart = useMemo(() => {
-        const d = new Date();
-        d.setDate(d.getDate() + weekOffset * 7 - d.getDay());
-        return dateToISO(d);
+        const d = new Date(); d.setDate(d.getDate()+weekOffset*7-d.getDay()); return dateToISO(d);
       }, [weekOffset]);
-
-      const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+      const weekDays = useMemo(() => Array.from({length:7},(_,i)=>addDays(weekStart,i)), [weekStart]);
 
       const todayDeliveries = useMemo(() => {
         const t = todayISO();
-        return clients
-          .flatMap(c => getOccurrencesInRange(c, t, t).map(() => ({ client: c, date: t })))
-          .sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
+        return clients.flatMap(c=>getOccurrencesInRange(c,t,t).map(()=>({client:c,date:t})))
+          .sort((a,b)=>a.client.tutor.localeCompare(b.client.tutor));
       }, [clients]);
 
       const weekDeliveries = useMemo(() => {
-        const map = Object.fromEntries(weekDays.map(d => [d, []]));
-        clients.forEach(c => {
-          getOccurrencesInRange(c, weekDays[0], weekDays[6]).forEach(d => { if (map[d]) map[d].push(c); });
-        });
-        Object.keys(map).forEach(d => map[d].sort((a, b) => a.tutor.localeCompare(b.tutor)));
+        const map = Object.fromEntries(weekDays.map(d=>[d,[]]));
+        clients.forEach(c=>getOccurrencesInRange(c,weekDays[0],weekDays[6]).forEach(d=>{ if(map[d]) map[d].push(c); }));
+        Object.keys(map).forEach(d=>map[d].sort((a,b)=>a.tutor.localeCompare(b.tutor)));
         return map;
       }, [clients, weekDays]);
 
       const filteredClients = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return q ? clients.filter(c =>
-          c.tutor.toLowerCase().includes(q) ||
-          c.dog.toLowerCase().includes(q) ||
-          c.address.toLowerCase().includes(q)
-        ) : clients;
+        return q ? clients.filter(c=>c.tutor.toLowerCase().includes(q)||c.dog.toLowerCase().includes(q)||c.address.toLowerCase().includes(q)) : clients;
       }, [clients, search]);
 
-      // ── Render ────────────────────────────────────────────────────────────────
       if (!loaded) return (
-        <div style={styles.loadingScreen}>
-          <PawPrint size={36} color="#B8825A" />
-          <p style={{ color:"#B8825A", fontFamily:"'Segoe UI',sans-serif", marginTop:12, fontSize:15, fontWeight:600 }}>Carregando...</p>
+        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#FDF8F2",gap:12}}>
+          <PawPrint size={36} color="#B8825A"/>
+          <p style={{color:"#B8825A",fontFamily:"'Segoe UI',sans-serif",margin:0,fontSize:15,fontWeight:600}}>Carregando...</p>
         </div>
       );
 
       return (
-        <div style={styles.app}>
-          {toast && <Toast message={toast.msg} type={toast.type} onDismiss={() => setToast(null)} />}
+        <div style={S.app}>
+          {toast && <Toast msg={toast.msg} type={toast.type} onDismiss={()=>setToast(null)}/>}
 
-          <header style={styles.header}>
-            <div style={styles.headerInner}>
-              <div style={styles.brandRow}>
-                <div style={styles.brandMark}><PawPrint size={20} color="#FBF1E8" strokeWidth={2.5} /></div>
+          <header style={S.header}>
+            <div style={S.headerInner}>
+              <div style={S.brandRow}>
+                <div style={S.brandMark}><PawPrint size={20} color="#FBF1E8" sw={2.5}/></div>
                 <div>
-                  <h1 style={styles.brandTitle}>ObentōPet</h1>
-                  <p style={styles.brandSub}>Controle de Entregas</p>
+                  <h1 style={S.brandTitle}>ObentōPet</h1>
+                  <p style={S.brandSub}>Controle de Entregas</p>
                 </div>
               </div>
-              <div style={{ display:"flex", gap:8 }}>
-                {/* Botão de atualizar para uso simultâneo */}
-                <button
-                  style={{ ...styles.refreshBtn, opacity: refreshing ? 0.5 : 1 }}
-                  onClick={() => loadData(true)}
-                  disabled={refreshing}
-                  title="Atualizar dados"
-                >
-                  <RefreshCw size={16} strokeWidth={2.5} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <button title="Atualizar" style={{...S.refreshBtn,opacity:refreshing?0.5:1}} onClick={()=>loadData(true)} disabled={refreshing}>
+                  <RefreshCw size={16} color="#FBF1E8" sw={2.5} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
                 </button>
-                <button style={styles.newBtn} onClick={() => { setEditingClient(null); setShowForm(true); }}>
-                  <Plus size={18} strokeWidth={2.5} /><span>Novo cliente</span>
+                <button style={S.newBtn} onClick={()=>{setEditingClient(null);setShowForm(true);}}>
+                  <Plus size={18} color="#FFF7EF" sw={2.5}/><span>Novo cliente</span>
                 </button>
               </div>
             </div>
-            <nav style={styles.tabRow}>
-              {[["hoje","Hoje"],["semana","Semana"],["clientes","Clientes"],["estoque","Estoque"]].map(([key,label]) => (
-                <button key={key} onClick={() => setView(key)}
-                  style={{ ...styles.tab, ...(view === key ? styles.tabActive : {}) }}>{label}</button>
+            <nav style={S.tabRow}>
+              {[["hoje","Hoje"],["semana","Semana"],["clientes","Clientes"],["estoque","Estoque"]].map(([k,l])=>(
+                <button key={k} onClick={()=>setView(k)} style={{...S.tab,...(view===k?S.tabActive:{})}}>{l}</button>
               ))}
             </nav>
           </header>
 
-          <main style={styles.main}>
-            {view === "hoje"     && <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts} />}
-            {view === "semana"   && <WeekView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts} />}
-            {view === "clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c => { setEditingClient(c); setShowForm(true); }} onDelete={deleteClient} />}
-            {view === "estoque"  && (
-              <StockView
-                clients={clients}
-                subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog}
-                shelfProducts={shelfProducts}     shelfStockLog={shelfStockLog}
-                petiscoProducts={petiscoProducts} petiscoStockLog={petiscoStockLog}
-                onAddSubscriberProduction={addSubscriberProduction}
-                onAddShelfProduct={addShelfProduct}     onAddShelfStockEntry={addShelfStockEntry}     onDeleteShelfProduct={deleteShelfProduct}
-                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct}
-              />
-            )}
+          <main style={S.main}>
+            {view==="hoje"     && <TodayView  items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
+            {view==="semana"   && <WeekView   weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
+            {view==="clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient}/>}
+            {view==="estoque"  && <StockView
+              clients={clients}
+              subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog}
+              shelfProducts={shelfProducts}     shelfStockLog={shelfStockLog}
+              petiscoProducts={petiscoProducts} petiscoStockLog={petiscoStockLog}
+              onAddSubscriberProduction={addSubscriberProduction}
+              onAddShelfProduct={addShelfProduct}     onAddShelfStockEntry={addShelfStockEntry}     onDeleteShelfProduct={deleteShelfProduct}
+              onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct}
+            />}
           </main>
 
-          {showForm && (
-            <ClientFormModal
-              initial={editingClient}
-              onClose={() => { setShowForm(false); setEditingClient(null); }}
-              onSave={saveClient}
-            />
-          )}
-
-          <style>{`
-            @keyframes spin { to { transform: rotate(360deg); } }
-          `}</style>
+          {showForm && <ClientFormModal initial={editingClient} onClose={()=>{setShowForm(false);setEditingClient(null);}} onSave={saveClient}/>}
         </div>
       );
     }
 
     // ─── TODAY VIEW ───────────────────────────────────────────────────────────────
-    function TodayView({ items, getStatus, setStatus, shelfProducts }) {
+    function TodayView({items,getStatus,setStatus,shelfProducts}) {
       const t = todayISO();
-      const d = new Date(t + "T00:00:00");
-      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", { month:"long" })}`;
+      const d = new Date(t+"T00:00:00");
+      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`;
       return (
-        <div style={styles.section}>
-          <div style={styles.sectionHeadRow}>
-            <h2 style={styles.sectionTitle}>{label}</h2>
-            <span style={styles.countPill}>{items.length} entrega{items.length !== 1 ? "s" : ""}</span>
+        <div style={S.section}>
+          <div style={S.headRow}>
+            <h2 style={S.sectionTitle}>{label}</h2>
+            <span style={S.countPill}>{items.length} entrega{items.length!==1?"s":""}</span>
           </div>
-          {items.length === 0 ? <EmptyState text="Nenhuma entrega marcada para hoje." /> : (
-            <div style={styles.cardList}>
-              {items.map(({ client, date }) => (
-                <DeliveryCard key={client.id + date} client={client} status={getStatus(client.id, date)}
-                  onStatusChange={(s, ded) => setStatus(client.id, date, s, ded)} shelfProducts={shelfProducts} />
-              ))}
-            </div>
+          {items.length===0 ? <Empty text="Nenhuma entrega marcada para hoje."/> : (
+            <div style={S.list}>{items.map(({client,date})=>(
+              <DeliveryCard key={client.id+date} client={client} status={getStatus(client.id,date)}
+                onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)} shelfProducts={shelfProducts}/>
+            ))}</div>
           )}
         </div>
       );
     }
 
     // ─── WEEK VIEW ────────────────────────────────────────────────────────────────
-    function WeekView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts }) {
-      const [activeDay, setActiveDay] = useState(null);
+    function WeekView({weekDays,weekDeliveries,weekOffset,setWeekOffset,getStatus,setStatus,shelfProducts}) {
+      const [activeDay,setActiveDay] = useState(null);
       const t = todayISO();
-      const activeDate = activeDay || (weekDays.includes(t) ? t : weekDays[0]);
+      const active = activeDay||(weekDays.includes(t)?t:weekDays[0]);
       return (
-        <div style={styles.section}>
-          <div style={styles.weekNav}>
-            <button style={styles.navArrow} onClick={() => { setWeekOffset(w => w-1); setActiveDay(null); }}><ChevronLeft size={18} /></button>
-            <span style={styles.weekLabel}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</span>
-            <button style={styles.navArrow} onClick={() => { setWeekOffset(w => w+1); setActiveDay(null); }}><ChevronRight size={18} /></button>
+        <div style={S.section}>
+          <div style={S.weekNav}>
+            <button style={S.navArrow} onClick={()=>{setWeekOffset(w=>w-1);setActiveDay(null);}}><ChevronLeft size={18}/></button>
+            <span style={S.weekLabel}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</span>
+            <button style={S.navArrow} onClick={()=>{setWeekOffset(w=>w+1);setActiveDay(null);}}><ChevronRight size={18}/></button>
           </div>
-          <div style={styles.weekStrip}>
-            {weekDays.map((d, i) => {
-              const count = weekDeliveries[d]?.length || 0;
-              const isToday = d === t, isActive = d === activeDate;
+          <div style={S.weekStrip}>
+            {weekDays.map((d,i)=>{
+              const count=weekDeliveries[d]?.length||0, isToday=d===t, isActive=d===active;
               return (
-                <button key={d} onClick={() => setActiveDay(d)} style={{ ...styles.dayChip, ...(isActive ? styles.dayChipActive : {}), ...(isToday && !isActive ? styles.dayChipToday : {}) }}>
-                  <span style={{ ...styles.dayChipDow, ...(isActive ? { color:"#C9BBA8" } : {}) }}>{weekdayShort[i]}</span>
-                  <span style={{ ...styles.dayChipNum, ...(isActive ? { color:"#FBF1E8" } : {}) }}>{d.split("-")[2]}</span>
-                  {count > 0 && <span style={{ ...styles.dayChipDot, ...(isActive ? { background:"#FBF1E8" } : {}) }} />}
+                <button key={d} onClick={()=>setActiveDay(d)} style={{...S.dayChip,...(isActive?S.dayChipActive:{}),...(isToday&&!isActive?S.dayChipToday:{})}}>
+                  <span style={{...S.dayDow,...(isActive?{color:"#C9BBA8"}:{})}}>{weekdayShort[i]}</span>
+                  <span style={{...S.dayNum,...(isActive?{color:"#FBF1E8"}:{})}}>{d.split("-")[2]}</span>
+                  {count>0 && <span style={{...S.dayDot,...(isActive?{background:"#FBF1E8"}:{})}}/>}
                 </button>
               );
             })}
           </div>
-          <div style={{ marginTop:20 }}>
-            {(weekDeliveries[activeDate] || []).length === 0
-              ? <EmptyState text="Nenhuma entrega marcada para este dia." />
-              : (
-                <div style={styles.cardList}>
-                  {weekDeliveries[activeDate].map(client => (
-                    <DeliveryCard key={client.id + activeDate} client={client} status={getStatus(client.id, activeDate)}
-                      onStatusChange={(s, ded) => setStatus(client.id, activeDate, s, ded)} shelfProducts={shelfProducts} />
-                  ))}
-                </div>
-              )
-            }
+          <div style={{marginTop:20}}>
+            {(weekDeliveries[active]||[]).length===0 ? <Empty text="Nenhuma entrega neste dia."/> : (
+              <div style={S.list}>{weekDeliveries[active].map(c=>(
+                <DeliveryCard key={c.id+active} client={c} status={getStatus(c.id,active)}
+                  onStatusChange={(s,ded)=>setStatus(c.id,active,s,ded)} shelfProducts={shelfProducts}/>
+              ))}</div>
+            )}
           </div>
         </div>
       );
     }
 
     // ─── DELIVERY CARD ────────────────────────────────────────────────────────────
-    function DeliveryCard({ client, status, onStatusChange, shelfProducts }) {
-      const [pickerOpen, setPickerOpen] = useState(false);
-      const [selectedProduct, setSelectedProduct] = useState("");
-      const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
-      const isAvulsa = client.frequency === "avulsa";
+    function DeliveryCard({client,status,onStatusChange,shelfProducts}) {
+      const [pickerOpen,setPickerOpen]   = useState(false);
+      const [selProduct,setSelProduct]   = useState("");
+      const [selAmount, setSelAmount]    = useState(String(client.units||1));
+      const isAvulsa = client.frequency==="avulsa";
 
-      const handleStatusClick = (key) => {
-        if (key === "entregue" && isAvulsa && status !== "entregue") { setPickerOpen(true); return; }
+      const handleClick = (key) => {
+        if (key==="entregue"&&isAvulsa&&status!=="entregue") { setPickerOpen(true); return; }
         onStatusChange(key);
       };
-
-      const confirmAvulsaDelivery = () => {
-        const amount = parseInt(selectedAmount, 10);
-        if (!selectedProduct || !amount || amount < 1) return;
-        onStatusChange("entregue", { productId: selectedProduct, amount });
+      const confirm = () => {
+        const amt = parseInt(selAmount,10);
+        if (!selProduct||!amt||amt<1) return;
+        onStatusChange("entregue",{productId:selProduct,amount:amt});
         setPickerOpen(false);
       };
-
       return (
-        <div style={styles.card}>
-          <div style={styles.cardTop}>
-            <div style={styles.cardIdentity}>
-              <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
-              <div>
-                <div style={styles.cardDog}>{client.dog}</div>
-                <div style={styles.cardTutor}>{client.tutor}</div>
-              </div>
+        <div style={S.card}>
+          <div style={S.cardTop}>
+            <div style={S.cardId}>
+              <div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
+              <div><div style={S.cardDog}>{client.dog}</div><div style={S.cardTutor}>{client.tutor}</div></div>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5 }}>
-              <span style={styles.freqTag}>{frequencyLabel[client.frequency]}</span>
-              {client.units ? <span style={styles.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span> : null}
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
+              <span style={S.freqTag}>{freqLabel[client.frequency]}</span>
+              {client.units ? <span style={S.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span> : null}
             </div>
           </div>
-          <div style={styles.cardAddress}>
-            <MapPin size={13} color="#A89A8C" style={{ flexShrink:0, marginTop:2 }} />
-            <span>{client.address}</span>
-          </div>
+          <div style={S.cardAddr}><MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/><span>{client.address}</span></div>
           {pickerOpen ? (
-            <div style={styles.avulsaPicker}>
-              <p style={styles.avulsaPickerLabel}>Qual produto sai do estoque?</p>
-              {shelfProducts.length === 0 ? (
-                <p style={styles.avulsaPickerEmpty}>Nenhum produto cadastrado em Estoque → Avulsos ainda.</p>
-              ) : (
-                <select style={styles.input} value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}>
-                  <option value="">Selecione um produto…</option>
-                  {shelfProducts.map(p => <option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
-                </select>
-              )}
-              <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                <input type="number" min="1" style={{ ...styles.input, flex:1 }} value={selectedAmount}
-                  onChange={e => setSelectedAmount(e.target.value)} placeholder="Qtd" />
-                <button style={styles.avulsaConfirmBtn} onClick={confirmAvulsaDelivery}
-                  disabled={!selectedProduct}>Confirmar</button>
-                <button style={styles.avulsaCancelBtn} onClick={() => setPickerOpen(false)}>Cancelar</button>
+            <div style={S.picker}>
+              <p style={S.pickerLabel}>Qual produto sai do estoque?</p>
+              {shelfProducts.length===0
+                ? <p style={{fontSize:12.5,color:"#C0594B",margin:0}}>Nenhum produto em Estoque → Avulsos ainda.</p>
+                : <select style={S.input} value={selProduct} onChange={e=>setSelProduct(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {shelfProducts.map(p=><option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
+                  </select>
+              }
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                <input type="number" min="1" style={{...S.input,flex:1}} value={selAmount} onChange={e=>setSelAmount(e.target.value)} placeholder="Qtd"/>
+                <button style={S.confirmBtn} onClick={confirm} disabled={!selProduct}>Confirmar</button>
+                <button style={S.cancelBtn} onClick={()=>setPickerOpen(false)}>Cancelar</button>
               </div>
             </div>
           ) : (
-            <div style={styles.statusRow}>
-              {Object.entries(statusConfig).map(([key, conf]) => {
-                const Icon = conf.icon; const active = status === key;
+            <div style={S.statusRow}>
+              {Object.entries(statusCfg).map(([key,conf])=>{
+                const active=status===key;
                 return (
-                  <button key={key} onClick={() => handleStatusClick(key)}
-                    style={{ ...styles.statusBtn, ...(active
-                      ? { background:conf.color, color:"#FFF7EF", borderColor:conf.color }
-                      : { background:"#FFF7EF", color:"#8A7A6C", borderColor:"#E8DDD0" }) }}>
-                    <Icon size={13} strokeWidth={2.5} />{conf.label}
+                  <button key={key} onClick={()=>handleClick(key)} style={{...S.statusBtn,...(active?{background:conf.color,color:"#FFF7EF",borderColor:conf.color}:{background:"#FFF7EF",color:"#8A7A6C",borderColor:"#E8DDD0"})}}>
+                    <conf.Icon size={13} sw={2.5} color={active?"#FFF7EF":"#8A7A6C"}/>{conf.label}
                   </button>
                 );
               })}
@@ -648,313 +550,204 @@
     }
 
     // ─── CLIENTS VIEW ─────────────────────────────────────────────────────────────
-    function ClientsView({ clients, search, setSearch, onEdit, onDelete }) {
-      const [confirmDelete, setConfirmDelete] = useState(null);
-      const [deleting, setDeleting] = useState(null);
-
-      const handleDelete = async (id) => {
+    function ClientsView({clients,search,setSearch,onEdit,onDelete}) {
+      const [confirmDel,setConfirmDel] = useState(null);
+      const [deleting,  setDeleting]   = useState(null);
+      const handleDel = async (id) => {
         setDeleting(id);
         await onDelete(id);
-        setDeleting(null);
-        setConfirmDelete(null);
+        setDeleting(null); setConfirmDel(null);
       };
-
       return (
-        <div style={styles.section}>
-          <div style={styles.searchBar}>
-            <Search size={16} color="#A89A8C" />
-            <input style={styles.searchInput} placeholder="Buscar por tutor, cão ou endereço…"
-              value={search} onChange={e => setSearch(e.target.value)} />
-            {search && <button style={styles.clearSearch} onClick={() => setSearch("")}><X size={14} color="#A89A8C" /></button>}
+        <div style={S.section}>
+          <div style={S.searchBar}>
+            <Search size={16} color="#A89A8C"/>
+            <input style={S.searchInput} placeholder="Buscar por tutor, cão ou endereço…" value={search} onChange={e=>setSearch(e.target.value)}/>
+            {search && <button style={{background:"transparent",border:"none",padding:2,display:"flex"}} onClick={()=>setSearch("")}><X size={14} color="#A89A8C"/></button>}
           </div>
-          {clients.length === 0
-            ? <EmptyState text={search ? "Nenhum resultado encontrado." : "Nenhum cliente cadastrado ainda."} />
-            : (
-              <div style={styles.cardList}>
-                {clients.map(c => (
-                  <div key={c.id} style={styles.clientRow}>
-                    <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={styles.cardDog}>{c.dog}</div>
-                      <div style={styles.cardTutor}>{c.tutor}</div>
-                      <div style={styles.clientMeta}>
-                        {frequencyLabel[c.frequency]} · próxima: {c.nextDate ? formatDateBR(c.nextDate) : "—"}
-                        {c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}
-                      </div>
-                      {c.address && <div style={styles.clientAddress}><MapPin size={11} color="#C9BBA8" />{c.address}</div>}
+          {clients.length===0 ? <Empty text={search?"Nenhum resultado.":"Nenhum cliente cadastrado ainda."}/> : (
+            <div style={S.list}>
+              {clients.map(c=>(
+                <div key={c.id} style={S.clientRow}>
+                  <div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={S.cardDog}>{c.dog}</div>
+                    <div style={S.cardTutor}>{c.tutor}</div>
+                    <div style={{fontSize:11.5,color:"#A89A8C",marginTop:2}}>
+                      {freqLabel[c.frequency]} · próxima: {formatDateBR(c.nextDate)}
+                      {c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}
                     </div>
-                    <div style={styles.rowActions}>
-                      <button style={styles.iconBtn} onClick={() => onEdit(c)}><Edit3 size={15} color="#8A7A6C" /></button>
-                      {confirmDelete === c.id ? (
-                        <button
-                          style={{ ...styles.iconBtn, background:"#C0594B", borderColor:"#C0594B", opacity: deleting===c.id ? 0.6 : 1 }}
-                          disabled={deleting===c.id}
-                          onClick={() => handleDelete(c.id)}
-                        >
-                          <Check size={15} color="#fff" />
-                        </button>
-                      ) : (
-                        <button style={styles.iconBtn} onClick={() => setConfirmDelete(c.id)}><Trash2 size={15} color="#8A7A6C" /></button>
-                      )}
-                    </div>
+                    {c.address && <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#C9BBA8",marginTop:3}}><MapPin size={11} color="#C9BBA8"/>{c.address}</div>}
                   </div>
-                ))}
-              </div>
-            )
-          }
+                  <div style={{display:"flex",gap:6}}>
+                    <button style={S.iconBtn} onClick={()=>onEdit(c)}><Edit3 size={15} color="#8A7A6C"/></button>
+                    {confirmDel===c.id
+                      ? <button style={{...S.iconBtn,background:"#C0594B",borderColor:"#C0594B",opacity:deleting===c.id?0.6:1}} disabled={deleting===c.id} onClick={()=>handleDel(c.id)}><Check size={15} color="#fff"/></button>
+                      : <button style={S.iconBtn} onClick={()=>setConfirmDel(c.id)}><Trash2 size={15} color="#8A7A6C"/></button>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
 
     // ─── STOCK VIEW ───────────────────────────────────────────────────────────────
-    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog,
-      petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct,
-      onAddShelfStockEntry, onDeleteShelfProduct, onAddPetiscoProduct,
-      onAddPetiscoStockEntry, onDeletePetiscoProduct }) {
+    function StockView({clients,subscriberStock,subscriberStockLog,shelfProducts,shelfStockLog,petiscoProducts,petiscoStockLog,onAddSubscriberProduction,onAddShelfProduct,onAddShelfStockEntry,onDeleteShelfProduct,onAddPetiscoProduct,onAddPetiscoStockEntry,onDeletePetiscoProduct}) {
+      const [tab,setTab]   = useState("assinantes");
+      const [expClient,setExpClient] = useState(null);
+      const [prodInputs,setProdInputs] = useState({});
+      const [expProduct,setExpProduct] = useState(null);
+      const [showNewProd,setShowNewProd] = useState(false);
+      const [newProdName,setNewProdName] = useState("");
+      const [savingProd,setSavingProd] = useState(false);
+      const [stockInputs,setStockInputs] = useState({});
+      const [expPetisco,setExpPetisco] = useState(null);
+      const [showNewPet,setShowNewPet] = useState(false);
+      const [newPetName,setNewPetName] = useState("");
+      const [savingPet,setSavingPet] = useState(false);
+      const [petInputs,setPetInputs] = useState({});
 
-      const [tab, setTab] = useState("assinantes");
-      const [expandedClient, setExpandedClient] = useState(null);
-      const [productionInputs, setProductionInputs] = useState({});
-      const [expandedProduct, setExpandedProduct] = useState(null);
-      const [showNewProduct, setShowNewProduct] = useState(false);
-      const [newProductName, setNewProductName] = useState("");
-      const [savingProduct, setSavingProduct] = useState(false);
-      const [stockInputs, setStockInputs] = useState({});
-      const [expandedPetisco, setExpandedPetisco] = useState(null);
-      const [showNewPetisco, setShowNewPetisco] = useState(false);
-      const [newPetiscoName, setNewPetiscoName] = useState("");
-      const [savingPetisco, setSavingPetisco] = useState(false);
-      const [petiscoInputs, setPetiscoInputs] = useState({});
+      const subscribers = clients.filter(c=>c.frequency!=="avulsa");
 
-      const subscribers = clients.filter(c => c.frequency !== "avulsa");
-
-      const handleSaveProduct = async () => {
-        if (!newProductName.trim()) return;
-        setSavingProduct(true);
-        await onAddShelfProduct(newProductName.trim());
-        setNewProductName(""); setShowNewProduct(false); setSavingProduct(false);
+      const saveProd = async () => {
+        if (!newProdName.trim()) return;
+        setSavingProd(true);
+        await onAddShelfProduct(newProdName.trim());
+        setNewProdName(""); setShowNewProd(false); setSavingProd(false);
       };
-
-      const handleSavePetisco = async () => {
-        if (!newPetiscoName.trim()) return;
-        setSavingPetisco(true);
-        await onAddPetiscoProduct(newPetiscoName.trim());
-        setNewPetiscoName(""); setShowNewPetisco(false); setSavingPetisco(false);
+      const savePet = async () => {
+        if (!newPetName.trim()) return;
+        setSavingPet(true);
+        await onAddPetiscoProduct(newPetName.trim());
+        setNewPetName(""); setShowNewPet(false); setSavingPet(false);
       };
 
       return (
-        <div style={styles.section}>
-          <div style={styles.sectionHeadRow}><h2 style={styles.sectionTitle}>Estoque</h2></div>
-          <div style={styles.stockTabRow}>
-            {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([key,label]) => (
-              <button key={key} style={{ ...styles.stockTabBtn, ...(tab===key ? styles.stockTabBtnActive : {}) }}
-                onClick={() => setTab(key)}>{label}</button>
+        <div style={S.section}>
+          <div style={S.headRow}><h2 style={S.sectionTitle}>Estoque</h2></div>
+          <div style={S.stockTabRow}>
+            {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([k,l])=>(
+              <button key={k} style={{...S.stockTab,...(tab===k?S.stockTabActive:{})}} onClick={()=>setTab(k)}>{l}</button>
             ))}
           </div>
 
-          {/* ASSINANTES */}
-          {tab === "assinantes" && (
-            subscribers.length === 0
-              ? <EmptyState text="Nenhum cliente assinante cadastrado ainda." />
-              : (
-                <div style={styles.cardList}>
-                  {subscribers.map(c => {
-                    const balance = subscriberStock[c.id] ?? 0;
-                    const isLow = balance <= (c.units || 0);
-                    const log = subscriberStockLog[c.id] || [];
-                    const expanded = expandedClient === c.id;
+          {tab==="assinantes" && (
+            subscribers.length===0 ? <Empty text="Nenhum cliente assinante cadastrado."/> :
+            <div style={S.list}>
+              {subscribers.map(c=>{
+                const bal=subscriberStock[c.id]??0, isLow=bal<=(c.units||0), log=subscriberStockLog[c.id]||[], exp=expClient===c.id;
+                return (
+                  <div key={c.id} style={S.stockCard}>
+                    <div style={S.stockTop}>
+                      <div style={S.cardId}><div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div><div><div style={S.cardDog}>{c.dog}</div><div style={S.cardTutor}>{c.tutor}</div></div></div>
+                      <div style={{textAlign:"right"}}><div style={{...S.balNum,color:isLow?"#C0594B":"#3E332A"}}>{bal}</div><div style={S.balLabel}>em estoque</div></div>
+                    </div>
+                    {isLow && <div style={S.lowWarn}><AlertTriangle size={13} color="#C0594B"/><span>Saldo baixo — próxima entrega: {c.units||0} un.</span></div>}
+                    <div style={S.stockRow}>
+                      <input type="number" min="1" style={{...S.input,flex:1}} placeholder="Unidades produzidas"
+                        value={prodInputs[c.id]||""} onChange={e=>setProdInputs(p=>({...p,[c.id]:e.target.value}))}
+                        onKeyDown={e=>{if(e.key==="Enter"){const a=parseInt(prodInputs[c.id],10);if(a>0){onAddSubscriberProduction(c.id,a);setProdInputs(p=>({...p,[c.id]:""}))};}}}/>
+                      <button style={S.addBtn} onClick={()=>{const a=parseInt(prodInputs[c.id],10);if(a>0){onAddSubscriberProduction(c.id,a);setProdInputs(p=>({...p,[c.id]:""}))};}}>
+                        <Plus size={14} color="#FBF1E8" sw={2.5}/>Adicionar
+                      </button>
+                    </div>
+                    <button style={S.histBtn} onClick={()=>setExpClient(exp?null:c.id)}>{exp?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
+                    {exp && <div style={S.histList}>{log.length===0?<p style={S.histEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistRow key={i} entry={e}/>)}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {tab==="avulsos" && (
+            <>
+              <div style={{marginBottom:14}}>
+                {showNewProd ? (
+                  <div style={S.newProdBox}>
+                    <input style={S.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)" value={newProdName} onChange={e=>setNewProdName(e.target.value)} autoFocus/>
+                    <div style={{display:"flex",gap:8,marginTop:8}}>
+                      <button style={{...S.confirmBtn,opacity:savingProd?0.6:1}} disabled={savingProd} onClick={saveProd}>{savingProd?"Salvando…":"Salvar"}</button>
+                      <button style={S.cancelBtn} onClick={()=>{setShowNewProd(false);setNewProdName("");}}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button style={S.newProdTrigger} onClick={()=>setShowNewProd(true)}><Plus size={16} color="#B8825A" sw={2.5}/>Cadastrar produto de prateleira</button>
+                )}
+              </div>
+              {shelfProducts.length===0 ? <Empty text="Nenhum produto cadastrado ainda."/> :
+                <div style={S.list}>
+                  {shelfProducts.map(p=>{
+                    const log=shelfStockLog[p.id]||[], exp=expProduct===p.id, isLow=p.balance<=0;
                     return (
-                      <div key={c.id} style={styles.stockCard}>
-                        <div style={styles.stockCardTop}>
-                          <div style={styles.cardIdentity}>
-                            <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
-                            <div><div style={styles.cardDog}>{c.dog}</div><div style={styles.cardTutor}>{c.tutor}</div></div>
-                          </div>
-                          <div style={{ textAlign:"right" }}>
-                            <div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{balance}</div>
-                            <div style={styles.balanceLabel}>em estoque</div>
-                          </div>
+                      <div key={p.id} style={S.stockCard}>
+                        <div style={S.stockTop}>
+                          <div style={S.cardId}><div style={S.dogBadge}><Package size={14} color="#B8825A"/></div><div style={S.cardDog}>{p.name}</div></div>
+                          <div style={{textAlign:"right"}}><div style={{...S.balNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={S.balLabel}>em estoque</div></div>
                         </div>
-                        {isLow && (
-                          <div style={styles.lowStockWarning}>
-                            <AlertTriangle size={13} color="#C0594B" />
-                            <span>Saldo baixo — próxima entrega: {c.units||0} un.</span>
-                          </div>
-                        )}
-                        <div style={styles.stockEntryRow}>
-                          <input type="number" min="1" style={{ ...styles.input, flex:1 }}
-                            placeholder="Unidades produzidas"
-                            value={productionInputs[c.id] || ""}
-                            onChange={e => setProductionInputs(p => ({ ...p, [c.id]: e.target.value }))}
-                            onKeyDown={e => { if(e.key==="Enter"){ const a=parseInt(productionInputs[c.id],10); if(a>0){onAddSubscriberProduction(c.id,a);setProductionInputs(p=>({...p,[c.id]:""}))}; }}}
-                          />
-                          <button style={styles.addStockBtn} onClick={() => {
-                            const a = parseInt(productionInputs[c.id],10);
-                            if (a>0) { onAddSubscriberProduction(c.id, a); setProductionInputs(p => ({ ...p, [c.id]:"" })); }
-                          }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                        {isLow && <div style={S.lowWarn}><AlertTriangle size={13} color="#C0594B"/><span>Sem saldo disponível</span></div>}
+                        <div style={S.stockRow}>
+                          <input type="number" min="1" style={{...S.input,flex:1}} placeholder="Unidades a adicionar" value={stockInputs[p.id]||""} onChange={e=>setStockInputs(s=>({...s,[p.id]:e.target.value}))}/>
+                          <button style={S.addBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}))}}}>
+                            <Plus size={14} color="#FBF1E8" sw={2.5}/>Adicionar
+                          </button>
                         </div>
-                        <button style={styles.historyToggle} onClick={() => setExpandedClient(expanded ? null : c.id)}>
-                          {expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`}
-                        </button>
-                        {expanded && (
-                          <div style={styles.historyList}>
-                            {log.length === 0
-                              ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p>
-                              : log.map((e,i) => <HistoryRow key={i} entry={e} />)
-                            }
-                          </div>
-                        )}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                          <button style={S.histBtn} onClick={()=>setExpProduct(exp?null:p.id)}>{exp?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
+                          <button style={S.delProdBtn} onClick={()=>onDeleteShelfProduct(p.id)}><Trash2 size={13} color="#A89A8C"/></button>
+                        </div>
+                        {exp && <div style={S.histList}>{log.length===0?<p style={S.histEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistRow key={i} entry={e}/>)}</div>}
                       </div>
                     );
                   })}
                 </div>
-              )
-          )}
-
-          {/* AVULSOS */}
-          {tab === "avulsos" && (
-            <>
-              <div style={{ marginBottom:14 }}>
-                {showNewProduct ? (
-                  <div style={styles.newProductBox}>
-                    <input style={styles.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)"
-                      value={newProductName} onChange={e => setNewProductName(e.target.value)} autoFocus />
-                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                      <button style={{ ...styles.avulsaConfirmBtn, opacity: savingProduct ? 0.6 : 1 }}
-                        disabled={savingProduct} onClick={handleSaveProduct}>
-                        {savingProduct ? "Salvando…" : "Salvar"}
-                      </button>
-                      <button style={styles.avulsaCancelBtn} onClick={() => { setShowNewProduct(false); setNewProductName(""); }}>Cancelar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button style={styles.newProductTrigger} onClick={() => setShowNewProduct(true)}>
-                    <Plus size={16} strokeWidth={2.5} />Cadastrar produto de prateleira
-                  </button>
-                )}
-              </div>
-              {shelfProducts.length === 0
-                ? <EmptyState text="Nenhum produto de prateleira cadastrado ainda." />
-                : (
-                  <div style={styles.cardList}>
-                    {shelfProducts.map(p => {
-                      const log = shelfStockLog[p.id] || [];
-                      const expanded = expandedProduct === p.id;
-                      const isLow = p.balance <= 0;
-                      return (
-                        <div key={p.id} style={styles.stockCard}>
-                          <div style={styles.stockCardTop}>
-                            <div style={styles.cardIdentity}>
-                              <div style={styles.dogBadge}><Package size={14} color="#B8825A" /></div>
-                              <div style={styles.cardDog}>{p.name}</div>
-                            </div>
-                            <div style={{ textAlign:"right" }}>
-                              <div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{p.balance}</div>
-                              <div style={styles.balanceLabel}>em estoque</div>
-                            </div>
-                          </div>
-                          {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
-                          <div style={styles.stockEntryRow}>
-                            <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades a adicionar"
-                              value={stockInputs[p.id] || ""}
-                              onChange={e => setStockInputs(s => ({ ...s, [p.id]: e.target.value }))} />
-                            <button style={styles.addStockBtn} onClick={() => {
-                              const a = parseInt(stockInputs[p.id],10);
-                              if (a>0) { onAddShelfStockEntry(p.id, a); setStockInputs(s => ({ ...s, [p.id]:"" })); }
-                            }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
-                          </div>
-                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                            <button style={styles.historyToggle} onClick={() => setExpandedProduct(expanded ? null : p.id)}>
-                              {expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`}
-                            </button>
-                            <button style={styles.deleteProductBtn} onClick={() => onDeleteShelfProduct(p.id)}>
-                              <Trash2 size={13} color="#A89A8C" />
-                            </button>
-                          </div>
-                          {expanded && (
-                            <div style={styles.historyList}>
-                              {log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
               }
             </>
           )}
 
-          {/* PETISCOS */}
-          {tab === "petiscos" && (
+          {tab==="petiscos" && (
             <>
-              <div style={{ marginBottom:14 }}>
-                {showNewPetisco ? (
-                  <div style={styles.newProductBox}>
-                    <input style={styles.input} placeholder="Nome do petisco (ex: Palito de Frango 100g)"
-                      value={newPetiscoName} onChange={e => setNewPetiscoName(e.target.value)} autoFocus />
-                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                      <button style={{ ...styles.avulsaConfirmBtn, opacity: savingPetisco ? 0.6 : 1 }}
-                        disabled={savingPetisco} onClick={handleSavePetisco}>
-                        {savingPetisco ? "Salvando…" : "Salvar"}
-                      </button>
-                      <button style={styles.avulsaCancelBtn} onClick={() => { setShowNewPetisco(false); setNewPetiscoName(""); }}>Cancelar</button>
+              <div style={{marginBottom:14}}>
+                {showNewPet ? (
+                  <div style={S.newProdBox}>
+                    <input style={S.input} placeholder="Nome do petisco (ex: Palito de Frango 100g)" value={newPetName} onChange={e=>setNewPetName(e.target.value)} autoFocus/>
+                    <div style={{display:"flex",gap:8,marginTop:8}}>
+                      <button style={{...S.confirmBtn,opacity:savingPet?0.6:1}} disabled={savingPet} onClick={savePet}>{savingPet?"Salvando…":"Salvar"}</button>
+                      <button style={S.cancelBtn} onClick={()=>{setShowNewPet(false);setNewPetName("");}}>Cancelar</button>
                     </div>
                   </div>
                 ) : (
-                  <button style={styles.newProductTrigger} onClick={() => setShowNewPetisco(true)}>
-                    <Plus size={16} strokeWidth={2.5} />Cadastrar petisco
-                  </button>
+                  <button style={S.newProdTrigger} onClick={()=>setShowNewPet(true)}><Plus size={16} color="#B8825A" sw={2.5}/>Cadastrar petisco</button>
                 )}
               </div>
-              {petiscoProducts.length === 0
-                ? <EmptyState text="Nenhum petisco cadastrado ainda." />
-                : (
-                  <div style={styles.cardList}>
-                    {petiscoProducts.map(p => {
-                      const log = petiscoStockLog[p.id] || [];
-                      const expanded = expandedPetisco === p.id;
-                      const isLow = p.balance <= 0;
-                      return (
-                        <div key={p.id} style={styles.stockCard}>
-                          <div style={styles.stockCardTop}>
-                            <div style={styles.cardIdentity}>
-                              <div style={styles.dogBadge}><Cookie size={14} color="#B8825A" /></div>
-                              <div style={styles.cardDog}>{p.name}</div>
-                            </div>
-                            <div style={{ textAlign:"right" }}>
-                              <div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{p.balance}</div>
-                              <div style={styles.balanceLabel}>em estoque</div>
-                            </div>
-                          </div>
-                          {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
-                          <div style={styles.stockEntryRow}>
-                            <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas"
-                              value={petiscoInputs[p.id] || ""}
-                              onChange={e => setPetiscoInputs(s => ({ ...s, [p.id]: e.target.value }))} />
-                            <button style={styles.addStockBtn} onClick={() => {
-                              const a = parseInt(petiscoInputs[p.id],10);
-                              if (a>0) { onAddPetiscoStockEntry(p.id, a); setPetiscoInputs(s => ({ ...s, [p.id]:"" })); }
-                            }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
-                          </div>
-                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                            <button style={styles.historyToggle} onClick={() => setExpandedPetisco(expanded ? null : p.id)}>
-                              {expanded ? "Ocultar histórico" : `Ver histórico (${log.length})`}
-                            </button>
-                            <button style={styles.deleteProductBtn} onClick={() => onDeletePetiscoProduct(p.id)}>
-                              <Trash2 size={13} color="#A89A8C" />
-                            </button>
-                          </div>
-                          {expanded && (
-                            <div style={styles.historyList}>
-                              {log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}
-                            </div>
-                          )}
+              {petiscoProducts.length===0 ? <Empty text="Nenhum petisco cadastrado ainda."/> :
+                <div style={S.list}>
+                  {petiscoProducts.map(p=>{
+                    const log=petiscoStockLog[p.id]||[], exp=expPetisco===p.id, isLow=p.balance<=0;
+                    return (
+                      <div key={p.id} style={S.stockCard}>
+                        <div style={S.stockTop}>
+                          <div style={S.cardId}><div style={S.dogBadge}><Cookie size={14} color="#B8825A"/></div><div style={S.cardDog}>{p.name}</div></div>
+                          <div style={{textAlign:"right"}}><div style={{...S.balNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={S.balLabel}>em estoque</div></div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )
+                        {isLow && <div style={S.lowWarn}><AlertTriangle size={13} color="#C0594B"/><span>Sem saldo disponível</span></div>}
+                        <div style={S.stockRow}>
+                          <input type="number" min="1" style={{...S.input,flex:1}} placeholder="Unidades produzidas" value={petInputs[p.id]||""} onChange={e=>setPetInputs(s=>({...s,[p.id]:e.target.value}))}/>
+                          <button style={S.addBtn} onClick={()=>{const a=parseInt(petInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetInputs(s=>({...s,[p.id]:""}))}}}>
+                            <Plus size={14} color="#FBF1E8" sw={2.5}/>Adicionar
+                          </button>
+                        </div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                          <button style={S.histBtn} onClick={()=>setExpPetisco(exp?null:p.id)}>{exp?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
+                          <button style={S.delProdBtn} onClick={()=>onDeletePetiscoProduct(p.id)}><Trash2 size={13} color="#A89A8C"/></button>
+                        </div>
+                        {exp && <div style={S.histList}>{log.length===0?<p style={S.histEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistRow key={i} entry={e}/>)}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
               }
             </>
           )}
@@ -962,93 +755,72 @@
       );
     }
 
-    function HistoryRow({ entry }) {
-      const positive = entry.amount > 0;
-      const Icon = positive ? ArrowUpCircle : ArrowDownCircle;
+    function HistRow({entry}) {
+      const pos = entry.amount>0;
       return (
-        <div style={styles.historyRow}>
-          <Icon size={15} color={positive ? "#5C8A5C" : "#C0594B"} style={{ flexShrink:0 }} />
-          <div style={{ flex:1 }}>
-            <div style={styles.historyReason}>{entry.reason}</div>
-            <div style={styles.historyDate}>{entry.date ? formatDateBR(entry.date) : "—"}</div>
-          </div>
-          <div style={{ ...styles.historyAmount, color: positive ? "#5C8A5C" : "#C0594B" }}>
-            {positive ? "+" : ""}{entry.amount}
-          </div>
+        <div style={S.histRow}>
+          {pos ? <ArrowUpCircle size={15} color="#5C8A5C" style={{flexShrink:0}}/> : <ArrowDownCircle size={15} color="#C0594B" style={{flexShrink:0}}/>}
+          <div style={{flex:1}}><div style={S.histReason}>{entry.reason}</div><div style={S.histDate}>{formatDateBR(entry.date)}</div></div>
+          <div style={{fontSize:13,fontWeight:700,color:pos?"#5C8A5C":"#C0594B"}}>{pos?"+":""}{entry.amount}</div>
         </div>
       );
     }
 
     // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
-    function ClientFormModal({ initial, onClose, onSave }) {
-      const [tutor,     setTutor]     = useState(initial?.tutor     || "");
-      const [dog,       setDog]       = useState(initial?.dog       || "");
-      const [address,   setAddress]   = useState(initial?.address   || "");
-      const [frequency, setFrequency] = useState(initial?.frequency || "semanal");
-      const [nextDate,  setNextDate]  = useState(initial?.nextDate  || todayISO());
-      const [units,     setUnits]     = useState(initial?.units ? String(initial.units) : "1");
-      const [notes,     setNotes]     = useState(initial?.notes     || "");
-      const [error,     setError]     = useState("");
-      const [saving,    setSaving]    = useState(false);
+    function ClientFormModal({initial,onClose,onSave}) {
+      const [tutor,    setTutor]    = useState(initial?.tutor    ||"");
+      const [dog,      setDog]      = useState(initial?.dog      ||"");
+      const [address,  setAddress]  = useState(initial?.address  ||"");
+      const [freq,     setFreq]     = useState(initial?.frequency||"semanal");
+      const [nextDate, setNextDate] = useState(initial?.nextDate ||todayISO());
+      const [units,    setUnits]    = useState(initial?.units?String(initial.units):"1");
+      const [notes,    setNotes]    = useState(initial?.notes    ||"");
+      const [error,    setError]    = useState("");
+      const [saving,   setSaving]   = useState(false);
 
-      // FIX: try/catch/finally para garantir que saving volta a false em caso de erro
-      const handleSubmit = async () => {
-        if (!tutor.trim() || !dog.trim() || !address.trim()) {
-          setError("Preencha tutor, cão e endereço."); return;
-        }
-        const unitsNum = parseInt(units, 10);
-        if (!unitsNum || unitsNum < 1) {
-          setError("Informe uma quantidade de unidades válida."); return;
-        }
-        setError("");
-        setSaving(true);
+      const submit = async () => {
+        if (!tutor.trim()||!dog.trim()||!address.trim()) { setError("Preencha tutor, cão e endereço."); return; }
+        const u = parseInt(units,10);
+        if (!u||u<1) { setError("Informe uma quantidade de unidades válida."); return; }
+        setError(""); setSaving(true);
         try {
-          await onSave({ tutor:tutor.trim(), dog:dog.trim(), address:address.trim(), frequency, nextDate, units:unitsNum, notes });
-        } catch (e) {
+          await onSave({tutor:tutor.trim(),dog:dog.trim(),address:address.trim(),frequency:freq,nextDate,units:u,notes});
+        } catch(e) {
           setError("Erro ao salvar. Verifique a conexão e tente novamente.");
           setSaving(false);
         }
-        // Não chama setSaving(false) no sucesso porque o modal fecha (componente desmonta)
       };
 
       return (
-        <div style={styles.modalOverlay} onClick={onClose}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <div style={styles.modalHead}>
-              <h3 style={styles.modalTitle}>{initial ? "Editar cliente" : "Novo cliente"}</h3>
-              <button style={styles.modalClose} onClick={onClose} disabled={saving}><X size={18} color="#8A7A6C" /></button>
+        <div style={S.overlay} onClick={onClose}>
+          <div style={S.modal} onClick={e=>e.stopPropagation()}>
+            <div style={S.modalHead}>
+              <h3 style={S.modalTitle}>{initial?"Editar cliente":"Novo cliente"}</h3>
+              <button style={S.modalClose} onClick={onClose} disabled={saving}><X size={18} color="#8A7A6C"/></button>
             </div>
-            <div style={styles.formBody}>
-              <Field label="Nome do tutor">
-                <input style={styles.input} value={tutor} onChange={e => setTutor(e.target.value)} placeholder="Ex: Marina Costa" />
-              </Field>
-              <Field label="Nome do cão">
-                <input style={styles.input} value={dog} onChange={e => setDog(e.target.value)} placeholder="Ex: Mia" />
-              </Field>
-              <Field label="Endereço de entrega">
-                <input style={styles.input} value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro" />
-              </Field>
-              <Field label="Frequência">
-                <div style={styles.freqGrid}>
-                  {Object.entries(frequencyLabel).map(([key, label]) => (
-                    <button key={key} type="button" onClick={() => setFrequency(key)}
-                      style={{ ...styles.freqOption, ...(frequency===key ? styles.freqOptionActive : {}) }}>{label}</button>
+            <div style={S.formBody}>
+              <Fld label="Nome do tutor"><input style={S.input} value={tutor} onChange={e=>setTutor(e.target.value)} placeholder="Ex: Marina Costa"/></Fld>
+              <Fld label="Nome do cão"><input style={S.input} value={dog} onChange={e=>setDog(e.target.value)} placeholder="Ex: Mia"/></Fld>
+              <Fld label="Endereço de entrega"><input style={S.input} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Rua, número, bairro"/></Fld>
+              <Fld label="Frequência">
+                <div style={S.freqGrid}>
+                  {Object.entries(freqLabel).map(([k,l])=>(
+                    <button key={k} type="button" onClick={()=>setFreq(k)} style={{...S.freqOpt,...(freq===k?S.freqOptActive:{})}}>{l}</button>
                   ))}
                 </div>
-              </Field>
-              <Field label={frequency === "avulsa" ? "Data da entrega" : "Próxima entrega (data âncora)"}>
-                <input type="date" style={styles.input} value={nextDate} onChange={e => setNextDate(e.target.value)} />
-              </Field>
-              <Field label="Quantidade de unidades por entrega">
-                <input type="number" min="1" style={styles.input} value={units} onChange={e => setUnits(e.target.value)} placeholder="Ex: 4" />
-              </Field>
-              <Field label="Observações (opcional)">
-                <textarea style={{ ...styles.input, minHeight:60, resize:"vertical", fontFamily:"inherit" }}
-                  value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: portaria pede documento" />
-              </Field>
-              {error && <p style={styles.errorText}>{error}</p>}
-              <button style={{ ...styles.saveBtn, opacity: saving ? 0.7 : 1 }} onClick={handleSubmit} disabled={saving}>
-                {saving ? "Salvando…" : initial ? "Salvar alterações" : "Adicionar cliente"}
+              </Fld>
+              <Fld label={freq==="avulsa"?"Data da entrega":"Próxima entrega (data âncora)"}>
+                <input type="date" style={S.input} value={nextDate} onChange={e=>setNextDate(e.target.value)}/>
+              </Fld>
+              <Fld label="Quantidade de unidades por entrega">
+                <input type="number" min="1" style={S.input} value={units} onChange={e=>setUnits(e.target.value)} placeholder="Ex: 4"/>
+              </Fld>
+              <Fld label="Observações (opcional)">
+                <textarea style={{...S.input,minHeight:60,resize:"vertical",fontFamily:"inherit"}} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Ex: portaria pede documento"/>
+              </Fld>
+              {error && <p style={{color:"#C0594B",fontSize:13,margin:0,fontWeight:600}}>{error}</p>}
+              <button style={{...S.saveBtn,opacity:saving?0.7:1}} onClick={submit} disabled={saving}>
+                {saving?"Salvando…":initial?"Salvar alterações":"Adicionar cliente"}
               </button>
             </div>
           </div>
@@ -1056,116 +828,91 @@
       );
     }
 
-    function Field({ label, children }) {
-      return <div style={styles.field}><label style={styles.fieldLabel}>{label}</label>{children}</div>;
-    }
+    function Fld({label,children}) { return <div style={{display:"flex",flexDirection:"column",gap:6}}><label style={{fontSize:12.5,fontWeight:600,color:"#8A7A6C"}}>{label}</label>{children}</div>; }
+    function Empty({text}) { return <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"48px 20px",textAlign:"center"}}><PawPrint size={26} color="#D9CBBC"/><p style={{color:"#A89A8C",fontSize:14,margin:0}}>{text}</p></div>; }
 
-    function EmptyState({ text }) {
-      return (
-        <div style={styles.empty}>
-          <PawPrint size={26} color="#D9CBBC" />
-          <p style={styles.emptyText}>{text}</p>
-        </div>
-      );
-    }
-
-    // ─── Styles ───────────────────────────────────────────────────────────────────
-    const styles = {
-      app:              { minHeight:"100vh", background:"#FDF8F2", fontFamily:"'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif", color:"#3E332A", paddingBottom:40 },
-      loadingScreen:    { minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#FDF8F2" },
-      toast:            { position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:8, color:"#fff", fontSize:14, fontWeight:600, padding:"12px 20px", borderRadius:12, boxShadow:"0 4px 16px rgba(0,0,0,0.18)", zIndex:200, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"calc(100vw - 32px)" },
-      header:           { background:"#3E332A", position:"sticky", top:0, zIndex:10 },
-      headerInner:      { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 16px 12px", flexWrap:"wrap", gap:10 },
-      brandRow:         { display:"flex", alignItems:"center", gap:10 },
-      brandMark:        { width:36, height:36, borderRadius:10, background:"#B8825A", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-      brandTitle:       { margin:0, fontSize:18, fontWeight:700, color:"#FBF1E8", letterSpacing:"0.2px" },
-      brandSub:         { margin:0, fontSize:12, color:"#C9BBA8", fontWeight:500 },
-      refreshBtn:       { width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.12)", border:"none", display:"flex", alignItems:"center", justifyContent:"center", color:"#FBF1E8" },
-      newBtn:           { display:"flex", alignItems:"center", gap:6, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:10, padding:"9px 14px", fontSize:13.5, fontWeight:600 },
-      tabRow:           { display:"flex", gap:4, padding:"0 12px" },
-      tab:              { background:"transparent", border:"none", color:"#9C8E7E", padding:"10px 14px", fontSize:14, fontWeight:600, borderBottom:"2px solid transparent" },
-      tabActive:        { color:"#FBF1E8", borderBottom:"2px solid #B8825A" },
-      main:             { maxWidth:640, margin:"0 auto", padding:"20px 16px" },
-      section:          {},
-      sectionHeadRow:   { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 },
-      sectionTitle:     { margin:0, fontSize:19, fontWeight:700, color:"#3E332A" },
-      countPill:        { background:"#F1E6D8", color:"#8A6A48", fontSize:12.5, fontWeight:600, padding:"4px 10px", borderRadius:20 },
-      cardList:         { display:"flex", flexDirection:"column", gap:12 },
-      card:             { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 },
-      cardTop:          { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 },
-      cardIdentity:     { display:"flex", alignItems:"center", gap:10 },
-      dogBadge:         { width:32, height:32, borderRadius:9, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-      cardDog:          { fontSize:15.5, fontWeight:700, color:"#3E332A" },
-      cardTutor:        { fontSize:13, color:"#8A7A6C", marginTop:1 },
-      freqTag:          { fontSize:11.5, fontWeight:600, color:"#8A6A48", background:"#F6EEE3", padding:"4px 9px", borderRadius:8, whiteSpace:"nowrap" },
-      unitsTag:         { fontSize:11.5, fontWeight:700, color:"#3E7CB1", background:"#EAF2F8", padding:"4px 9px", borderRadius:8, whiteSpace:"nowrap" },
-      cardAddress:      { display:"flex", gap:6, fontSize:12.5, color:"#7A6C5E", marginTop:10, lineHeight:1.4 },
-      statusRow:        { display:"flex", gap:6, marginTop:12 },
-      statusBtn:        { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:5, border:"1.5px solid", borderRadius:9, padding:"8px 6px", fontSize:12, fontWeight:600, transition:"all 0.15s" },
-      weekNav:          { display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14 },
-      navArrow:         { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" },
-      weekLabel:        { fontSize:14, fontWeight:700, color:"#3E332A", minWidth:110, textAlign:"center" },
-      weekStrip:        { display:"flex", gap:6, overflowX:"auto", paddingBottom:2 },
-      dayChip:          { flex:"1 0 auto", minWidth:44, background:"#FFF", border:"1px solid #EFE4D6", borderRadius:11, padding:"8px 4px 10px", display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
-      dayChipActive:    { background:"#3E332A", borderColor:"#3E332A" },
-      dayChipToday:     { borderColor:"#B8825A", borderWidth:1.5 },
-      dayChipDow:       { fontSize:10, fontWeight:700, color:"#9C8E7E" },
-      dayChipNum:       { fontSize:15, fontWeight:700, color:"#3E332A" },
-      dayChipDot:       { width:5, height:5, borderRadius:3, background:"#B8825A", marginTop:1 },
-      searchBar:        { display:"flex", alignItems:"center", gap:8, background:"#FFF", border:"1px solid #EFE4D6", borderRadius:11, padding:"10px 12px", marginBottom:16 },
-      searchInput:      { border:"none", outline:"none", fontSize:14, flex:1, background:"transparent", color:"#3E332A" },
-      clearSearch:      { background:"transparent", border:"none", padding:2, display:"flex", alignItems:"center" },
-      clientRow:        { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:12, display:"flex", alignItems:"center", gap:10 },
-      clientMeta:       { fontSize:11.5, color:"#A89A8C", marginTop:2 },
-      clientAddress:    { display:"flex", alignItems:"center", gap:4, fontSize:11, color:"#C9BBA8", marginTop:3 },
-      rowActions:       { display:"flex", gap:6 },
-      iconBtn:          { width:30, height:30, borderRadius:8, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" },
-      empty:            { display:"flex", flexDirection:"column", alignItems:"center", gap:10, padding:"48px 20px", textAlign:"center" },
-      emptyText:        { color:"#A89A8C", fontSize:14, margin:0 },
-      modalOverlay:     { position:"fixed", inset:0, background:"rgba(62,51,42,0.45)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:50 },
-      modal:            { background:"#FDF8F2", width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto", borderRadius:"18px 18px 0 0" },
-      modalHead:        { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 18px 10px", position:"sticky", top:0, background:"#FDF8F2", zIndex:1 },
-      modalTitle:       { margin:0, fontSize:17, fontWeight:700, color:"#3E332A" },
-      modalClose:       { background:"#F1E6D8", border:"none", width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" },
-      formBody:         { padding:"8px 18px 32px", display:"flex", flexDirection:"column", gap:14 },
-      field:            { display:"flex", flexDirection:"column", gap:6 },
-      fieldLabel:       { fontSize:12.5, fontWeight:600, color:"#8A7A6C" },
-      input:            { border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A", width:"100%" },
-      freqGrid:         { display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 },
-      freqOption:       { border:"1.5px solid #E8DDD0", borderRadius:10, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:"#8A7A6C", background:"#FFF" },
-      freqOptionActive: { borderColor:"#B8825A", background:"#FBF1E8", color:"#8A6A48" },
-      errorText:        { color:"#C0594B", fontSize:13, margin:0, fontWeight:600 },
-      saveBtn:          { background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:11, padding:"13px", fontSize:15, fontWeight:700, marginTop:4 },
-      stockTabRow:      { display:"flex", gap:6, marginBottom:16, background:"#F1E6D8", padding:4, borderRadius:12 },
-      stockTabBtn:      { flex:1, background:"transparent", border:"none", borderRadius:9, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:"#8A7A6C" },
-      stockTabBtnActive:{ background:"#FFF", color:"#3E332A", boxShadow:"0 1px 2px rgba(62,51,42,0.08)" },
-      stockCard:        { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 },
-      stockCardTop:     { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 },
-      balanceNum:       { fontSize:22, fontWeight:800, lineHeight:1 },
-      balanceLabel:     { fontSize:10.5, color:"#A89A8C", marginTop:2, fontWeight:600 },
-      lowStockWarning:  { display:"flex", alignItems:"center", gap:6, background:"#FBEAE6", color:"#A8412F", fontSize:12, fontWeight:600, padding:"7px 10px", borderRadius:9, marginTop:10 },
-      stockEntryRow:    { display:"flex", gap:8, marginTop:12 },
-      addStockBtn:      { display:"flex", alignItems:"center", gap:4, background:"#3E332A", color:"#FBF1E8", border:"none", borderRadius:10, padding:"0 14px", fontSize:12.5, fontWeight:600, whiteSpace:"nowrap" },
-      historyToggle:    { background:"transparent", border:"none", color:"#B8825A", fontSize:12.5, fontWeight:600, padding:"10px 0 0", textAlign:"left", cursor:"pointer" },
-      historyList:      { marginTop:8, borderTop:"1px solid #F1E6D8", paddingTop:8, display:"flex", flexDirection:"column", gap:8 },
-      historyRow:       { display:"flex", alignItems:"center", gap:8 },
-      historyReason:    { fontSize:12.5, fontWeight:600, color:"#3E332A" },
-      historyDate:      { fontSize:11, color:"#A89A8C" },
-      historyAmount:    { fontSize:13, fontWeight:700, marginLeft:"auto" },
-      historyEmpty:     { fontSize:12.5, color:"#A89A8C", margin:0 },
-      avulsaPicker:     { marginTop:12, background:"#FBF8F4", border:"1px solid #EFE4D6", borderRadius:11, padding:12 },
-      avulsaPickerLabel:{ fontSize:12.5, fontWeight:600, color:"#8A7A6C", margin:"0 0 8px" },
-      avulsaPickerEmpty:{ fontSize:12.5, color:"#C0594B", margin:0 },
-      avulsaConfirmBtn: { flex:1, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:9, padding:"9px 10px", fontSize:13, fontWeight:700 },
-      avulsaCancelBtn:  { background:"#EFE4D6", color:"#8A7A6C", border:"none", borderRadius:9, padding:"9px 14px", fontSize:13, fontWeight:600 },
-      newProductTrigger:{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", background:"#FFF", border:"1.5px dashed #D9CBBC", borderRadius:12, padding:"12px", fontSize:13.5, fontWeight:600, color:"#B8825A" },
-      newProductBox:    { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:12 },
-      deleteProductBtn: { width:26, height:26, borderRadius:7, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" },
+    // ─── Estilos ──────────────────────────────────────────────────────────────────
+    const S = {
+      app:          {minHeight:"100vh",background:"#FDF8F2",fontFamily:"'Segoe UI',-apple-system,sans-serif",color:"#3E332A",paddingBottom:40},
+      header:       {background:"#3E332A",position:"sticky",top:0,zIndex:10},
+      headerInner:  {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 16px 12px",flexWrap:"wrap",gap:10},
+      brandRow:     {display:"flex",alignItems:"center",gap:10},
+      brandMark:    {width:36,height:36,borderRadius:10,background:"#B8825A",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
+      brandTitle:   {margin:0,fontSize:18,fontWeight:700,color:"#FBF1E8"},
+      brandSub:     {margin:0,fontSize:12,color:"#C9BBA8",fontWeight:500},
+      refreshBtn:   {width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center"},
+      newBtn:       {display:"flex",alignItems:"center",gap:6,background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13.5,fontWeight:600},
+      tabRow:       {display:"flex",gap:4,padding:"0 12px"},
+      tab:          {background:"transparent",border:"none",color:"#9C8E7E",padding:"10px 14px",fontSize:14,fontWeight:600,borderBottom:"2px solid transparent"},
+      tabActive:    {color:"#FBF1E8",borderBottom:"2px solid #B8825A"},
+      main:         {maxWidth:640,margin:"0 auto",padding:"20px 16px"},
+      section:      {},
+      headRow:      {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16},
+      sectionTitle: {margin:0,fontSize:19,fontWeight:700,color:"#3E332A"},
+      countPill:    {background:"#F1E6D8",color:"#8A6A48",fontSize:12.5,fontWeight:600,padding:"4px 10px",borderRadius:20},
+      list:         {display:"flex",flexDirection:"column",gap:12},
+      card:         {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:14,padding:14},
+      cardTop:      {display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8},
+      cardId:       {display:"flex",alignItems:"center",gap:10},
+      dogBadge:     {width:32,height:32,borderRadius:9,background:"#FBF1E8",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
+      cardDog:      {fontSize:15.5,fontWeight:700,color:"#3E332A"},
+      cardTutor:    {fontSize:13,color:"#8A7A6C",marginTop:1},
+      freqTag:      {fontSize:11.5,fontWeight:600,color:"#8A6A48",background:"#F6EEE3",padding:"4px 9px",borderRadius:8,whiteSpace:"nowrap"},
+      unitsTag:     {fontSize:11.5,fontWeight:700,color:"#3E7CB1",background:"#EAF2F8",padding:"4px 9px",borderRadius:8,whiteSpace:"nowrap"},
+      cardAddr:     {display:"flex",gap:6,fontSize:12.5,color:"#7A6C5E",marginTop:10,lineHeight:1.4},
+      statusRow:    {display:"flex",gap:6,marginTop:12},
+      statusBtn:    {flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:5,border:"1.5px solid",borderRadius:9,padding:"8px 6px",fontSize:12,fontWeight:600},
+      weekNav:      {display:"flex",alignItems:"center",justifyContent:"center",gap:14,marginBottom:14},
+      navArrow:     {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:8,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"},
+      weekLabel:    {fontSize:14,fontWeight:700,color:"#3E332A",minWidth:110,textAlign:"center"},
+      weekStrip:    {display:"flex",gap:6,overflowX:"auto",paddingBottom:2},
+      dayChip:      {flex:"1 0 auto",minWidth:44,background:"#FFF",border:"1px solid #EFE4D6",borderRadius:11,padding:"8px 4px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:3},
+      dayChipActive:{background:"#3E332A",borderColor:"#3E332A"},
+      dayChipToday: {borderColor:"#B8825A"},
+      dayDow:       {fontSize:10,fontWeight:700,color:"#9C8E7E"},
+      dayNum:       {fontSize:15,fontWeight:700,color:"#3E332A"},
+      dayDot:       {width:5,height:5,borderRadius:3,background:"#B8825A",marginTop:1},
+      searchBar:    {display:"flex",alignItems:"center",gap:8,background:"#FFF",border:"1px solid #EFE4D6",borderRadius:11,padding:"10px 12px",marginBottom:16},
+      searchInput:  {border:"none",outline:"none",fontSize:14,flex:1,background:"transparent",color:"#3E332A"},
+      clientRow:    {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:14,padding:12,display:"flex",alignItems:"center",gap:10},
+      iconBtn:      {width:30,height:30,borderRadius:8,border:"1px solid #EFE4D6",background:"#FBF8F4",display:"flex",alignItems:"center",justifyContent:"center"},
+      overlay:      {position:"fixed",inset:0,background:"rgba(62,51,42,0.45)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50},
+      modal:        {background:"#FDF8F2",width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto",borderRadius:"18px 18px 0 0"},
+      modalHead:    {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 18px 10px",position:"sticky",top:0,background:"#FDF8F2",zIndex:1},
+      modalTitle:   {margin:0,fontSize:17,fontWeight:700,color:"#3E332A"},
+      modalClose:   {background:"#F1E6D8",border:"none",width:28,height:28,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"},
+      formBody:     {padding:"8px 18px 32px",display:"flex",flexDirection:"column",gap:14},
+      input:        {border:"1px solid #E8DDD0",borderRadius:10,padding:"10px 12px",fontSize:14.5,background:"#FFF",color:"#3E332A",width:"100%"},
+      freqGrid:     {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},
+      freqOpt:      {border:"1.5px solid #E8DDD0",borderRadius:10,padding:"9px 8px",fontSize:13.5,fontWeight:600,color:"#8A7A6C",background:"#FFF"},
+      freqOptActive:{borderColor:"#B8825A",background:"#FBF1E8",color:"#8A6A48"},
+      saveBtn:      {background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:11,padding:"13px",fontSize:15,fontWeight:700,marginTop:4},
+      stockTabRow:  {display:"flex",gap:6,marginBottom:16,background:"#F1E6D8",padding:4,borderRadius:12},
+      stockTab:     {flex:1,background:"transparent",border:"none",borderRadius:9,padding:"9px 8px",fontSize:13.5,fontWeight:600,color:"#8A7A6C"},
+      stockTabActive:{background:"#FFF",color:"#3E332A",boxShadow:"0 1px 2px rgba(62,51,42,0.08)"},
+      stockCard:    {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:14,padding:14},
+      stockTop:     {display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8},
+      balNum:       {fontSize:22,fontWeight:800,lineHeight:1},
+      balLabel:     {fontSize:10.5,color:"#A89A8C",marginTop:2,fontWeight:600},
+      lowWarn:      {display:"flex",alignItems:"center",gap:6,background:"#FBEAE6",color:"#A8412F",fontSize:12,fontWeight:600,padding:"7px 10px",borderRadius:9,marginTop:10},
+      stockRow:     {display:"flex",gap:8,marginTop:12},
+      addBtn:       {display:"flex",alignItems:"center",gap:4,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:10,padding:"0 14px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"},
+      histBtn:      {background:"transparent",border:"none",color:"#B8825A",fontSize:12.5,fontWeight:600,padding:"10px 0 0",textAlign:"left",cursor:"pointer"},
+      histList:     {marginTop:8,borderTop:"1px solid #F1E6D8",paddingTop:8,display:"flex",flexDirection:"column",gap:8},
+      histRow:      {display:"flex",alignItems:"center",gap:8},
+      histReason:   {fontSize:12.5,fontWeight:600,color:"#3E332A"},
+      histDate:     {fontSize:11,color:"#A89A8C"},
+      histEmpty:    {fontSize:12.5,color:"#A89A8C",margin:0},
+      picker:       {marginTop:12,background:"#FBF8F4",border:"1px solid #EFE4D6",borderRadius:11,padding:12},
+      pickerLabel:  {fontSize:12.5,fontWeight:600,color:"#8A7A6C",margin:"0 0 8px"},
+      confirmBtn:   {flex:1,background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:9,padding:"9px 10px",fontSize:13,fontWeight:700},
+      cancelBtn:    {background:"#EFE4D6",color:"#8A7A6C",border:"none",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:600},
+      newProdTrigger:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",background:"#FFF",border:"1.5px dashed #D9CBBC",borderRadius:12,padding:"12px",fontSize:13.5,fontWeight:600,color:"#B8825A"},
+      newProdBox:   {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:12,padding:12},
+      delProdBtn:   {width:26,height:26,borderRadius:7,border:"1px solid #EFE4D6",background:"#FBF8F4",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"},
     };
 
-    // ─── Mount ────────────────────────────────────────────────────────────────────
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
   </script>
 </body>
 </html>
