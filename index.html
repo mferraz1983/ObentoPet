@@ -326,6 +326,19 @@
             else if (eventType==="UPDATE") setClients(prev=>prev.map(c=>c.id===n.id?dbToClient(n):c));
             else if (eventType==="DELETE") setClients(prev=>prev.filter(c=>c.id!==o.id));
           })
+          .on("postgres_changes",{event:"*",schema:"public",table:"delivery_reschedules"},({eventType,new:n,old:o})=>{
+            if (eventType==="INSERT"||eventType==="UPDATE") {
+              setReschedules(prev=>{
+                const cid=n.client_id;
+                const existing=(prev[cid]||[]).filter(r=>r.original_date!==n.original_date);
+                return {...prev,[cid]:[...existing,{original_date:n.original_date,new_date:n.new_date}]};
+              });
+            } else if (eventType==="DELETE"&&o?.client_id) {
+              setReschedules(prev=>({
+                ...prev,[o.client_id]:(prev[o.client_id]||[]).filter(r=>r.original_date!==o.original_date)
+              }));
+            }
+          })
           .subscribe((status)=>{
             setRealtimeOnline(status==="SUBSCRIBED");
           });
@@ -699,20 +712,32 @@
               });
             }
           } else if (scope==="only") {
-            const id=`rs_${clientId}_${originalDate}`;
-            const {error} = await db.from("delivery_reschedules").upsert({id,client_id:clientId,original_date:originalDate,new_date:newDate});
+            // DELETE então INSERT — evita conflito de id e funciona independente do schema
+            await db.from("delivery_reschedules")
+              .delete().eq("client_id",clientId).eq("original_date",originalDate);
+            const {error} = await db.from("delivery_reschedules")
+              .insert({client_id:clientId,original_date:originalDate,new_date:newDate});
             if (error) throw error;
             setReschedules(prev=>{
               const existing=(prev[clientId]||[]).filter(r=>r.original_date!==originalDate);
               return {...prev,[clientId]:[...existing,{original_date:originalDate,new_date:newDate}]};
             });
           } else {
+            // "Esta e as seguintes": muda o next_date permanentemente
             const {error} = await db.from("clients").update({next_date:newDate}).eq("id",clientId);
             if (error) throw error;
             setClients(prev=>prev.map(c=>c.id===clientId?{...c,nextDate:newDate}:c));
-            const id=`rs_${clientId}_${originalDate}`;
-            db.from("delivery_reschedules").delete().eq("id",id);
-            setReschedules(prev=>({...prev,[clientId]:(prev[clientId]||[]).filter(r=>r.original_date!==originalDate)}));
+            // Cancela a data original — necessário quando newDate é múltiplo de step
+            // (ex: reagendamento de semana em semana), pois a data original continuaria sendo
+            // gerada por getOccurrencesInRange ao andar para trás a partir do novo nextDate.
+            await db.from("delivery_reschedules")
+              .delete().eq("client_id",clientId).eq("original_date",originalDate);
+            await db.from("delivery_reschedules")
+              .insert({client_id:clientId,original_date:originalDate,new_date:"1900-01-01"});
+            setReschedules(prev=>{
+              const existing=(prev[clientId]||[]).filter(r=>r.original_date!==originalDate);
+              return {...prev,[clientId]:[...existing,{original_date:originalDate,new_date:"1900-01-01"}]};
+            });
           }
           setRescheduleModal(null);
           showToast(`Entrega de ${client.dog} reagendada!`);
@@ -735,10 +760,10 @@
             }
           } else {
             // Assinante: registra em delivery_reschedules com new_date sentinel (data passada que nunca aparece)
-            const id = `rs_${client.id}_${date}`;
-            const {error} = await db.from("delivery_reschedules").upsert({
-              id, client_id:client.id, original_date:date, new_date:"1900-01-01"
-            });
+            await db.from("delivery_reschedules")
+              .delete().eq("client_id",client.id).eq("original_date",date);
+            const {error} = await db.from("delivery_reschedules")
+              .insert({client_id:client.id,original_date:date,new_date:"1900-01-01"});
             if (error) throw error;
             setReschedules(prev=>{
               const existing=(prev[client.id]||[]).filter(r=>r.original_date!==date);
