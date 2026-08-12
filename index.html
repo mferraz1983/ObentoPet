@@ -8,6 +8,7 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
     window.onerror = function(msg, src, line) {
       var r = document.getElementById("root");
@@ -56,6 +57,9 @@
     const RefreshCw       = _i('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>');
     const Wifi            = _i('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>');
     const WifiOff         = _i('<line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>');
+    const Upload          = _i('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>');
+    const FileSpreadsheet = _i('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/>');
+    const UserPlus        = _i('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>');
 
     // ─── Supabase ─────────────────────────────────────────────────────────────
     const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
@@ -329,6 +333,146 @@
       }, []);
 
       // ── Client operations ─────────────────────────────────────────────────
+      // ── XLS Import / Export ───────────────────────────────────────────────
+      const downloadTemplate = (headers, sample, filename, sheetName) => {
+        const XL = window.XLSX;
+        if (!XL) { showToast("Biblioteca XLS não carregada. Recarregue a página.","error"); return; }
+        const ws = XL.utils.aoa_to_sheet([headers, sample]);
+        // Column widths
+        ws["!cols"] = headers.map(()=>({wch:22}));
+        const wb = XL.utils.book_new();
+        XL.utils.book_append_sheet(wb, ws, sheetName);
+        XL.writeFile(wb, filename);
+      };
+
+      const downloadClientsTemplate = () => {
+        downloadTemplate(
+          ["Tutor","Cachorro","Endereço","Telefone","Tipo","Frequência","Data de Entrega (AAAA-MM-DD)","Unidades","Etiqueta (.btw)","Observações"],
+          ["Maria Silva","Rex","Rua A, 10, Centro","(11) 98765-4321","Assinante","semanal",todayISO(),"4","rex - ms","Portaria solicita documento"],
+          "template_clientes.xlsx", "Clientes"
+        );
+      };
+      const downloadShelfTemplate = () => {
+        downloadTemplate(
+          ["Nome do Produto","Saldo Inicial","Estoque Mínimo"],
+          ["Biscoito Natural 200g","50","10"],
+          "template_produtos_avulso.xlsx", "Produtos Avulso"
+        );
+      };
+      const downloadPetiscoTemplate = () => {
+        downloadTemplate(
+          ["Nome do Petisco","Saldo Inicial","Estoque Mínimo"],
+          ["Bifinho de Frango 100g","30","5"],
+          "template_petiscos.xlsx", "Petiscos"
+        );
+      };
+
+      const importClients = async (file) => {
+        const XL = window.XLSX;
+        if (!XL) { showToast("Biblioteca XLS não carregada.","error"); return; }
+        try {
+          const buf = await file.arrayBuffer();
+          const wb = XL.read(buf);
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XL.utils.sheet_to_json(ws, {defval:""});
+          let added = 0, skipped = 0;
+          for (const row of rows) {
+            const tutor   = String(row["Tutor"]||"").trim();
+            const dog     = String(row["Cachorro"]||"").trim();
+            const address = String(row["Endereço"]||"").trim();
+            if (!tutor||!dog||!address) { skipped++; continue; }
+            const isAvulsa = String(row["Tipo"]||"").toLowerCase().includes("avulso");
+            const rawFreq  = String(row["Frequência"]||"semanal").toLowerCase().trim();
+            const freq     = isAvulsa ? "avulsa" : (["semanal","quinzenal","mensal"].includes(rawFreq)?rawFreq:"semanal");
+            const dateRaw  = String(row["Data de Entrega (AAAA-MM-DD)"]||"").trim();
+            const nextDate = !isAvulsa ? (dateRaw||todayISO()) : null;
+            const units    = parseInt(row["Unidades"],10)||null;
+            const id       = genId();
+            const clientData = {
+              tutor, dog, address,
+              phone:     String(row["Telefone"]||"").trim(),
+              frequency: freq, nextDate, units,
+              notes:     String(row["Observações"]||"").trim(),
+              labelFile: String(row["Etiqueta (.btw)"]||"").trim(),
+            };
+            const dbRow = clientToDb(clientData, id);
+            const {error} = await db.from("clients").insert(dbRow);
+            if (error) { skipped++; continue; }
+            setClients(prev=>[...prev,{...clientData,id}]);
+            if (!isAvulsa) {
+              await db.from("subscriber_stock").upsert({client_id:id,balance:0});
+              setSubscriberStock(prev=>({...prev,[id]:0}));
+            } else if (dateRaw) {
+              const orderId = genId();
+              const {error:oErr} = await db.from("avulsa_orders").insert({id:orderId,client_id:id,date:dateRaw});
+              if (!oErr) setAvulsaOrders(prev=>({...prev,[id]:[{id:orderId,date:dateRaw}]}));
+            }
+            added++;
+          }
+          showToast(`${added} cliente${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}.`);
+        } catch(e) {
+          showToast(`Erro ao importar clientes: ${e.message}`,"error");
+        }
+      };
+
+      const importShelfProducts = async (file) => {
+        const XL = window.XLSX;
+        if (!XL) { showToast("Biblioteca XLS não carregada.","error"); return; }
+        try {
+          const buf = await file.arrayBuffer();
+          const wb = XL.read(buf);
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XL.utils.sheet_to_json(ws, {defval:""});
+          let added = 0, skipped = 0;
+          for (const row of rows) {
+            const name = String(row["Nome do Produto"]||"").trim();
+            if (!name) { skipped++; continue; }
+            const balance  = parseInt(row["Saldo Inicial"],10)||0;
+            const minStock = parseInt(row["Estoque Mínimo"],10)||0;
+            const id = genId();
+            const {error} = await db.from("shelf_products").insert({id,name,balance,min_stock:minStock});
+            if (error) { skipped++; continue; }
+            setShelfProducts(prev=>[...prev,{id,name,balance,min_stock:minStock}]);
+            if (balance>0) {
+              await db.from("shelf_stock_log").insert({product_id:id,date:todayISO(),amount:balance,reason:"Saldo inicial (importação)",ts:Date.now()});
+            }
+            added++;
+          }
+          showToast(`${added} produto${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}.`);
+        } catch(e) {
+          showToast(`Erro ao importar produtos: ${e.message}`,"error");
+        }
+      };
+
+      const importPetiscoProducts = async (file) => {
+        const XL = window.XLSX;
+        if (!XL) { showToast("Biblioteca XLS não carregada.","error"); return; }
+        try {
+          const buf = await file.arrayBuffer();
+          const wb = XL.read(buf);
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XL.utils.sheet_to_json(ws, {defval:""});
+          let added = 0, skipped = 0;
+          for (const row of rows) {
+            const name = String(row["Nome do Petisco"]||"").trim();
+            if (!name) { skipped++; continue; }
+            const balance  = parseInt(row["Saldo Inicial"],10)||0;
+            const minStock = parseInt(row["Estoque Mínimo"],10)||0;
+            const id = genId();
+            const {error} = await db.from("snack_products").insert({id,name,balance,min_stock:minStock});
+            if (error) { skipped++; continue; }
+            setPetiscoProducts(prev=>[...prev,{id,name,balance,min_stock:minStock}]);
+            if (balance>0) {
+              await db.from("snack_stock_log").insert({product_id:id,date:todayISO(),amount:balance,reason:"Saldo inicial (importação)",ts:Date.now()});
+            }
+            added++;
+          }
+          showToast(`${added} petisco${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}.`);
+        } catch(e) {
+          showToast(`Erro ao importar petiscos: ${e.message}`,"error");
+        }
+      };
+
       const saveClient = async (data) => {
         const isEditing = !!editingClient;
         const id = isEditing ? editingClient.id : genId();
@@ -345,6 +489,10 @@
             if (data.frequency!=="avulsa") {
               await db.from("subscriber_stock").upsert({client_id:id,balance:0});
               setSubscriberStock(prev=>({...prev,[id]:0}));
+            } else if (data.firstDate) {
+              const orderId = genId();
+              const {error:oErr} = await db.from("avulsa_orders").insert({id:orderId,client_id:id,date:data.firstDate});
+              if (!oErr) setAvulsaOrders(prev=>({...prev,[id]:[{id:orderId,date:data.firstDate}]}));
             }
           }
           setShowForm(false); setEditingClient(null);
@@ -753,7 +901,9 @@
             {view==="clientes"&&(
               <ClientsView clients={filteredClients} search={search} setSearch={setSearch}
                 onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient}
-                avulsaOrders={avulsaOrders} onAddAvulsaOrder={addAvulsaOrder} onDeleteAvulsaOrder={deleteAvulsaOrder}/>
+                avulsaOrders={avulsaOrders} onAddAvulsaOrder={addAvulsaOrder} onDeleteAvulsaOrder={deleteAvulsaOrder}
+                statusLog={statusLog}
+                onImportClients={importClients} onDownloadClientsTemplate={downloadClientsTemplate}/>
             )}
             {view==="estoque"&&(
               <StockView
@@ -763,7 +913,10 @@
                 petiscoProducts={petiscoProducts} petiscoStockLog={petiscoStockLog}
                 onAddSubscriberProduction={addSubscriberProduction}
                 onAddShelfProduct={addShelfProduct} onAddShelfStockEntry={addShelfStockEntry} onDeleteShelfProduct={deleteShelfProduct} onUpdateShelfMinStock={updateShelfMinStock}
-                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct} onUpdatePetiscoMinStock={updatePetiscoMinStock}/>
+                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct} onUpdatePetiscoMinStock={updatePetiscoMinStock}
+                onEditClient={c=>{setEditingClient(c);setShowForm(true);}}
+                onImportShelf={importShelfProducts} onDownloadShelfTemplate={downloadShelfTemplate}
+                onImportPetisco={importPetiscoProducts} onDownloadPetiscoTemplate={downloadPetiscoTemplate}/>
             )}
             {view==="producao"&&(
               <ProducaoView clients={clients} subscriberStock={subscriberStock}
@@ -1010,10 +1163,33 @@
     }
 
     // ─── CLIENTS VIEW ─────────────────────────────────────────────────────────
-    function ClientsView({ clients, search, setSearch, onEdit, onDelete, avulsaOrders, onAddAvulsaOrder, onDeleteAvulsaOrder }) {
+    function ImportXlsBtn({ onFile, label, accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" }) {
+      const ref = React.useRef();
+      return (
+        <>
+          <input ref={ref} type="file" accept={accept} style={{display:"none"}}
+            onChange={e=>{ if(e.target.files[0]){onFile(e.target.files[0]);} e.target.value=""; }}/>
+          <button style={{display:"flex",alignItems:"center",gap:5,background:"#EAF2F8",color:"#3E7CB1",border:"1px solid #C2D9EC",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
+            onClick={()=>ref.current.click()}>
+            <Upload size={13} strokeWidth={2.5}/>{label}
+          </button>
+        </>
+      );
+    }
+
+    function ClientsView({ clients, search, setSearch, onEdit, onDelete, avulsaOrders, onAddAvulsaOrder, onDeleteAvulsaOrder, statusLog, onImportClients, onDownloadClientsTemplate }) {
       const [confirmDelete, setConfirmDelete] = useState(null);
       const [newOrderFor,   setNewOrderFor]   = useState(null);
       const today = todayISO();
+
+      const getLastDelivery = (clientId) => {
+        const prefix = clientId + "|";
+        const dates = Object.entries(statusLog||{})
+          .filter(([k,v]) => k.startsWith(prefix) && v==="entregue")
+          .map(([k]) => k.slice(prefix.length));
+        if (!dates.length) return null;
+        return dates.sort().pop();
+      };
 
       const getAvulsaMeta = (c) => {
         const orders = avulsaOrders[c.id]||[];
@@ -1025,6 +1201,13 @@
 
       return (
         <div style={styles.section}>
+          <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+            <ImportXlsBtn label="Importar XLS" onFile={onImportClients}/>
+            <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
+              onClick={onDownloadClientsTemplate}>
+              <FileSpreadsheet size={13} strokeWidth={2.5}/>Baixar template
+            </button>
+          </div>
           <div style={styles.searchBar}>
             <Search size={16} color="#A89A8C"/>
             <input style={styles.searchInput} placeholder="Buscar por tutor, cão ou endereço…"
@@ -1052,6 +1235,7 @@
                         <div style={styles.clientMeta}>
                           {isAvulsa?getAvulsaMeta(c):`${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units?` · ${c.units} ${c.units===1?"unidade":"unidades"}`:""}`}
                         </div>
+                        {(()=>{const last=getLastDelivery(c.id);return last?(<div style={{fontSize:10.5,color:"#A89A8C",marginTop:2,display:"flex",alignItems:"center",gap:4}}><CheckCircle size={10} color="#5C8A5C"/>última entrega: {formatDateBR(last)}</div>):null;})()}
                       </div>
                       <div style={styles.rowActions}>
                         {isAvulsa&&(
@@ -1123,7 +1307,7 @@
 
 
     // ─── STOCK VIEW ───────────────────────────────────────────────────────────
-    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onUpdateShelfMinStock, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct, onUpdatePetiscoMinStock }) {
+    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onUpdateShelfMinStock, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct, onUpdatePetiscoMinStock, onEditClient, onImportShelf, onDownloadShelfTemplate, onImportPetisco, onDownloadPetiscoTemplate }) {
       const [tab, setTab]                       = useState("assinantes");
       const [expandedClient,  setExpandedClient]= useState(null);
       const [productionInputs,setProductionInputs]=useState({});
@@ -1170,7 +1354,17 @@
                           <div style={styles.balanceLabel}>em estoque</div>
                         </div>
                       </div>
-                      {isLow&&<div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B"/><span>Saldo baixo para a próxima entrega ({c.units||0} un.)</span></div>}
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:4,marginBottom:2}}>
+                        <div style={{fontSize:11.5,color:isLow?"#C0594B":"#8A7A6C",display:"flex",alignItems:"center",gap:5}}>
+                          {isLow&&<AlertTriangle size={12} color="#C0594B"/>}
+                          <span>Estoque mínimo: <strong>{c.units||0} un./entrega</strong></span>
+                        </div>
+                        <button style={{display:"flex",alignItems:"center",gap:4,background:"none",border:"1px solid #DDD0BE",borderRadius:7,padding:"3px 8px",fontSize:11,color:"#8A7A6C",cursor:"pointer"}}
+                          onClick={()=>onEditClient(c)}>
+                          <Edit3 size={10} color="#8A7A6C"/>Editar
+                        </button>
+                      </div>
+                      {isLow&&<div style={{...styles.lowStockWarning,marginTop:2}}><span>Saldo insuficiente para a próxima entrega — produza mais unidades.</span></div>}
                       <div style={styles.stockEntryRow}>
                         <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades produzidas"
                           value={productionInputs[c.id]||""} onChange={e=>setProductionInputs(p=>({...p,[c.id]:e.target.value}))}/>
@@ -1192,6 +1386,13 @@
 
           {tab==="avulsos"&&(
             <>
+              <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                <ImportXlsBtn label="Importar XLS" onFile={onImportShelf}/>
+                <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
+                  onClick={onDownloadShelfTemplate}>
+                  <FileSpreadsheet size={13} strokeWidth={2.5}/>Baixar template
+                </button>
+              </div>
               <div style={{marginBottom:14}}>
                 {showNewProduct?(
                   <div style={styles.newProductBox}>
@@ -1251,6 +1452,13 @@
 
           {tab==="petiscos"&&(
             <>
+              <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                <ImportXlsBtn label="Importar XLS" onFile={onImportPetisco}/>
+                <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
+                  onClick={onDownloadPetiscoTemplate}>
+                  <FileSpreadsheet size={13} strokeWidth={2.5}/>Baixar template
+                </button>
+              </div>
               <div style={{marginBottom:14}}>
                 {showNewPetisco?(
                   <div style={styles.newProductBox}>
@@ -1605,6 +1813,7 @@
       const [isSubscriber,    setIsSubscriber]    = useState(initIsSubscriber);
       const [frequency,       setFrequency]       = useState(initial?.frequency&&initial.frequency!=="avulsa"?initial.frequency:"semanal");
       const [nextDate,        setNextDate]        = useState(initial?.nextDate ||todayISO());
+      const [firstDate,       setFirstDate]       = useState(todayISO());
       const [units,           setUnits]           = useState(initial?.units?String(initial.units):"");
       const [notes,           setNotes]           = useState(initial?.notes    ||"");
       const [labelFile,       setLabelFile]       = useState(initial?.labelFile||"");
@@ -1628,6 +1837,7 @@
           nextDate: isSubscriber?nextDate:(initial?.nextDate||null),
           units:unitsNum, notes,
           labelFile:labelFile.trim(),
+          firstDate: (!initial&&!isSubscriber&&firstDate)?firstDate:undefined,
         });
         setSaving(false);
       };
@@ -1679,6 +1889,14 @@
               {isSubscriber&&(
                 <Field label="Próxima entrega">
                   <input type="date" style={styles.input} value={nextDate} onChange={e=>setNextDate(e.target.value)}/>
+                </Field>
+              )}
+              {!isSubscriber&&!initial&&(
+                <Field label="Primeira data de entrega">
+                  <input type="date" style={styles.input} value={firstDate} onChange={e=>setFirstDate(e.target.value)}/>
+                  <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>
+                    Você pode adicionar mais datas a qualquer momento no card do cliente.
+                  </p>
                 </Field>
               )}
               <Field label={isSubscriber?"Unidades por entrega":"Unidades por entrega (opcional)"}>
