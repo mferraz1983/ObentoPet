@@ -4,125 +4,134 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ObentōPet — Entregas</title>
-
-  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.3/babel.min.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
-
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #FDF8F2; }
-    input:focus, textarea:focus, select:focus { outline: 2px solid #B8825A; outline-offset: 1px; }
-    button:focus-visible { outline: 2px solid #B8825A; outline-offset: 2px; }
-    button { font-family: inherit; cursor: pointer; }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @media print {
-      header, .no-print { display: none !important; }
-      body { background: #fff !important; }
-      .print-area { display: block !important; }
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "react":       "https://esm.sh/react@18?dev",
+      "react-dom/client": "https://esm.sh/react-dom@18/client?dev",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0"
     }
-  </style>
+  }
+  </script>
 </head>
 <body>
   <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback } = React;
-    const { createClient } = supabase;
-
-    // ─── Ícones SVG inline (sem dependência de CDN) ───────────────────────────────
-    function Ico({ size = 16, color = "currentColor", sw = 2, style, children }) {
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-          stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={style}>
-          {children}
-        </svg>
-      );
-    }
-    const Plus         = (p) => <Ico {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ico>;
-    const Check        = (p) => <Ico {...p}><polyline points="20 6 9 17 4 12"/></Ico>;
-    const Clock        = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Ico>;
-    const Truck        = (p) => <Ico {...p}><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></Ico>;
-    const PawPrint     = (p) => <Ico {...p}><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/><circle cx="4" cy="8" r="2"/></Ico>;
-    const MapPin       = (p) => <Ico {...p}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></Ico>;
-    const X            = (p) => <Ico {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>;
-    const Search       = (p) => <Ico {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Ico>;
-    const ChevronLeft  = (p) => <Ico {...p}><polyline points="15 18 9 12 15 6"/></Ico>;
-    const ChevronRight = (p) => <Ico {...p}><polyline points="9 18 15 12 9 6"/></Ico>;
-    const Trash2       = (p) => <Ico {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Ico>;
-    const Edit3        = (p) => <Ico {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></Ico>;
-    const Package      = (p) => <Ico {...p}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></Ico>;
-    const ArrowUpCircle   = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></Ico>;
-    const ArrowDownCircle = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></Ico>;
-    const AlertTriangle= (p) => <Ico {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Ico>;
-    const Cookie       = (p) => <Ico {...p}><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></Ico>;
-    const CheckCircle  = (p) => <Ico {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Ico>;
-    const RefreshCw    = (p) => <Ico {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></Ico>;
+  <script type="text/babel" data-type="module">
+    import { useState, useEffect, useMemo } from "react";
+    import { createRoot } from "react-dom/client";
+    import { createClient } from "@supabase/supabase-js";
+    import {
+      Plus, Check, Clock, Truck, PawPrint, MapPin, X, Search,
+      ChevronLeft, ChevronRight, Trash2, Edit3, Package,
+      ArrowDownCircle, ArrowUpCircle, AlertTriangle, Cookie, CheckCircle, Calendar, Printer,
+    } from "lucide-react";
 
     // ─── Supabase ────────────────────────────────────────────────────────────────
-    const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
+    const SUPABASE_URL = "https://jyrudfwdwkwynolpbni.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A";
-    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
-    function todayISO() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    }
+    const todayISO     = () => new Date().toISOString().split("T")[0];
     const weekdayNames = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
     const weekdayShort = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
-    function dateToISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-    function formatDateBR(iso) { if(!iso) return "—"; const [,m,d] = iso.split("-"); return `${d}/${m}`; }
-    function addDays(iso, days) { const d = new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return dateToISO(d); }
 
-    const dbToClient = (r) => ({ id:r.id, tutor:r.tutor, dog:r.dog, address:r.address, frequency:r.frequency, nextDate:r.next_date, units:r.units, notes:r.notes||"", phone:r.phone||"" });
-    const clientToDb = (data, id) => ({ id, tutor:data.tutor, dog:data.dog, address:data.address, frequency:data.frequency, next_date:data.nextDate, units:data.units, notes:data.notes, phone:data.phone||"" });
-
-    function getOccurrencesInRange(client, startISO, endISO) {
-      const out = [];
-      if (!client.nextDate) return out;
-      if (client.frequency === "avulsa") {
-        if (client.nextDate >= startISO && client.nextDate <= endISO) out.push(client.nextDate);
-        return out;
-      }
-      if (client.frequency === "mensal") {
-        let cur = new Date(client.nextDate+"T00:00:00");
-        const start = new Date(startISO+"T00:00:00"), end = new Date(endISO+"T00:00:00");
-        while (cur > start) { const p = new Date(cur); p.setMonth(p.getMonth()-1); cur = p; }
-        while (cur <= end)  { if (cur >= start) out.push(dateToISO(cur)); const n = new Date(cur); n.setMonth(n.getMonth()+1); cur = n; }
-        return out;
-      }
-      const step = client.frequency === "semanal" ? 7 : 14;
-      let cur = client.nextDate;
-      while (cur > startISO) cur = addDays(cur,-step);
-      while (cur <= endISO) { if (cur >= startISO) out.push(cur); cur = addDays(cur,step); }
-      return out;
+    function dateToISO(d)       { return d.toISOString().split("T")[0]; }
+    function formatDateBR(iso)  { const [,m,d] = iso.split("-"); return `${d}/${m}`; }
+    function addDays(iso, days) {
+      const d = new Date(iso + "T00:00:00");
+      d.setDate(d.getDate() + days);
+      return dateToISO(d);
     }
 
-    const freqLabel = { semanal:"Semanal", quinzenal:"Quinzenal", mensal:"Mensal", avulsa:"Avulsa" };
-    const statusCfg = {
-      preparando: { label:"Preparando", color:"#B8825A", Icon:Clock },
-      a_caminho:  { label:"A caminho",  color:"#3E7CB1", Icon:Truck },
-      entregue:   { label:"Entregue",   color:"#5C8A5C", Icon:Check },
+    const dbToClient = (r) => ({
+      id: r.id, tutor: r.tutor, dog: r.dog, address: r.address,
+      frequency: r.frequency, nextDate: r.next_date,
+      units: r.units, notes: r.notes || "",
+      labelFile: r.label_file || "",
+    });
+    const clientToDb = (data, id) => ({
+      id, tutor: data.tutor, dog: data.dog, address: data.address,
+      frequency: data.frequency, next_date: data.nextDate,
+      units: data.units, notes: data.notes,
+      label_file: data.labelFile || null,
+    });
+
+    // ─── Ocorrências ─────────────────────────────────────────────────────────────
+    function getOccurrencesInRange(client, startISO, endISO, clientReschedules = []) {
+      if (client.frequency === "avulsa") return [];
+
+      const rescheduledOriginals = new Set(clientReschedules.map(r => r.original_date));
+      const rawOut = [];
+
+      if (client.nextDate) {
+        if (client.frequency === "mensal") {
+          let cur = new Date(client.nextDate + "T00:00:00");
+          const start = new Date(startISO + "T00:00:00");
+          const end   = new Date(endISO   + "T00:00:00");
+          while (cur > start) { const p = new Date(cur); p.setMonth(p.getMonth()-1); cur = p; }
+          while (cur <= end)  {
+            if (cur >= start) {
+              const d = dateToISO(cur);
+              if (!rescheduledOriginals.has(d)) rawOut.push(d);
+            }
+            const n = new Date(cur); n.setMonth(n.getMonth()+1); cur = n;
+          }
+        } else {
+          const step = client.frequency === "semanal" ? 7 : 14;
+          let cur = client.nextDate;
+          while (cur > startISO) cur = addDays(cur, -step);
+          while (cur <= endISO)  {
+            if (cur >= startISO && !rescheduledOriginals.has(cur)) rawOut.push(cur);
+            cur = addDays(cur, step);
+          }
+        }
+      }
+
+      const result = new Set(rawOut);
+      clientReschedules.forEach(r => {
+        if (r.new_date >= startISO && r.new_date <= endISO) result.add(r.new_date);
+      });
+      return Array.from(result).sort();
+    }
+
+    // ─── Label helpers ────────────────────────────────────────────────────────────
+    const PASTA_ETIQUETAS = "C:\\Users\\ObentoPet\\OneDrive\\ObentōPet\\OPERAÇÃO\\ETIQUETAS & RÓTULOS\\ELGIN\\ENDEREÇOS";
+
+    function normLabel(s) {
+      return (s || "").toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s-]/g, "").trim();
+    }
+
+    function suggestLabelFile(dog, tutor, allClients = [], editingId = null) {
+      const base = normLabel(dog);
+      if (!base) return "";
+      const hasDuplicate = allClients.some(c => c.id !== editingId && normLabel(c.dog) === base);
+      if (hasDuplicate) {
+        const initials = (tutor || "").trim().split(/\s+/).map(w => normLabel(w)[0]).filter(Boolean).join("");
+        return initials ? `${base} - ${initials}` : base;
+      }
+      return base;
+    }
+
+    const frequencyLabel = { semanal:"Semanal", quinzenal:"Quinzenal", mensal:"Mensal", avulsa:"Avulsa" };
+    const statusConfig   = {
+      preparando: { label:"Preparando", color:"#B8825A", icon:Clock },
+      a_caminho:  { label:"A caminho",  color:"#3E7CB1", icon:Truck },
+      entregue:   { label:"Entregue",   color:"#5C8A5C", icon:Check },
     };
 
     // ─── Toast ────────────────────────────────────────────────────────────────────
-    function Toast({ msg, type="success", onDismiss }) {
-      useEffect(() => { const t = setTimeout(onDismiss,4000); return ()=>clearTimeout(t); }, []);
+    function Toast({ message, onDismiss }) {
+      useEffect(() => { const t = setTimeout(onDismiss, 3500); return () => clearTimeout(t); }, [onDismiss]);
       return (
-        <div onClick={onDismiss} style={{
-          position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)",
-          display:"flex", alignItems:"center", gap:8,
-          background: type==="error" ? "#C0594B" : "#5C8A5C",
-          color:"#fff", fontSize:14, fontWeight:600, padding:"12px 20px",
-          borderRadius:12, boxShadow:"0 4px 16px rgba(0,0,0,0.2)",
-          zIndex:200, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"calc(100vw - 32px)"
-        }}>
-          {type==="error" ? <AlertTriangle size={16} color="#fff" sw={2.5}/> : <CheckCircle size={16} color="#fff" sw={2.5}/>}
-          <span>{msg}</span>
+        <div style={styles.toast} onClick={onDismiss}>
+          <CheckCircle size={16} color="#fff" strokeWidth={2.5} />
+          <span>{message}</span>
         </div>
       );
     }
@@ -131,8 +140,16 @@
     function App() {
       const [clients,            setClients]            = useState([]);
       const [loaded,             setLoaded]             = useState(false);
-      const [refreshing,         setRefreshing]         = useState(false);
       const [statusLog,          setStatusLog]          = useState({});
+      const [view,               setView]               = useState("hoje");
+      const [weekOffset,         setWeekOffset]         = useState(0);
+      const [search,             setSearch]             = useState("");
+      const [showForm,           setShowForm]           = useState(false);
+      const [editingClient,      setEditingClient]      = useState(null);
+      const [toast,              setToast]              = useState(null);
+      const [reschedules,        setReschedules]        = useState({});
+      const [rescheduleModal,    setRescheduleModal]    = useState(null);
+      const [avulsaOrders,       setAvulsaOrders]       = useState({});
       const [subscriberStock,    setSubscriberStock]    = useState({});
       const [subscriberStockLog, setSubscriberStockLog] = useState({});
       const [shelfProducts,      setShelfProducts]      = useState([]);
@@ -140,867 +157,834 @@
       const [deliveryDeduction,  setDeliveryDeduction]  = useState({});
       const [petiscoProducts,    setPetiscoProducts]    = useState([]);
       const [petiscoStockLog,    setPetiscoStockLog]    = useState({});
-      const [view,               setView]               = useState("hoje");
-      const [weekOffset,         setWeekOffset]         = useState(0);
-      const [search,             setSearch]             = useState("");
-      const [showForm,           setShowForm]           = useState(false);
-      const [editingClient,      setEditingClient]      = useState(null);
-      const [toast,              setToast]              = useState(null);
 
-      const showToast = useCallback((msg, type="success") => setToast({msg,type}), []);
+      const showToast = (msg) => setToast(msg);
 
-      // ── Carrega dados ─────────────────────────────────────────────────────────
-      const loadData = useCallback(async (silent=false) => {
-        if (silent) setRefreshing(true); else setLoaded(false);
-        try {
-          const [
-            {data:cData,  error:e1}, {data:sData,  error:e2}, {data:ssData, error:e3},
-            {data:sslData,error:e4}, {data:spData, error:e5}, {data:splData,error:e6},
-            {data:ddData, error:e7}, {data:ppData, error:e8}, {data:pplData,error:e9},
-          ] = await Promise.all([
-            db.from("clients").select("*"),
-            db.from("status_log").select("*"),
-            db.from("subscriber_stock").select("*"),
-            db.from("subscriber_stock_log").select("*").order("ts",{ascending:false}),
-            db.from("shelf_products").select("*"),
-            db.from("shelf_stock_log").select("*").order("ts",{ascending:false}),
-            db.from("delivery_deduction").select("*"),
-            db.from("snack_products").select("*"),
-            db.from("snack_stock_log").select("*").order("ts",{ascending:false}),
-          ]);
-          if (e1||e2||e3||e4||e5||e6||e7||e8||e9) throw new Error("Erro Supabase");
-
-          setClients((cData||[]).map(dbToClient));
-
-          const sl={};  (sData||[]).forEach(r=>{sl[r.key]=r.status;}); setStatusLog(sl);
-          const ss={};  (ssData||[]).forEach(r=>{ss[r.client_id]=r.balance;}); setSubscriberStock(ss);
-
-          const ssl={};
-          (sslData||[]).forEach(r=>{
-            if(!ssl[r.client_id]) ssl[r.client_id]=[];
-            if(ssl[r.client_id].length<100) ssl[r.client_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
-          });
-          setSubscriberStockLog(ssl);
-
-          setShelfProducts((spData||[]).map(p=>({id:p.id,name:p.name,balance:p.balance})));
-
-          const spl={};
-          (splData||[]).forEach(r=>{
-            if(!spl[r.product_id]) spl[r.product_id]=[];
-            if(spl[r.product_id].length<100) spl[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
-          });
-          setShelfStockLog(spl);
-
-          const dd={};  (ddData||[]).forEach(r=>{dd[r.key]={productId:r.product_id,amount:r.amount};}); setDeliveryDeduction(dd);
-          setPetiscoProducts((ppData||[]).map(p=>({id:p.id,name:p.name,balance:p.balance})));
-
-          const ppl={};
-          (pplData||[]).forEach(r=>{
-            if(!ppl[r.product_id]) ppl[r.product_id]=[];
-            if(ppl[r.product_id].length<100) ppl[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
-          });
-          setPetiscoStockLog(ppl);
-
-          if (silent) showToast("Dados atualizados!");
-        } catch(e) {
-          console.error(e);
-          showToast("Erro ao conectar. Verifique a internet.", "error");
-        } finally {
-          setLoaded(true);
-          setRefreshing(false);
-        }
-      }, [showToast]);
-
-      useEffect(() => { loadData(); }, [loadData]);
-
-      // Recarrega quando o usuário volta para a aba/app (uso simultâneo)
+      // ── Load all from Supabase ─────────────────────────────────────────────────
       useEffect(() => {
-        const fn = () => { if(!document.hidden) loadData(true); };
-        document.addEventListener("visibilitychange", fn);
-        return () => document.removeEventListener("visibilitychange", fn);
-      }, [loadData]);
+        (async () => {
+          try {
+            const [
+              { data: cData },
+              { data: sData },
+              { data: ssData },
+              { data: sslData },
+              { data: spData },
+              { data: splData },
+              { data: ddData },
+              { data: ppData },
+              { data: pplData },
+              { data: rsData },
+              { data: aoData },
+            ] = await Promise.all([
+              supabase.from("clients").select("*"),
+              supabase.from("status_log").select("*"),
+              supabase.from("subscriber_stock").select("*"),
+              supabase.from("subscriber_stock_log").select("*").order("ts", { ascending: false }),
+              supabase.from("shelf_products").select("*"),
+              supabase.from("shelf_stock_log").select("*").order("ts", { ascending: false }),
+              supabase.from("delivery_deduction").select("*"),
+              supabase.from("snack_products").select("*"),
+              supabase.from("snack_stock_log").select("*").order("ts", { ascending: false }),
+              supabase.from("delivery_reschedules").select("*"),
+              supabase.from("avulsa_orders").select("*").order("date", { ascending: true }),
+            ]);
 
-      // ── Clientes ──────────────────────────────────────────────────────────────
+            if (cData?.length) setClients(cData.map(dbToClient));
+
+            const sl = {};
+            (sData || []).forEach(r => { sl[r.key] = r.status; });
+            setStatusLog(sl);
+
+            const ss = {};
+            (ssData || []).forEach(r => { ss[r.client_id] = r.balance; });
+            setSubscriberStock(ss);
+
+            const ssl = {};
+            (sslData || []).forEach(r => {
+              if (!ssl[r.client_id]) ssl[r.client_id] = [];
+              if (ssl[r.client_id].length < 100)
+                ssl[r.client_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+            });
+            setSubscriberStockLog(ssl);
+
+            setShelfProducts((spData || []).map(p => ({ id: p.id, name: p.name, balance: p.balance })));
+
+            const spl = {};
+            (splData || []).forEach(r => {
+              if (!spl[r.product_id]) spl[r.product_id] = [];
+              if (spl[r.product_id].length < 100)
+                spl[r.product_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+            });
+            setShelfStockLog(spl);
+
+            const dd = {};
+            (ddData || []).forEach(r => { dd[r.key] = { productId: r.product_id, amount: r.amount }; });
+            setDeliveryDeduction(dd);
+
+            setPetiscoProducts((ppData || []).map(p => ({ id: p.id, name: p.name, balance: p.balance })));
+
+            const ppl = {};
+            (pplData || []).forEach(r => {
+              if (!ppl[r.product_id]) ppl[r.product_id] = [];
+              if (ppl[r.product_id].length < 100)
+                ppl[r.product_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+            });
+            setPetiscoStockLog(ppl);
+
+            const rs = {};
+            (rsData || []).forEach(r => {
+              if (!rs[r.client_id]) rs[r.client_id] = [];
+              if (!rs[r.client_id].find(e => e.original_date === r.original_date))
+                rs[r.client_id].push({ original_date: r.original_date, new_date: r.new_date });
+            });
+            setReschedules(rs);
+
+            const ao = {};
+            (aoData || []).forEach(r => {
+              if (!ao[r.client_id]) ao[r.client_id] = [];
+              ao[r.client_id].push({ id: r.id, date: r.date });
+            });
+            setAvulsaOrders(ao);
+
+          } catch (e) {
+            console.error("Erro ao carregar dados:", e);
+          } finally {
+            setLoaded(true);
+          }
+        })();
+      }, []);
+
+      // ── Clientes ───────────────────────────────────────────────────────────────
       const saveClient = async (data) => {
         const isEditing = !!editingClient;
-        const id = isEditing ? editingClient.id : "c"+Date.now();
+        const id = isEditing ? editingClient.id : "c" + Date.now();
         const row = clientToDb(data, id);
         if (isEditing) {
-          const {error} = await db.from("clients").update(row).eq("id",id);
-          if (error) throw new Error(error.message);
-          setClients(prev => prev.map(c => c.id===id ? {...c,...data} : c));
+          await supabase.from("clients").update(row).eq("id", id);
+          setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
         } else {
-          const {error} = await db.from("clients").insert(row);
-          if (error) throw new Error(error.message);
-          setClients(prev => [...prev,{...data,id}]);
+          await supabase.from("clients").insert(row);
+          setClients(prev => [...prev, { ...data, id }]);
           if (data.frequency !== "avulsa") {
-            await db.from("subscriber_stock").upsert({client_id:id,balance:0});
-            setSubscriberStock(prev => ({...prev,[id]:0}));
+            await supabase.from("subscriber_stock").upsert({ client_id: id, balance: 0 });
+            setSubscriberStock(prev => ({ ...prev, [id]: 0 }));
           }
         }
-        setShowForm(false); setEditingClient(null);
+        setShowForm(false);
+        setEditingClient(null);
         showToast(isEditing ? `${data.dog} atualizado!` : `${data.dog} adicionado com sucesso!`);
       };
 
       const deleteClient = async (id) => {
-        const {error} = await db.from("clients").delete().eq("id",id);
-        if (error) { showToast("Erro ao excluir cliente.","error"); return; }
-        await db.from("subscriber_stock").delete().eq("client_id",id);
-        await db.from("subscriber_stock_log").delete().eq("client_id",id);
-        setClients(prev => prev.filter(c=>c.id!==id));
-        setSubscriberStock(prev => { const n={...prev}; delete n[id]; return n; });
-        setSubscriberStockLog(prev => { const n={...prev}; delete n[id]; return n; });
+        await supabase.from("clients").delete().eq("id", id);
+        setClients(prev => prev.filter(c => c.id !== id));
       };
 
-      // ── Status ────────────────────────────────────────────────────────────────
+      // ── Pedidos avulsos ────────────────────────────────────────────────────────
+      const addAvulsaOrder = async (clientId, date) => {
+        const id = "ao" + Date.now();
+        await supabase.from("avulsa_orders").insert({ id, client_id: clientId, date });
+        setAvulsaOrders(prev => {
+          const list = [...(prev[clientId] || []), { id, date }];
+          list.sort((a, b) => a.date.localeCompare(b.date));
+          return { ...prev, [clientId]: list };
+        });
+        showToast("Pedido adicionado!");
+      };
+
+      const deleteAvulsaOrder = async (clientId, orderId) => {
+        await supabase.from("avulsa_orders").delete().eq("id", orderId);
+        setAvulsaOrders(prev => ({
+          ...prev,
+          [clientId]: (prev[clientId] || []).filter(o => o.id !== orderId),
+        }));
+        showToast("Pedido removido.");
+      };
+
+      // ── Status de entrega ─────────────────────────────────────────────────────
       const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
 
-      const setStatus = (clientId, date, newStatus, deduction) => {
+      const setStatus = (clientId, date, status, deduction) => {
         const key = `${clientId}|${date}`;
-        const wasEntregue  = (statusLog[key]||"preparando") === "entregue";
-        const willEntregue = newStatus === "entregue";
-        const client = clients.find(c=>c.id===clientId);
+        const wasEntregue  = getStatus(clientId, date) === "entregue";
+        const willEntregue = status === "entregue";
+        const client = clients.find(c => c.id === clientId);
 
-        setStatusLog(prev => ({...prev,[key]:newStatus}));
-        db.from("status_log").upsert({key, status:newStatus});
+        setStatusLog(prev => ({ ...prev, [key]: status }));
+        supabase.from("status_log").upsert({ key, status });
 
         if (!client) return;
+
         if (client.frequency === "avulsa") {
           if (!wasEntregue && willEntregue && deduction?.productId) {
             applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
-            setDeliveryDeduction(prev => ({...prev,[key]:deduction}));
-            db.from("delivery_deduction").upsert({key, product_id:deduction.productId, amount:deduction.amount});
+            setDeliveryDeduction(prev => ({ ...prev, [key]: deduction }));
+            supabase.from("delivery_deduction").upsert({ key, product_id: deduction.productId, amount: deduction.amount });
           }
           if (wasEntregue && !willEntregue) {
-            setDeliveryDeduction(prev => {
-              const ded = prev[key];
-              if (ded?.productId) applyShelfDelta(ded.productId, ded.amount, date, "Estorno");
-              const n={...prev}; delete n[key]; return n;
-            });
-            db.from("delivery_deduction").delete().eq("key",key);
+            const prev = deliveryDeduction[key];
+            if (prev?.productId) applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
+            setDeliveryDeduction(p => { const n = { ...p }; delete n[key]; return n; });
+            supabase.from("delivery_deduction").delete().eq("key", key);
           }
         } else {
-          const amt = client.units||0;
-          if (!wasEntregue && willEntregue)  applySubscriberDelta(clientId,-amt,date,"Entrega realizada");
-          if (wasEntregue  && !willEntregue) applySubscriberDelta(clientId, amt,date,"Estorno");
+          const amount = client.units || 0;
+          if (!wasEntregue && willEntregue)  applySubscriberDelta(clientId, -amount, date, "Entrega realizada");
+          if (wasEntregue  && !willEntregue) applySubscriberDelta(clientId,  amount, date, "Estorno (status revertido)");
         }
       };
 
-      // ── Estoque assinantes (setState funcional evita closure desatualizada) ──
+      // ── Estoque assinantes ────────────────────────────────────────────────────
       const applySubscriberDelta = (clientId, delta, date, reason) => {
+        const newBalance = (subscriberStock[clientId] || 0) + delta;
         const ts = Date.now();
-        setSubscriberStock(prev => {
-          const newBal = (prev[clientId]||0)+delta;
-          db.from("subscriber_stock").upsert({client_id:clientId,balance:newBal});
-          return {...prev,[clientId]:newBal};
-        });
-        setSubscriberStockLog(prev => ({...prev,[clientId]:[{date,amount:delta,reason,ts},...(prev[clientId]||[])].slice(0,100)}));
-        db.from("subscriber_stock_log").insert({client_id:clientId,date,amount:delta,reason,ts});
+        setSubscriberStock(prev => ({ ...prev, [clientId]: newBalance }));
+        setSubscriberStockLog(prev => ({
+          ...prev,
+          [clientId]: [{ date, amount: delta, reason, ts }, ...(prev[clientId] || [])].slice(0, 100),
+        }));
+        supabase.from("subscriber_stock").upsert({ client_id: clientId, balance: newBalance });
+        supabase.from("subscriber_stock_log").insert({ client_id: clientId, date, amount: delta, reason, ts });
       };
 
       const addSubscriberProduction = (clientId, amount) => {
-        if (!amount||amount<=0) return;
-        applySubscriberDelta(clientId,amount,todayISO(),"Produção adicionada");
+        if (!amount || amount <= 0) return;
+        applySubscriberDelta(clientId, amount, todayISO(), "Produção da semana");
       };
 
-      // ── Estoque prateleira ────────────────────────────────────────────────────
+      // ── Estoque avulsos (prateleira) ──────────────────────────────────────────
       const applyShelfDelta = (productId, delta, date, reason) => {
+        const product = shelfProducts.find(p => p.id === productId);
+        const newBalance = (product?.balance || 0) + delta;
         const ts = Date.now();
-        setShelfProducts(prev => {
-          const p = prev.find(x=>x.id===productId);
-          const newBal = (p?.balance||0)+delta;
-          db.from("shelf_products").update({balance:newBal}).eq("id",productId);
-          return prev.map(x => x.id===productId ? {...x,balance:newBal} : x);
-        });
-        setShelfStockLog(prev => ({...prev,[productId]:[{date,amount:delta,reason,ts},...(prev[productId]||[])].slice(0,100)}));
-        db.from("shelf_stock_log").insert({product_id:productId,date,amount:delta,reason,ts});
+        setShelfProducts(prev => prev.map(p => p.id === productId ? { ...p, balance: newBalance } : p));
+        setShelfStockLog(prev => ({
+          ...prev,
+          [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
+        }));
+        supabase.from("shelf_products").update({ balance: newBalance }).eq("id", productId);
+        supabase.from("shelf_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
       };
 
       const addShelfProduct = async (name) => {
-        const id = "p"+Date.now();
-        const {error} = await db.from("shelf_products").insert({id,name,balance:0});
-        if (error) { showToast("Erro ao criar produto.","error"); return; }
-        setShelfProducts(prev => [...prev,{id,name,balance:0}]);
+        const id = "p" + Date.now();
+        await supabase.from("shelf_products").insert({ id, name, balance: 0 });
+        setShelfProducts(prev => [...prev, { id, name, balance: 0 }]);
+        return id;
       };
-      const addShelfStockEntry = (productId, amount) => { if(amount>0) applyShelfDelta(productId,amount,todayISO(),"Entrada de estoque"); };
+
+      const addShelfStockEntry = (productId, amount) => {
+        if (!amount || amount <= 0) return;
+        applyShelfDelta(productId, amount, todayISO(), "Entrada de estoque");
+      };
+
       const deleteShelfProduct = async (productId) => {
-        const {error} = await db.from("shelf_products").delete().eq("id",productId);
-        if (error) { showToast("Erro ao excluir.","error"); return; }
-        setShelfProducts(prev => prev.filter(p=>p.id!==productId));
+        await supabase.from("shelf_products").delete().eq("id", productId);
+        setShelfProducts(prev => prev.filter(p => p.id !== productId));
       };
 
       // ── Estoque petiscos ──────────────────────────────────────────────────────
       const applyPetiscoDelta = (productId, delta, date, reason) => {
+        const product = petiscoProducts.find(p => p.id === productId);
+        const newBalance = (product?.balance || 0) + delta;
         const ts = Date.now();
-        setPetiscoProducts(prev => {
-          const p = prev.find(x=>x.id===productId);
-          const newBal = (p?.balance||0)+delta;
-          db.from("snack_products").update({balance:newBal}).eq("id",productId);
-          return prev.map(x => x.id===productId ? {...x,balance:newBal} : x);
-        });
-        setPetiscoStockLog(prev => ({...prev,[productId]:[{date,amount:delta,reason,ts},...(prev[productId]||[])].slice(0,100)}));
-        db.from("snack_stock_log").insert({product_id:productId,date,amount:delta,reason,ts});
+        setPetiscoProducts(prev => prev.map(p => p.id === productId ? { ...p, balance: newBalance } : p));
+        setPetiscoStockLog(prev => ({
+          ...prev,
+          [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
+        }));
+        supabase.from("snack_products").update({ balance: newBalance }).eq("id", productId);
+        supabase.from("snack_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
       };
 
       const addPetiscoProduct = async (name) => {
-        const id = "pet"+Date.now();
-        const {error} = await db.from("snack_products").insert({id,name,balance:0});
-        if (error) { showToast("Erro ao criar petisco.","error"); return; }
-        setPetiscoProducts(prev => [...prev,{id,name,balance:0}]);
-      };
-      const addPetiscoStockEntry = (productId, amount) => { if(amount>0) applyPetiscoDelta(productId,amount,todayISO(),"Produção adicionada"); };
-      const deletePetiscoProduct = async (productId) => {
-        const {error} = await db.from("snack_products").delete().eq("id",productId);
-        if (error) { showToast("Erro ao excluir.","error"); return; }
-        setPetiscoProducts(prev => prev.filter(p=>p.id!==productId));
+        const id = "pet" + Date.now();
+        await supabase.from("snack_products").insert({ id, name, balance: 0 });
+        setPetiscoProducts(prev => [...prev, { id, name, balance: 0 }]);
+        return id;
       };
 
-      // ── Calendário ───────────────────────────────────────────────────────────
+      const addPetiscoStockEntry = (productId, amount) => {
+        if (!amount || amount <= 0) return;
+        applyPetiscoDelta(productId, amount, todayISO(), "Produção adicionada");
+      };
+
+      const deletePetiscoProduct = async (productId) => {
+        await supabase.from("snack_products").delete().eq("id", productId);
+        setPetiscoProducts(prev => prev.filter(p => p.id !== productId));
+      };
+
+      // ── Reagendamento ──────────────────────────────────────────────────────────
+      const rescheduleDelivery = async (clientId, originalDate, newDate, scope, orderId) => {
+        const client = clients.find(c => c.id === clientId);
+        if (!client || !newDate || newDate === originalDate) return;
+
+        if (client.frequency === "avulsa") {
+          if (orderId) {
+            await supabase.from("avulsa_orders").update({ date: newDate }).eq("id", orderId);
+            setAvulsaOrders(prev => {
+              const list = (prev[clientId] || []).map(o => o.id === orderId ? { ...o, date: newDate } : o);
+              list.sort((a, b) => a.date.localeCompare(b.date));
+              return { ...prev, [clientId]: list };
+            });
+          } else {
+            await supabase.from("clients").update({ next_date: newDate }).eq("id", clientId);
+            setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextDate: newDate } : c));
+          }
+        } else if (scope === "only") {
+          const id = `rs_${clientId}_${originalDate}`;
+          await supabase.from("delivery_reschedules").upsert({
+            id, client_id: clientId, original_date: originalDate, new_date: newDate,
+          });
+          setReschedules(prev => {
+            const existing = (prev[clientId] || []).filter(r => r.original_date !== originalDate);
+            return { ...prev, [clientId]: [...existing, { original_date: originalDate, new_date: newDate }] };
+          });
+        } else {
+          await supabase.from("clients").update({ next_date: newDate }).eq("id", clientId);
+          setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextDate: newDate } : c));
+          const id = `rs_${clientId}_${originalDate}`;
+          supabase.from("delivery_reschedules").delete().eq("id", id);
+          setReschedules(prev => ({
+            ...prev,
+            [clientId]: (prev[clientId] || []).filter(r => r.original_date !== originalDate),
+          }));
+        }
+
+        setRescheduleModal(null);
+        showToast(`Entrega de ${client.dog} reagendada!`);
+      };
+
+      const openReschedule = (client, date, orderId) =>
+        setRescheduleModal({ clientId: client.id, date, dog: client.dog, frequency: client.frequency, orderId });
+
+      // ── Geração do .bat de etiquetas ─────────────────────────────────────────
+      const generateBat = (date, items) => {
+        const comEtiqueta = items.filter(({ client }) => client.labelFile);
+        const semEtiqueta = items.filter(({ client }) => !client.labelFile);
+
+        const lines = [
+          "@echo off",
+          "chcp 65001 > nul",
+          `SET "BARTENDER=C:\\Program Files (x86)\\Seagull\\BarTender UltraLite\\BarTend.exe"`,
+          `SET "PASTA=${PASTA_ETIQUETAS}"`,
+          "",
+          `echo ============================================`,
+          `echo  ObentoPet - Etiquetas ${date}`,
+          `echo  Total: ${comEtiqueta.length} etiqueta(s)`,
+          `echo ============================================`,
+          "",
+        ];
+
+        if (comEtiqueta.length === 0) {
+          lines.push("echo Nenhuma etiqueta configurada para este dia.");
+        } else {
+          comEtiqueta.forEach(({ client }) => {
+            lines.push(`echo Imprimindo: ${client.dog} - ${client.tutor}...`);
+            lines.push(`"%BARTENDER%" /f="%PASTA%\\${client.labelFile}.btw" /p /x`);
+            lines.push("");
+          });
+          lines.push(`echo ============================================`);
+          lines.push(`echo  Todas as etiquetas enviadas!`);
+          if (semEtiqueta.length > 0) {
+            lines.push("");
+            lines.push(`echo ATENCAO: ${semEtiqueta.length} entrega(s) sem etiqueta configurada:`);
+            semEtiqueta.forEach(({ client }) => {
+              lines.push(`echo   - ${client.dog} (${client.tutor})`);
+            });
+          }
+        }
+
+        lines.push("echo ============================================");
+        lines.push("pause");
+
+        const content = lines.join("\r\n");
+        const blob = new Blob(["\uFEFF" + content], { type: "text/plain;charset=utf-8" });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href     = url;
+        a.download = `etiquetas_${date}.bat`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("Arquivo .bat gerado!");
+      };
+
+      // ── Semana ────────────────────────────────────────────────────────────────
       const weekStart = useMemo(() => {
-        const d = new Date(); d.setDate(d.getDate()+weekOffset*7-d.getDay()); return dateToISO(d);
+        const d = new Date();
+        d.setDate(d.getDate() + weekOffset * 7 - d.getDay());
+        return dateToISO(d);
       }, [weekOffset]);
-      const weekDays = useMemo(() => Array.from({length:7},(_,i)=>addDays(weekStart,i)), [weekStart]);
+
+      const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
       const todayDeliveries = useMemo(() => {
         const t = todayISO();
-        return clients.flatMap(c=>getOccurrencesInRange(c,t,t).map(()=>({client:c,date:t})))
-          .sort((a,b)=>a.client.tutor.localeCompare(b.client.tutor));
-      }, [clients]);
+
+        const recurring = clients
+          .filter(c => c.frequency !== "avulsa")
+          .flatMap(c =>
+            getOccurrencesInRange(c, t, t, reschedules[c.id] || []).map(date => ({ client: c, date, orderId: null }))
+          );
+
+        const avulsa = clients
+          .filter(c => c.frequency === "avulsa")
+          .flatMap(c => {
+            const orders = avulsaOrders[c.id];
+            if (orders && orders.length > 0) {
+              return orders.filter(o => o.date === t).map(o => ({ client: c, date: t, orderId: o.id }));
+            }
+            if (c.nextDate === t) return [{ client: c, date: t, orderId: null }];
+            return [];
+          });
+
+        return [...recurring, ...avulsa].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
+      }, [clients, reschedules, avulsaOrders]);
 
       const weekDeliveries = useMemo(() => {
-        const map = Object.fromEntries(weekDays.map(d=>[d,[]]));
-        clients.forEach(c=>getOccurrencesInRange(c,weekDays[0],weekDays[6]).forEach(d=>{ if(map[d]) map[d].push(c); }));
-        Object.keys(map).forEach(d=>map[d].sort((a,b)=>a.tutor.localeCompare(b.tutor)));
+        const map = Object.fromEntries(weekDays.map(d => [d, []]));
+
+        clients.filter(c => c.frequency !== "avulsa").forEach(c => {
+          getOccurrencesInRange(c, weekDays[0], weekDays[6], reschedules[c.id] || []).forEach(d => {
+            if (map[d]) map[d].push({ client: c, orderId: null });
+          });
+        });
+
+        clients.filter(c => c.frequency === "avulsa").forEach(c => {
+          const orders = avulsaOrders[c.id];
+          if (orders && orders.length > 0) {
+            orders
+              .filter(o => o.date >= weekDays[0] && o.date <= weekDays[6])
+              .forEach(o => { if (map[o.date]) map[o.date].push({ client: c, orderId: o.id }); });
+          } else if (c.nextDate >= weekDays[0] && c.nextDate <= weekDays[6]) {
+            if (map[c.nextDate]) map[c.nextDate].push({ client: c, orderId: null });
+          }
+        });
+
+        Object.keys(map).forEach(d =>
+          map[d].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor))
+        );
         return map;
-      }, [clients, weekDays]);
+      }, [clients, weekDays, reschedules, avulsaOrders]);
 
       const filteredClients = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return q ? clients.filter(c=>c.tutor.toLowerCase().includes(q)||c.dog.toLowerCase().includes(q)||c.address.toLowerCase().includes(q)) : clients;
+        return q ? clients.filter(c =>
+          c.tutor.toLowerCase().includes(q) ||
+          c.dog.toLowerCase().includes(q) ||
+          c.address.toLowerCase().includes(q)
+        ) : clients;
       }, [clients, search]);
 
+      // ── Render ────────────────────────────────────────────────────────────────
       if (!loaded) return (
-        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#FDF8F2",gap:12}}>
-          <PawPrint size={36} color="#B8825A"/>
-          <p style={{color:"#B8825A",fontFamily:"'Segoe UI',sans-serif",margin:0,fontSize:15,fontWeight:600}}>Carregando...</p>
-        </div>
+        <div style={styles.loadingScreen}><PawPrint size={32} color="#B8825A" /></div>
       );
 
       return (
-        <div style={S.app}>
-          {toast && <Toast msg={toast.msg} type={toast.type} onDismiss={()=>setToast(null)}/>}
+        <div style={styles.app}>
+          <style>{globalCss}</style>
 
-          <header style={S.header}>
-            <div style={S.headerInner}>
-              <div style={S.brandRow}>
-                <div style={S.brandMark}><PawPrint size={20} color="#FBF1E8" sw={2.5}/></div>
+          {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+
+          <header style={styles.header}>
+            <div style={styles.headerInner}>
+              <div style={styles.brandRow}>
+                <div style={styles.brandMark}><PawPrint size={20} color="#FBF1E8" strokeWidth={2.5} /></div>
                 <div>
-                  <h1 style={S.brandTitle}>ObentōPet</h1>
-                  <p style={S.brandSub}>Controle de Entregas</p>
+                  <h1 style={styles.brandTitle}>ObentōPet</h1>
+                  <p style={styles.brandSub}>Controle de Entregas</p>
                 </div>
               </div>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <button title="Atualizar" style={{...S.refreshBtn,opacity:refreshing?0.5:1}} onClick={()=>loadData(true)} disabled={refreshing}>
-                  <RefreshCw size={16} color="#FBF1E8" sw={2.5} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
-                </button>
-                <button style={S.newBtn} onClick={()=>{setEditingClient(null);setShowForm(true);}}>
-                  <Plus size={18} color="#FFF7EF" sw={2.5}/><span>Novo cliente</span>
-                </button>
-              </div>
+              <button style={styles.newBtn} onClick={() => { setEditingClient(null); setShowForm(true); }}>
+                <Plus size={18} strokeWidth={2.5} /><span>Novo cliente</span>
+              </button>
             </div>
-            <nav style={S.tabRow}>
-              {[["clientes","Clientes"],["estoque","Estoque"],["hoje","Hoje"],["roteiro","Roteiro"],["semana","Semana"]].map(([k,l])=>(
-                <button key={k} onClick={()=>setView(k)} style={{...S.tab,...(view===k?S.tabActive:{})}}>{l}</button>
+            <nav style={styles.tabRow}>
+              {[["hoje","Hoje"],["semana","Entregas"],["clientes","Clientes"],["estoque","Estoque"]].map(([key,label]) => (
+                <button key={key} onClick={() => setView(key)}
+                  style={{ ...styles.tab, ...(view === key ? styles.tabActive : {}) }}>{label}</button>
               ))}
             </nav>
           </header>
 
-          <main style={S.main}>
-            {view==="hoje"     && <TodayView  items={todayDeliveries} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
-            {view==="semana"   && <WeekView   weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset} setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus} shelfProducts={shelfProducts}/>}
-            {view==="roteiro"  && <RoteiröView clients={clients} getStatus={getStatus}/>}
-            {view==="clientes" && <ClientsView clients={filteredClients} search={search} setSearch={setSearch} onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient} statusLog={statusLog}/>}
-            {view==="estoque"  && <StockView
-              clients={clients}
-              subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog}
-              shelfProducts={shelfProducts}     shelfStockLog={shelfStockLog}
-              petiscoProducts={petiscoProducts} petiscoStockLog={petiscoStockLog}
-              onAddSubscriberProduction={addSubscriberProduction}
-              onAddShelfProduct={addShelfProduct}     onAddShelfStockEntry={addShelfStockEntry}     onDeleteShelfProduct={deleteShelfProduct}
-              onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct}
-            />}
+          <main style={styles.main}>
+            {view === "hoje"   && (
+              <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus}
+                shelfProducts={shelfProducts} onReschedule={openReschedule} />
+            )}
+            {view === "semana" && (
+              <WeekView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset}
+                setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus}
+                shelfProducts={shelfProducts} onReschedule={openReschedule} onGenerateBat={generateBat} />
+            )}
+            {view === "clientes" && (
+              <ClientsView clients={filteredClients} search={search} setSearch={setSearch}
+                onEdit={c => { setEditingClient(c); setShowForm(true); }} onDelete={deleteClient}
+                avulsaOrders={avulsaOrders} onAddAvulsaOrder={addAvulsaOrder} onDeleteAvulsaOrder={deleteAvulsaOrder} />
+            )}
+            {view === "estoque" && (
+              <StockView
+                clients={clients}
+                subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog}
+                shelfProducts={shelfProducts}     shelfStockLog={shelfStockLog}
+                petiscoProducts={petiscoProducts} petiscoStockLog={petiscoStockLog}
+                onAddSubscriberProduction={addSubscriberProduction}
+                onAddShelfProduct={addShelfProduct}     onAddShelfStockEntry={addShelfStockEntry}     onDeleteShelfProduct={deleteShelfProduct}
+                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct}
+              />
+            )}
           </main>
 
-          {showForm && <ClientFormModal initial={editingClient} onClose={()=>{setShowForm(false);setEditingClient(null);}} onSave={saveClient}/>}
+          {showForm && (
+            <ClientFormModal
+              initial={editingClient}
+              clients={clients}
+              onClose={() => { setShowForm(false); setEditingClient(null); }}
+              onSave={saveClient}
+            />
+          )}
+
+          {rescheduleModal && (
+            <RescheduleModal
+              info={rescheduleModal}
+              onClose={() => setRescheduleModal(null)}
+              onConfirm={rescheduleDelivery}
+            />
+          )}
         </div>
       );
     }
 
     // ─── TODAY VIEW ───────────────────────────────────────────────────────────────
-    function TodayView({items,getStatus,setStatus,shelfProducts}) {
+    function TodayView({ items, getStatus, setStatus, shelfProducts, onReschedule }) {
       const t = todayISO();
-      const d = new Date(t+"T00:00:00");
-      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`;
+      const d = new Date(t + "T00:00:00");
+      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", { month:"long" })}`;
       return (
-        <div style={S.section}>
-          <div style={S.headRow}>
-            <h2 style={S.sectionTitle}>{label}</h2>
-            <span style={S.countPill}>{items.length} entrega{items.length!==1?"s":""}</span>
+        <div style={styles.section}>
+          <div style={styles.sectionHeadRow}>
+            <h2 style={styles.sectionTitle}>{label}</h2>
+            <span style={styles.countPill}>{items.length} entrega{items.length !== 1 ? "s" : ""}</span>
           </div>
-          {items.length===0 ? <Empty text="Nenhuma entrega marcada para hoje."/> : (
-            <div style={S.list}>{items.map(({client,date})=>(
-              <DeliveryCard key={client.id+date} client={client} status={getStatus(client.id,date)}
-                onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)} shelfProducts={shelfProducts}/>
-            ))}</div>
+          {items.length === 0 ? <EmptyState text="Nenhuma entrega marcada para hoje." /> : (
+            <div style={styles.cardList}>
+              {items.map(({ client, date, orderId }) => (
+                <DeliveryCard key={client.id + date + (orderId||"")} client={client} date={date} orderId={orderId}
+                  status={getStatus(client.id, date)} onStatusChange={(s, ded) => setStatus(client.id, date, s, ded)}
+                  shelfProducts={shelfProducts} onReschedule={onReschedule} />
+              ))}
+            </div>
           )}
         </div>
       );
     }
 
     // ─── WEEK VIEW ────────────────────────────────────────────────────────────────
-    function WeekView({weekDays,weekDeliveries,weekOffset,setWeekOffset,getStatus,setStatus,shelfProducts}) {
-      const [activeDay,setActiveDay] = useState(null);
+    function WeekView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onGenerateBat }) {
+      const [activeDay, setActiveDay] = useState(null);
       const t = todayISO();
-      const active = activeDay||(weekDays.includes(t)?t:weekDays[0]);
+      const activeDate = activeDay || (weekDays.includes(t) ? t : weekDays[0]);
+      const activeDayItems = weekDeliveries[activeDate] || [];
+      const comEtiqueta = activeDayItems.filter(({ client }) => client.labelFile).length;
       return (
-        <div style={S.section}>
-          <div style={S.weekNav}>
-            <button style={S.navArrow} onClick={()=>{setWeekOffset(w=>w-1);setActiveDay(null);}}><ChevronLeft size={18}/></button>
-            <span style={S.weekLabel}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</span>
-            <button style={S.navArrow} onClick={()=>{setWeekOffset(w=>w+1);setActiveDay(null);}}><ChevronRight size={18}/></button>
+        <div style={styles.section}>
+          <div style={styles.weekNav}>
+            <button style={styles.navArrow} onClick={() => setWeekOffset(w => w-1)}><ChevronLeft size={18} /></button>
+            <span style={styles.weekLabel}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</span>
+            <button style={styles.navArrow} onClick={() => setWeekOffset(w => w+1)}><ChevronRight size={18} /></button>
           </div>
-          <div style={S.weekStrip}>
-            {weekDays.map((d,i)=>{
-              const count=weekDeliveries[d]?.length||0, isToday=d===t, isActive=d===active;
+          <div style={styles.weekStrip}>
+            {weekDays.map((d, i) => {
+              const count = weekDeliveries[d]?.length || 0;
+              const isToday = d === t, isActive = d === activeDate;
               return (
-                <button key={d} onClick={()=>setActiveDay(d)} style={{...S.dayChip,...(isActive?S.dayChipActive:{}),...(isToday&&!isActive?S.dayChipToday:{})}}>
-                  <span style={{...S.dayDow,...(isActive?{color:"#C9BBA8"}:{})}}>{weekdayShort[i]}</span>
-                  <span style={{...S.dayNum,...(isActive?{color:"#FBF1E8"}:{})}}>{d.split("-")[2]}</span>
-                  {count>0 && <span style={{...S.dayDot,...(isActive?{background:"#FBF1E8"}:{})}}/>}
+                <button key={d} onClick={() => setActiveDay(d)} style={{ ...styles.dayChip, ...(isActive ? styles.dayChipActive : {}), ...(isToday && !isActive ? styles.dayChipToday : {}) }}>
+                  <span style={{ ...styles.dayChipDow, ...(isActive ? { color:"#9C8E7E" } : {}) }}>{weekdayShort[i]}</span>
+                  <span style={{ ...styles.dayChipNum, ...(isActive ? { color:"#FBF1E8" } : {}) }}>{d.split("-")[2]}</span>
+                  {count > 0 && <span style={{ ...styles.dayChipDot, ...(isActive ? { background:"#FBF1E8" } : {}) }} />}
                 </button>
               );
             })}
           </div>
-          <div style={{marginTop:20}}>
-            {(weekDeliveries[active]||[]).length===0 ? <Empty text="Nenhuma entrega neste dia."/> : (
-              <div style={S.list}>{weekDeliveries[active].map(c=>(
-                <DeliveryCard key={c.id+active} client={c} status={getStatus(c.id,active)}
-                  onStatusChange={(s,ded)=>setStatus(c.id,active,s,ded)} shelfProducts={shelfProducts}/>
-              ))}</div>
+          <div style={{ marginTop:20 }}>
+            {activeDayItems.length > 0 && (
+              <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
+                <button style={styles.batBtn} onClick={() => onGenerateBat(activeDate, activeDayItems)}
+                  title={`${comEtiqueta} de ${activeDayItems.length} com etiqueta configurada`}>
+                  <Printer size={13} strokeWidth={2.5} />
+                  Etiquetas{comEtiqueta < activeDayItems.length ? ` (${comEtiqueta}/${activeDayItems.length})` : ""}
+                </button>
+              </div>
+            )}
+            {activeDayItems.length === 0
+              ? <EmptyState text="Nenhuma entrega marcada para este dia." />
+              : (
+              <div style={styles.cardList}>
+                {activeDayItems.map(({ client, orderId }) => (
+                  <DeliveryCard key={client.id + activeDate + (orderId||"")} client={client} date={activeDate} orderId={orderId}
+                    status={getStatus(client.id, activeDate)} onStatusChange={(s, ded) => setStatus(client.id, activeDate, s, ded)}
+                    shelfProducts={shelfProducts} onReschedule={onReschedule} />
+                ))}
+              </div>
             )}
           </div>
         </div>
       );
     }
 
-    // ─── ROTEIRO VIEW ────────────────────────────────────────────────────────────
-    function RoteiröView({clients,getStatus}) {
-      const [range,       setRange]       = useState("hoje");
-      const [custStart,   setCustStart]   = useState(todayISO());
-      const [custEnd,     setCustEnd]     = useState(todayISO());
-      const [copied,      setCopied]      = useState(false);
+    // ─── DELIVERY CARD ────────────────────────────────────────────────────────────
+    function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule }) {
+      const [pickerOpen, setPickerOpen] = useState(false);
+      const [selectedProduct, setSelectedProduct] = useState("");
+      const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
+      const isAvulsa = client.frequency === "avulsa";
 
-      const {startDate,endDate,rangeLabel} = useMemo(()=>{
-        const today = todayISO();
-        if (range==="hoje") return {startDate:today,endDate:today,rangeLabel:""};
-        if (range==="amanha") { const t=addDays(today,1); return {startDate:t,endDate:t,rangeLabel:""}; }
-        if (range==="semana") {
-          const d=new Date(today+"T00:00:00"); d.setDate(d.getDate()-d.getDay());
-          const s=dateToISO(d), e=addDays(s,6);
-          return {startDate:s,endDate:e,rangeLabel:`${formatDateBR(s)} – ${formatDateBR(e)}`};
-        }
-        if (range==="proxSemana") {
-          const d=new Date(today+"T00:00:00"); d.setDate(d.getDate()-d.getDay()+7);
-          const s=dateToISO(d), e=addDays(s,6);
-          return {startDate:s,endDate:e,rangeLabel:`${formatDateBR(s)} – ${formatDateBR(e)}`};
-        }
-        return {startDate:custStart,endDate:custEnd,rangeLabel:`${formatDateBR(custStart)} – ${formatDateBR(custEnd)}`};
-      },[range,custStart,custEnd]);
-
-      const deliveries = useMemo(()=>{
-        const items=[];
-        clients.forEach(c=>getOccurrencesInRange(c,startDate,endDate).forEach(date=>items.push({client:c,date})));
-        items.sort((a,b)=>a.date!==b.date?a.date.localeCompare(b.date):a.client.address.localeCompare(b.client.address));
-        return items;
-      },[clients,startDate,endDate]);
-
-      const entregues = deliveries.filter(({client,date})=>getStatus(client.id,date)==="entregue").length;
-
-      const statusColors={preparando:"#B8825A",a_caminho:"#3E7CB1",entregue:"#5C8A5C"};
-      const statusLabels={preparando:"Preparando",a_caminho:"A caminho",entregue:"Entregue"};
-
-      const getLabelData = () => {
-        const today=todayISO();
-        if (range==="hoje") { const d=new Date(today+"T00:00:00"); return `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`; }
-        if (range==="amanha") { const t=addDays(today,1); const d=new Date(t+"T00:00:00"); return `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR",{month:"long"})}`; }
-        return rangeLabel;
+      const handleStatusClick = (key) => {
+        if (key === "entregue" && isAvulsa && status !== "entregue") { setPickerOpen(true); return; }
+        onStatusChange(key);
       };
 
-      const copyWhatsApp = () => {
-        const header = `🐾 *ROTEIRO OBENTOPET*\n📅 ${getLabelData()}\n📦 ${deliveries.length} entrega${deliveries.length!==1?"s":""}\n`;
-        let text = header;
-        let lastDate="";
-        deliveries.forEach(({client,date},i)=>{
-          if (date!==lastDate) {
-            const dd=new Date(date+"T00:00:00");
-            text+=`\n📆 *${weekdayNames[dd.getDay()]}, ${dd.getDate()}/${String(dd.getMonth()+1).padStart(2,"0")}*\n`;
-            lastDate=date;
-          }
-          const st=getStatus(client.id,date);
-          const em=st==="entregue"?"✅":st==="a_caminho"?"🚗":"⏳";
-          text+=`${em} *${client.dog}* — ${client.tutor}\n`;
-          text+=`   📍 ${client.address}\n`;
-          if(client.phone) text+=`   📞 ${client.phone}\n`;
-          if(client.notes) text+=`   📝 ${client.notes}\n`;
-        });
-        navigator.clipboard.writeText(text).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);}).catch(()=>{});
+      const confirmAvulsaDelivery = () => {
+        const amount = parseInt(selectedAmount, 10);
+        if (!selectedProduct || !amount || amount < 1) return;
+        onStatusChange("entregue", { productId: selectedProduct, amount });
+        setPickerOpen(false);
       };
-
-      const rangeBtns=[["hoje","Hoje"],["amanha","Amanhã"],["semana","Esta semana"],["proxSemana","Próx. semana"],["custom","Período"]];
 
       return (
-        <div style={S.section}>
-          <div style={{...S.headRow,flexWrap:"wrap",gap:8}}>
-            <div>
-              <h2 style={S.sectionTitle}>Roteiro</h2>
-              <p style={{margin:"3px 0 0",fontSize:13,color:"#8A7A6C"}}>{getLabelData()}</p>
-            </div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              <span style={S.countPill}>{deliveries.length} entrega{deliveries.length!==1?"s":""}</span>
-              <span style={{...S.countPill,background:"#E6F0E6",color:"#3A6B3A"}}>{entregues} entregue{entregues!==1?"s":""}</span>
-            </div>
-          </div>
-
-          {/* Seletor de período */}
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
-            {rangeBtns.map(([k,l])=>(
-              <button key={k} onClick={()=>setRange(k)} style={{border:"1.5px solid",borderColor:range===k?"#B8825A":"#E8DDD0",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,background:range===k?"#FBF1E8":"#FFF",color:range===k?"#8A6A48":"#8A7A6C",cursor:"pointer"}}>{l}</button>
-            ))}
-          </div>
-          {range==="custom" && (
-            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-              <div style={{display:"flex",flexDirection:"column",gap:4,flex:1}}>
-                <label style={{fontSize:11.5,fontWeight:600,color:"#8A7A6C"}}>De</label>
-                <input type="date" style={S.input} value={custStart} onChange={e=>setCustStart(e.target.value)}/>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:4,flex:1}}>
-                <label style={{fontSize:11.5,fontWeight:600,color:"#8A7A6C"}}>Até</label>
-                <input type="date" style={S.input} value={custEnd} onChange={e=>setCustEnd(e.target.value)}/>
+        <div style={styles.card}>
+          <div style={styles.cardTop}>
+            <div style={styles.cardIdentity}>
+              <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
+              <div>
+                <div style={styles.cardDog}>{client.dog}</div>
+                <div style={styles.cardTutor}>{client.tutor}</div>
               </div>
             </div>
-          )}
-
-          {/* Botões de ação */}
-          {deliveries.length>0 && (
-            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}} className="no-print">
-              <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:6,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",flex:1,justifyContent:"center"}}>
-                🖨️ Gerar PDF / Imprimir
-              </button>
-              <button onClick={copyWhatsApp} style={{display:"flex",alignItems:"center",gap:6,background:copied?"#5C8A5C":"#25D366",color:"#FFF",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13,fontWeight:600,cursor:"pointer",flex:1,justifyContent:"center"}}>
-                {copied?"✅ Copiado!":"📲 Copiar p/ WhatsApp"}
-              </button>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5 }}>
+              <span style={styles.freqTag}>{frequencyLabel[client.frequency]}</span>
+              {client.units ? <span style={styles.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span> : null}
             </div>
-          )}
-
-          {deliveries.length===0 ? <Empty text="Nenhuma entrega neste período."/> : (
-            <div style={S.list}>
-              {deliveries.map(({client,date},i)=>{
-                const status=getStatus(client.id,date);
-                const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address)}`;
-                const showDateLabel = i===0 || deliveries[i-1].date!==date;
-                return (
-                  <React.Fragment key={client.id+date}>
-                    {showDateLabel && (() => {
-                      const dd=new Date(date+"T00:00:00");
-                      return <div style={{fontSize:12.5,fontWeight:700,color:"#8A7A6C",marginTop:i>0?8:0,marginBottom:4,paddingLeft:2}}>
-                        📆 {weekdayNames[dd.getDay()]}, {dd.getDate()}/{String(dd.getMonth()+1).padStart(2,"0")}
-                      </div>;
-                    })()}
-                    <div style={{...S.card,borderLeft:`4px solid ${statusColors[status]}`,opacity:status==="entregue"?0.6:1}}>
-                      <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-                        <div style={{minWidth:26,height:26,borderRadius:7,background:statusColors[status],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12,fontWeight:800,flexShrink:0}}>
-                          {i+1}
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
-                            <div>
-                              <span style={S.cardDog}>{client.dog}</span>
-                              <span style={{fontSize:13,color:"#8A7A6C",marginLeft:6}}>{client.tutor}</span>
-                            </div>
-                            <span style={{fontSize:11,fontWeight:700,color:statusColors[status],background:status==="entregue"?"#E8F5E8":status==="a_caminho"?"#E8F0F8":"#FBF1E8",padding:"3px 8px",borderRadius:6,flexShrink:0}}>
-                              {statusLabels[status]}
-                            </span>
-                          </div>
-                          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginTop:6,gap:8}}>
-                            <div style={{display:"flex",gap:5,fontSize:12.5,color:"#7A6C5E",lineHeight:1.4,flex:1}}>
-                              <MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/>
-                              <span>{client.address}</span>
-                            </div>
-                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="no-print"
-                              style={{display:"flex",alignItems:"center",gap:4,background:"#E8F4EA",color:"#2E7D32",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>
-                              📍 Maps
-                            </a>
-                          </div>
-                          {client.phone && <div style={{fontSize:12,color:"#8A7A6C",marginTop:4}}>📞 {client.phone}</div>}
-                          {client.notes && <div style={{marginTop:5,fontSize:12,color:"#9C8E7E",background:"#FBF8F4",borderRadius:7,padding:"5px 8px"}}>📝 {client.notes}</div>}
-                        </div>
-                      </div>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
+          </div>
+          <div style={styles.cardAddress}>
+            <MapPin size={13} color="#A89A8C" style={{ flexShrink:0, marginTop:2 }} />
+            <span>{client.address}</span>
+          </div>
+          {pickerOpen ? (
+            <div style={styles.avulsaPicker}>
+              <p style={styles.avulsaPickerLabel}>Qual produto sai do estoque?</p>
+              {shelfProducts.length === 0 ? (
+                <p style={styles.avulsaPickerEmpty}>Nenhum produto cadastrado em Estoque ainda.</p>
+              ) : (
+                <select style={styles.input} value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}>
+                  <option value="">Selecione um produto…</option>
+                  {shelfProducts.map(p => <option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
+                </select>
+              )}
+              <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                <input type="number" min="1" style={{ ...styles.input, flex:1 }} value={selectedAmount} onChange={e => setSelectedAmount(e.target.value)} placeholder="Qtd" />
+                <button style={styles.avulsaConfirmBtn} onClick={confirmAvulsaDelivery} disabled={!selectedProduct}>Confirmar</button>
+                <button style={styles.avulsaCancelBtn} onClick={() => setPickerOpen(false)}>Cancelar</button>
+              </div>
             </div>
+          ) : (
+            <>
+              <div style={styles.statusRow}>
+                {Object.entries(statusConfig).map(([key, conf]) => {
+                  const Icon = conf.icon; const active = status === key;
+                  return (
+                    <button key={key} onClick={() => handleStatusClick(key)} style={{ ...styles.statusBtn, ...(active ? { background:conf.color, color:"#FFF7EF", borderColor:conf.color } : { background:"#FFF7EF", color:"#8A7A6C", borderColor:"#E8DDD0" }) }}>
+                      <Icon size={13} strokeWidth={2.5} />{conf.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:8 }}>
+                <button style={styles.rescheduleBtn} onClick={() => onReschedule(client, date, orderId)}>
+                  <Calendar size={12} strokeWidth={2.5} />
+                  Reagendar
+                </button>
+              </div>
+            </>
           )}
         </div>
       );
     }
 
-    // ─── DELIVERY CARD ────────────────────────────────────────────────────────────
-    function DeliveryCard({client,status,onStatusChange,shelfProducts}) {
-      const [pickerOpen,setPickerOpen]   = useState(false);
-      const [selProduct,setSelProduct]   = useState("");
-      const [selAmount, setSelAmount]    = useState(String(client.units||1));
-      const isAvulsa = client.frequency==="avulsa";
+    // ─── RESCHEDULE MODAL ─────────────────────────────────────────────────────────
+    function RescheduleModal({ info, onClose, onConfirm }) {
+      const [newDate, setNewDate] = useState("");
+      const [scope,   setScope]   = useState("only");
+      const isRecurring = info.frequency !== "avulsa";
+      const canConfirm  = newDate && newDate !== info.date;
 
-      const handleClick = (key) => {
-        if (key==="entregue"&&isAvulsa&&status!=="entregue") { setPickerOpen(true); return; }
-        onStatusChange(key);
-      };
-      const confirm = () => {
-        const amt = parseInt(selAmount,10);
-        if (!selProduct||!amt||amt<1) return;
-        onStatusChange("entregue",{productId:selProduct,amount:amt});
-        setPickerOpen(false);
-      };
       return (
-        <div style={S.card}>
-          <div style={S.cardTop}>
-            <div style={S.cardId}>
-              <div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
-              <div><div style={S.cardDog}>{client.dog}</div><div style={S.cardTutor}>{client.tutor}</div></div>
+        <div style={styles.modalOverlay} onClick={onClose}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHead}>
+              <h3 style={styles.modalTitle}>Reagendar entrega</h3>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C" /></button>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
-              <span style={S.freqTag}>{freqLabel[client.frequency]}</span>
-              {client.units ? <span style={S.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span> : null}
+            <div style={styles.formBody}>
+              <div style={styles.rescheduleInfo}>
+                <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
+                <div>
+                  <div style={{ fontSize:15.5, fontWeight:700, color:"#3E332A" }}>{info.dog}</div>
+                  <div style={{ fontSize:12.5, color:"#A89A8C", marginTop:1 }}>entrega original: {formatDateBR(info.date)}</div>
+                </div>
+              </div>
+              <Field label="Nova data de entrega">
+                <input type="date" style={styles.input} value={newDate} onChange={e => setNewDate(e.target.value)} />
+              </Field>
+              {isRecurring && (
+                <Field label="O que alterar?">
+                  <div style={styles.freqGrid}>
+                    <button type="button" onClick={() => setScope("only")}
+                      style={{ ...styles.freqOption, ...(scope==="only" ? styles.freqOptionActive : {}), textAlign:"center", lineHeight:1.35 }}>
+                      Só esta entrega
+                    </button>
+                    <button type="button" onClick={() => setScope("following")}
+                      style={{ ...styles.freqOption, ...(scope==="following" ? styles.freqOptionActive : {}), textAlign:"center", lineHeight:1.35 }}>
+                      Esta e as seguintes
+                    </button>
+                  </div>
+                  <p style={{ margin:"6px 0 0", fontSize:11.5, color:"#A89A8C", lineHeight:1.4 }}>
+                    {scope === "only"
+                      ? "A data original volta a aparecer normalmente nas próximas ocorrências."
+                      : "O dia fixo de entrega será alterado permanentemente a partir desta data."}
+                  </p>
+                </Field>
+              )}
+              <button style={{ ...styles.saveBtn, opacity: canConfirm ? 1 : 0.45 }} disabled={!canConfirm}
+                onClick={() => { if (canConfirm) onConfirm(info.clientId, info.date, newDate, scope, info.orderId); }}>
+                Confirmar reagendamento
+              </button>
             </div>
           </div>
-          <div style={S.cardAddr}><MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/><span>{client.address}</span></div>
-          {pickerOpen ? (
-            <div style={S.picker}>
-              <p style={S.pickerLabel}>Qual produto sai do estoque?</p>
-              {shelfProducts.length===0
-                ? <p style={{fontSize:12.5,color:"#C0594B",margin:0}}>Nenhum produto em Estoque → Avulsos ainda.</p>
-                : <select style={S.input} value={selProduct} onChange={e=>setSelProduct(e.target.value)}>
-                    <option value="">Selecione…</option>
-                    {shelfProducts.map(p=><option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
-                  </select>
-              }
-              <div style={{display:"flex",gap:8,marginTop:8}}>
-                <input type="number" min="1" style={{...S.input,flex:1}} value={selAmount} onChange={e=>setSelAmount(e.target.value)} placeholder="Qtd"/>
-                <button style={S.confirmBtn} onClick={confirm} disabled={!selProduct}>Confirmar</button>
-                <button style={S.cancelBtn} onClick={()=>setPickerOpen(false)}>Cancelar</button>
-              </div>
-            </div>
-          ) : (
-            <div style={S.statusRow}>
-              {Object.entries(statusCfg).map(([key,conf])=>{
-                const active=status===key;
-                return (
-                  <button key={key} onClick={()=>handleClick(key)} style={{...S.statusBtn,...(active?{background:conf.color,color:"#FFF7EF",borderColor:conf.color}:{background:"#FFF7EF",color:"#8A7A6C",borderColor:"#E8DDD0"})}}>
-                    <conf.Icon size={13} sw={2.5} color={active?"#FFF7EF":"#8A7A6C"}/>{conf.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       );
     }
 
     // ─── CLIENTS VIEW ─────────────────────────────────────────────────────────────
-    function ClientsView({clients,search,setSearch,onEdit,onDelete,statusLog}) {
-      const [confirmDel,setConfirmDel] = useState(null);
-      const [deleting,  setDeleting]   = useState(null);
-      const getLastDelivery = (clientId) => {
-        const dates = Object.entries(statusLog||{})
-          .filter(([k,v])=>k.startsWith(clientId+"|")&&v==="entregue")
-          .map(([k])=>k.split("|")[1]).sort().reverse();
-        return dates[0]||null;
-      };
-      const handleDel = async (id) => {
-        setDeleting(id);
-        await onDelete(id);
-        setDeleting(null); setConfirmDel(null);
-      };
-      return (
-        <div style={S.section}>
-          <div style={S.searchBar}>
-            <Search size={16} color="#A89A8C"/>
-            <input style={S.searchInput} placeholder="Buscar por tutor, cão ou endereço…" value={search} onChange={e=>setSearch(e.target.value)}/>
-            {search && <button style={{background:"transparent",border:"none",padding:2,display:"flex"}} onClick={()=>setSearch("")}><X size={14} color="#A89A8C"/></button>}
-          </div>
-          {clients.length===0 ? <Empty text={search?"Nenhum resultado.":"Nenhum cliente cadastrado ainda."}/> : (
-            <div style={S.list}>
-              {clients.map(c=>(
-                <div key={c.id} style={S.clientRow}>
-                  <div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={S.cardDog}>{c.dog}</div>
-                    <div style={S.cardTutor}>{c.tutor}{c.phone ? ` · ${c.phone}` : ""}</div>
-                    <div style={{fontSize:11.5,color:"#A89A8C",marginTop:3}}>
-                      {freqLabel[c.frequency]}
-                      {c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}
-                    </div>
-                    <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:3}}>
-                      <span style={{fontSize:12,color:"#8A6A48",fontWeight:600}}>📅 Próxima: {formatDateBR(c.nextDate)||"—"}</span>
-                      {getLastDelivery(c.id) && <span style={{fontSize:12,color:"#5C8A5C",fontWeight:600}}>✅ Última: {formatDateBR(getLastDelivery(c.id))}</span>}
-                    </div>
-                    {c.address && <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#C9BBA8",marginTop:3}}><MapPin size={11} color="#C9BBA8"/>{c.address}</div>}
-                  </div>
-                  <div style={{display:"flex",gap:6}}>
-                    <button style={S.iconBtn} onClick={()=>onEdit(c)}><Edit3 size={15} color="#8A7A6C"/></button>
-                    {confirmDel===c.id
-                      ? <button style={{...S.iconBtn,background:"#C0594B",borderColor:"#C0594B",opacity:deleting===c.id?0.6:1}} disabled={deleting===c.id} onClick={()=>handleDel(c.id)}><Check size={15} color="#fff"/></button>
-                      : <button style={S.iconBtn} onClick={()=>setConfirmDel(c.id)}><Trash2 size={15} color="#8A7A6C"/></button>
-                    }
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
+    function ClientsView({ clients, search, setSearch, onEdit, onDelete, avulsaOrders, onAddAvulsaOrder, onDeleteAvulsaOrder }) {
+      const [confirmDelete, setConfirmDelete] = useState(null);
+      const [newOrderFor,   setNewOrderFor]   = useState(null);
+      const today = todayISO();
 
-    // ─── STOCK VIEW ───────────────────────────────────────────────────────────────
-    function StockView({clients,subscriberStock,subscriberStockLog,shelfProducts,shelfStockLog,petiscoProducts,petiscoStockLog,onAddSubscriberProduction,onAddShelfProduct,onAddShelfStockEntry,onDeleteShelfProduct,onAddPetiscoProduct,onAddPetiscoStockEntry,onDeletePetiscoProduct}) {
-      const [tab,setTab]   = useState("assinantes");
-      const [expClient,setExpClient] = useState(null);
-      const [prodInputs,setProdInputs] = useState({});
-      const [expProduct,setExpProduct] = useState(null);
-      const [showNewProd,setShowNewProd] = useState(false);
-      const [newProdName,setNewProdName] = useState("");
-      const [savingProd,setSavingProd] = useState(false);
-      const [stockInputs,setStockInputs] = useState({});
-      const [expPetisco,setExpPetisco] = useState(null);
-      const [showNewPet,setShowNewPet] = useState(false);
-      const [newPetName,setNewPetName] = useState("");
-      const [savingPet,setSavingPet] = useState(false);
-      const [petInputs,setPetInputs] = useState({});
-
-      const subscribers = clients.filter(c=>c.frequency!=="avulsa");
-
-      const saveProd = async () => {
-        if (!newProdName.trim()) return;
-        setSavingProd(true);
-        await onAddShelfProduct(newProdName.trim());
-        setNewProdName(""); setShowNewProd(false); setSavingProd(false);
-      };
-      const savePet = async () => {
-        if (!newPetName.trim()) return;
-        setSavingPet(true);
-        await onAddPetiscoProduct(newPetName.trim());
-        setNewPetName(""); setShowNewPet(false); setSavingPet(false);
+      const getAvulsaMeta = (c) => {
+        const orders = avulsaOrders[c.id] || [];
+        if (orders.length === 0) {
+          return `Avulsa · próxima: ${formatDateBR(c.nextDate)}`;
+        }
+        const upcoming = orders.filter(o => o.date >= today);
+        if (upcoming.length === 0) return "Avulsa · sem entrega agendada";
+        return `Avulsa · ${upcoming.length} agendada${upcoming.length !== 1 ? "s" : ""} · próxima: ${formatDateBR(upcoming[0].date)}`;
       };
 
       return (
-        <div style={S.section}>
-          <div style={S.headRow}><h2 style={S.sectionTitle}>Estoque</h2></div>
-          <div style={S.stockTabRow}>
-            {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([k,l])=>(
-              <button key={k} style={{...S.stockTab,...(tab===k?S.stockTabActive:{})}} onClick={()=>setTab(k)}>{l}</button>
-            ))}
+        <div style={styles.section}>
+          <div style={styles.searchBar}>
+            <Search size={16} color="#A89A8C" />
+            <input style={styles.searchInput} placeholder="Buscar por tutor, cão ou endereço…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
+          {clients.length === 0 ? <EmptyState text="Nenhum cliente cadastrado ainda." /> : (
+            <div style={styles.cardList}>
+              {clients.map(c => {
+                const isAvulsa = c.frequency === "avulsa";
+                const orders   = isAvulsa ? (avulsaOrders[c.id] || []) : [];
 
-          {tab==="assinantes" && (
-            subscribers.length===0 ? <Empty text="Nenhum cliente assinante cadastrado."/> :
-            <div style={S.list}>
-              {subscribers.map(c=>{
-                const bal=subscriberStock[c.id]??0, isLow=bal<=(c.units||0), log=subscriberStockLog[c.id]||[], exp=expClient===c.id;
                 return (
-                  <div key={c.id} style={S.stockCard}>
-                    <div style={S.stockTop}>
-                      <div style={S.cardId}><div style={S.dogBadge}><PawPrint size={14} color="#B8825A"/></div><div><div style={S.cardDog}>{c.dog}</div><div style={S.cardTutor}>{c.tutor}</div></div></div>
-                      <div style={{textAlign:"right"}}><div style={{...S.balNum,color:isLow?"#C0594B":"#3E332A"}}>{bal}</div><div style={S.balLabel}>em estoque</div></div>
+                  <div key={c.id} style={styles.clientCard}>
+                    <div style={styles.clientRow}>
+                      <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <div style={styles.cardDog}>{c.dog}</div>
+                          <span style={{
+                            fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap",
+                            color:      isAvulsa ? "#8A6A48" : "#3E7CB1",
+                            background: isAvulsa ? "#F6EEE3" : "#EAF2F8",
+                          }}>{isAvulsa ? "Avulso" : "Assinante"}</span>
+                        </div>
+                        <div style={styles.cardTutor}>{c.tutor}</div>
+                        <div style={styles.clientMeta}>
+                          {isAvulsa
+                            ? getAvulsaMeta(c)
+                            : `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}`
+                          }
+                        </div>
+                      </div>
+                      <div style={styles.rowActions}>
+                        {isAvulsa && (
+                          <button style={{ ...styles.iconBtn, borderColor:"#D4A574" }} title="Novo pedido"
+                            onClick={() => setNewOrderFor(c.id)}>
+                            <Plus size={15} color="#B8825A" />
+                          </button>
+                        )}
+                        <button style={styles.iconBtn} onClick={() => onEdit(c)}><Edit3 size={15} color="#8A7A6C" /></button>
+                        {confirmDelete === c.id ? (
+                          <button style={{ ...styles.iconBtn, background:"#C0594B" }} onClick={() => { onDelete(c.id); setConfirmDelete(null); }}><Check size={15} color="#fff" /></button>
+                        ) : (
+                          <button style={styles.iconBtn} onClick={() => setConfirmDelete(c.id)}><Trash2 size={15} color="#8A7A6C" /></button>
+                        )}
+                      </div>
                     </div>
-                    {isLow && <div style={S.lowWarn}><AlertTriangle size={13} color="#C0594B"/><span>Saldo baixo — próxima entrega: {c.units||0} un.</span></div>}
-                    <div style={S.stockRow}>
-                      <input type="number" min="1" style={{...S.input,flex:1}} placeholder="Unidades produzidas"
-                        value={prodInputs[c.id]||""} onChange={e=>setProdInputs(p=>({...p,[c.id]:e.target.value}))}
-                        onKeyDown={e=>{if(e.key==="Enter"){const a=parseInt(prodInputs[c.id],10);if(a>0){onAddSubscriberProduction(c.id,a);setProdInputs(p=>({...p,[c.id]:""}))};}}}/>
-                      <button style={S.addBtn} onClick={()=>{const a=parseInt(prodInputs[c.id],10);if(a>0){onAddSubscriberProduction(c.id,a);setProdInputs(p=>({...p,[c.id]:""}))};}}>
-                        <Plus size={14} color="#FBF1E8" sw={2.5}/>Adicionar
-                      </button>
-                    </div>
-                    <button style={S.histBtn} onClick={()=>setExpClient(exp?null:c.id)}>{exp?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
-                    {exp && <div style={S.histList}>{log.length===0?<p style={S.histEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistRow key={i} entry={e}/>)}</div>}
+
+                    {isAvulsa && orders.length > 0 && (
+                      <div style={styles.orderList}>
+                        {orders.map(o => {
+                          const isPast = o.date < today;
+                          return (
+                            <div key={o.id} style={styles.orderRow}>
+                              <Calendar size={12} color={isPast ? "#C9BBA8" : "#B8825A"} style={{ flexShrink:0 }} />
+                              <span style={{ ...styles.orderDate, color: isPast ? "#C9BBA8" : "#3E332A" }}>
+                                {formatDateBR(o.date)}
+                                {isPast && <span style={styles.orderPastBadge}>passado</span>}
+                              </span>
+                              <button style={styles.orderDeleteBtn} onClick={() => onDeleteAvulsaOrder(c.id, o.id)}>
+                                <X size={11} color="#C9BBA8" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
 
-          {tab==="avulsos" && (
-            <>
-              <div style={{marginBottom:14}}>
-                {showNewProd ? (
-                  <div style={S.newProdBox}>
-                    <input style={S.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)" value={newProdName} onChange={e=>setNewProdName(e.target.value)} autoFocus/>
-                    <div style={{display:"flex",gap:8,marginTop:8}}>
-                      <button style={{...S.confirmBtn,opacity:savingProd?0.6:1}} disabled={savingProd} onClick={saveProd}>{savingProd?"Salvando…":"Salvar"}</button>
-                      <button style={S.cancelBtn} onClick={()=>{setShowNewProd(false);setNewProdName("");}}>Cancelar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button style={S.newProdTrigger} onClick={()=>setShowNewProd(true)}><Plus size={16} color="#B8825A" sw={2.5}/>Cadastrar produto de prateleira</button>
-                )}
-              </div>
-              {shelfProducts.length===0 ? <Empty text="Nenhum produto cadastrado ainda."/> :
-                <div style={S.list}>
-                  {shelfProducts.map(p=>{
-                    const log=shelfStockLog[p.id]||[], exp=expProduct===p.id, isLow=p.balance<=0;
-                    return (
-                      <div key={p.id} style={S.stockCard}>
-                        <div style={S.stockTop}>
-                          <div style={S.cardId}><div style={S.dogBadge}><Package size={14} color="#B8825A"/></div><div style={S.cardDog}>{p.name}</div></div>
-                          <div style={{textAlign:"right"}}><div style={{...S.balNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={S.balLabel}>em estoque</div></div>
-                        </div>
-                        {isLow && <div style={S.lowWarn}><AlertTriangle size={13} color="#C0594B"/><span>Sem saldo disponível</span></div>}
-                        <div style={S.stockRow}>
-                          <input type="number" min="1" style={{...S.input,flex:1}} placeholder="Unidades a adicionar" value={stockInputs[p.id]||""} onChange={e=>setStockInputs(s=>({...s,[p.id]:e.target.value}))}/>
-                          <button style={S.addBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}))}}}>
-                            <Plus size={14} color="#FBF1E8" sw={2.5}/>Adicionar
-                          </button>
-                        </div>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-                          <button style={S.histBtn} onClick={()=>setExpProduct(exp?null:p.id)}>{exp?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
-                          <button style={S.delProdBtn} onClick={()=>onDeleteShelfProduct(p.id)}><Trash2 size={13} color="#A89A8C"/></button>
-                        </div>
-                        {exp && <div style={S.histList}>{log.length===0?<p style={S.histEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistRow key={i} entry={e}/>)}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              }
-            </>
-          )}
-
-          {tab==="petiscos" && (
-            <>
-              <div style={{marginBottom:14}}>
-                {showNewPet ? (
-                  <div style={S.newProdBox}>
-                    <input style={S.input} placeholder="Nome do petisco (ex: Palito de Frango 100g)" value={newPetName} onChange={e=>setNewPetName(e.target.value)} autoFocus/>
-                    <div style={{display:"flex",gap:8,marginTop:8}}>
-                      <button style={{...S.confirmBtn,opacity:savingPet?0.6:1}} disabled={savingPet} onClick={savePet}>{savingPet?"Salvando…":"Salvar"}</button>
-                      <button style={S.cancelBtn} onClick={()=>{setShowNewPet(false);setNewPetName("");}}>Cancelar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button style={S.newProdTrigger} onClick={()=>setShowNewPet(true)}><Plus size={16} color="#B8825A" sw={2.5}/>Cadastrar petisco</button>
-                )}
-              </div>
-              {petiscoProducts.length===0 ? <Empty text="Nenhum petisco cadastrado ainda."/> :
-                <div style={S.list}>
-                  {petiscoProducts.map(p=>{
-                    const log=petiscoStockLog[p.id]||[], exp=expPetisco===p.id, isLow=p.balance<=0;
-                    return (
-                      <div key={p.id} style={S.stockCard}>
-                        <div style={S.stockTop}>
-                          <div style={S.cardId}><div style={S.dogBadge}><Cookie size={14} color="#B8825A"/></div><div style={S.cardDog}>{p.name}</div></div>
-                          <div style={{textAlign:"right"}}><div style={{...S.balNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={S.balLabel}>em estoque</div></div>
-                        </div>
-                        {isLow && <div style={S.lowWarn}><AlertTriangle size={13} color="#C0594B"/><span>Sem saldo disponível</span></div>}
-                        <div style={S.stockRow}>
-                          <input type="number" min="1" style={{...S.input,flex:1}} placeholder="Unidades produzidas" value={petInputs[p.id]||""} onChange={e=>setPetInputs(s=>({...s,[p.id]:e.target.value}))}/>
-                          <button style={S.addBtn} onClick={()=>{const a=parseInt(petInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetInputs(s=>({...s,[p.id]:""}))}}}>
-                            <Plus size={14} color="#FBF1E8" sw={2.5}/>Adicionar
-                          </button>
-                        </div>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-                          <button style={S.histBtn} onClick={()=>setExpPetisco(exp?null:p.id)}>{exp?"Ocultar histórico":`Ver histórico (${log.length})`}</button>
-                          <button style={S.delProdBtn} onClick={()=>onDeletePetiscoProduct(p.id)}><Trash2 size={13} color="#A89A8C"/></button>
-                        </div>
-                        {exp && <div style={S.histList}>{log.length===0?<p style={S.histEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistRow key={i} entry={e}/>)}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              }
-            </>
+          {newOrderFor && (
+            <NewOrderModal
+              onClose={() => setNewOrderFor(null)}
+              onConfirm={(date) => { onAddAvulsaOrder(newOrderFor, date); setNewOrderFor(null); }}
+            />
           )}
         </div>
       );
     }
 
-    function HistRow({entry}) {
-      const pos = entry.amount>0;
+    // ─── NEW ORDER MODAL ──────────────────────────────────────────────────────────
+    function NewOrderModal({ onClose, onConfirm }) {
+      const [date, setDate] = useState(todayISO());
       return (
-        <div style={S.histRow}>
-          {pos ? <ArrowUpCircle size={15} color="#5C8A5C" style={{flexShrink:0}}/> : <ArrowDownCircle size={15} color="#C0594B" style={{flexShrink:0}}/>}
-          <div style={{flex:1}}><div style={S.histReason}>{entry.reason}</div><div style={S.histDate}>{formatDateBR(entry.date)}</div></div>
-          <div style={{fontSize:13,fontWeight:700,color:pos?"#5C8A5C":"#C0594B"}}>{pos?"+":""}{entry.amount}</div>
-        </div>
-      );
-    }
-
-    // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
-    function ClientFormModal({initial,onClose,onSave}) {
-      const [dog,      setDog]      = useState(initial?.dog      ||"");
-      const [tutor,    setTutor]    = useState(initial?.tutor    ||"");
-      const [phone,    setPhone]    = useState(initial?.phone    ||"");
-      const [address,  setAddress]  = useState(initial?.address  ||"");
-      const [freq,     setFreq]     = useState(initial?.frequency||"semanal");
-      const [nextDate, setNextDate] = useState(initial?.nextDate ||todayISO());
-      const [units,    setUnits]    = useState(initial?.units?String(initial.units):"1");
-      const [notes,    setNotes]    = useState(initial?.notes    ||"");
-      const [error,    setError]    = useState("");
-      const [saving,   setSaving]   = useState(false);
-
-      const submit = async () => {
-        if (!tutor.trim()||!dog.trim()||!address.trim()) { setError("Preencha nome do pet, tutor e endereço."); return; }
-        const u = parseInt(units,10);
-        if (!u||u<1) { setError("Informe uma quantidade de unidades válida."); return; }
-        setError(""); setSaving(true);
-        try {
-          await onSave({tutor:tutor.trim(),dog:dog.trim(),phone:phone.trim(),address:address.trim(),frequency:freq,nextDate,units:u,notes});
-        } catch(e) {
-          setError("Erro ao salvar. Verifique a conexão e tente novamente.");
-          setSaving(false);
-        }
-      };
-
-      return (
-        <div style={S.overlay} onClick={onClose}>
-          <div style={S.modal} onClick={e=>e.stopPropagation()}>
-            <div style={S.modalHead}>
-              <h3 style={S.modalTitle}>{initial?"Editar cliente":"Novo cliente"}</h3>
-              <button style={S.modalClose} onClick={onClose} disabled={saving}><X size={18} color="#8A7A6C"/></button>
+        <div style={styles.modalOverlay} onClick={onClose}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHead}>
+              <h3 style={styles.modalTitle}>Novo pedido avulso</h3>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C" /></button>
             </div>
-            <div style={S.formBody}>
-              <Fld label="Nome do pet"><input style={S.input} value={dog} onChange={e=>setDog(e.target.value)} placeholder="Ex: Mia"/></Fld>
-              <Fld label="Nome do tutor"><input style={S.input} value={tutor} onChange={e=>setTutor(e.target.value)} placeholder="Ex: Marina Costa"/></Fld>
-              <Fld label="Telefone do cliente (opcional)"><input style={S.input} type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Ex: (11) 99999-9999"/></Fld>
-              <Fld label="Endereço de entrega"><input style={S.input} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Rua, número, bairro"/></Fld>
-              <Fld label="Frequência">
-                <div style={S.freqGrid}>
-                  {Object.entries(freqLabel).map(([k,l])=>(
-                    <button key={k} type="button" onClick={()=>setFreq(k)} style={{...S.freqOpt,...(freq===k?S.freqOptActive:{})}}>{l}</button>
-                  ))}
-                </div>
-              </Fld>
-              <Fld label={freq==="avulsa"?"Data da entrega":"Próxima entrega (data âncora)"}>
-                <input type="date" style={S.input} value={nextDate} onChange={e=>setNextDate(e.target.value)}/>
-              </Fld>
-              <Fld label="Quantidade de unidades por entrega">
-                <input type="number" min="1" style={S.input} value={units} onChange={e=>setUnits(e.target.value)} placeholder="Ex: 4"/>
-              </Fld>
-              <Fld label="Observações (opcional)">
-                <textarea style={{...S.input,minHeight:60,resize:"vertical",fontFamily:"inherit"}} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Ex: portaria pede documento"/>
-              </Fld>
-              {error && <p style={{color:"#C0594B",fontSize:13,margin:0,fontWeight:600}}>{error}</p>}
-              <button style={{...S.saveBtn,opacity:saving?0.7:1}} onClick={submit} disabled={saving}>
-                {saving?"Salvando…":initial?"Salvar alterações":"Adicionar cliente"}
+            <div style={styles.formBody}>
+              <Field label="Data de entrega">
+                <input type="date" style={styles.input} value={date} onChange={e => setDate(e.target.value)} />
+              </Field>
+              <button style={styles.saveBtn} onClick={() => { if (date) onConfirm(date); }}>
+                Adicionar pedido
               </button>
             </div>
           </div>
@@ -1008,91 +992,438 @@
       );
     }
 
-    function Fld({label,children}) { return <div style={{display:"flex",flexDirection:"column",gap:6}}><label style={{fontSize:12.5,fontWeight:600,color:"#8A7A6C"}}>{label}</label>{children}</div>; }
-    function Empty({text}) { return <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"48px 20px",textAlign:"center"}}><PawPrint size={26} color="#D9CBBC"/><p style={{color:"#A89A8C",fontSize:14,margin:0}}>{text}</p></div>; }
+    // ─── STOCK VIEW ───────────────────────────────────────────────────────────────
+    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct }) {
+      const [tab, setTab] = useState("assinantes");
+      const [expandedClient, setExpandedClient] = useState(null);
+      const [productionInputs, setProductionInputs] = useState({});
+      const [expandedProduct, setExpandedProduct] = useState(null);
+      const [showNewProduct, setShowNewProduct] = useState(false);
+      const [newProductName, setNewProductName] = useState("");
+      const [stockInputs, setStockInputs] = useState({});
+      const [expandedPetisco, setExpandedPetisco] = useState(null);
+      const [showNewPetisco, setShowNewPetisco] = useState(false);
+      const [newPetiscoName, setNewPetiscoName] = useState("");
+      const [petiscoInputs, setPetiscoInputs] = useState({});
 
-    // ─── Estilos ──────────────────────────────────────────────────────────────────
-    const S = {
-      app:          {minHeight:"100vh",background:"#FDF8F2",fontFamily:"'Segoe UI',-apple-system,sans-serif",color:"#3E332A",paddingBottom:40},
-      header:       {background:"#3E332A",position:"sticky",top:0,zIndex:10},
-      headerInner:  {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 16px 12px",flexWrap:"wrap",gap:10},
-      brandRow:     {display:"flex",alignItems:"center",gap:10},
-      brandMark:    {width:36,height:36,borderRadius:10,background:"#B8825A",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
-      brandTitle:   {margin:0,fontSize:18,fontWeight:700,color:"#FBF1E8"},
-      brandSub:     {margin:0,fontSize:12,color:"#C9BBA8",fontWeight:500},
-      refreshBtn:   {width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.12)",border:"none",display:"flex",alignItems:"center",justifyContent:"center"},
-      newBtn:       {display:"flex",alignItems:"center",gap:6,background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:10,padding:"9px 14px",fontSize:13.5,fontWeight:600},
-      tabRow:       {display:"flex",gap:4,padding:"0 12px"},
-      tab:          {background:"transparent",border:"none",color:"#9C8E7E",padding:"10px 10px",fontSize:13,fontWeight:600,borderBottom:"2px solid transparent"},
-      tabActive:    {color:"#FBF1E8",borderBottom:"2px solid #B8825A"},
-      main:         {maxWidth:640,margin:"0 auto",padding:"20px 16px"},
-      section:      {},
-      headRow:      {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16},
-      sectionTitle: {margin:0,fontSize:19,fontWeight:700,color:"#3E332A"},
-      countPill:    {background:"#F1E6D8",color:"#8A6A48",fontSize:12.5,fontWeight:600,padding:"4px 10px",borderRadius:20},
-      list:         {display:"flex",flexDirection:"column",gap:12},
-      card:         {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:14,padding:14},
-      cardTop:      {display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8},
-      cardId:       {display:"flex",alignItems:"center",gap:10},
-      dogBadge:     {width:32,height:32,borderRadius:9,background:"#FBF1E8",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
-      cardDog:      {fontSize:15.5,fontWeight:700,color:"#3E332A"},
-      cardTutor:    {fontSize:13,color:"#8A7A6C",marginTop:1},
-      freqTag:      {fontSize:11.5,fontWeight:600,color:"#8A6A48",background:"#F6EEE3",padding:"4px 9px",borderRadius:8,whiteSpace:"nowrap"},
-      unitsTag:     {fontSize:11.5,fontWeight:700,color:"#3E7CB1",background:"#EAF2F8",padding:"4px 9px",borderRadius:8,whiteSpace:"nowrap"},
-      cardAddr:     {display:"flex",gap:6,fontSize:12.5,color:"#7A6C5E",marginTop:10,lineHeight:1.4},
-      statusRow:    {display:"flex",gap:6,marginTop:12},
-      statusBtn:    {flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:5,border:"1.5px solid",borderRadius:9,padding:"8px 6px",fontSize:12,fontWeight:600},
-      weekNav:      {display:"flex",alignItems:"center",justifyContent:"center",gap:14,marginBottom:14},
-      navArrow:     {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:8,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"},
-      weekLabel:    {fontSize:14,fontWeight:700,color:"#3E332A",minWidth:110,textAlign:"center"},
-      weekStrip:    {display:"flex",gap:6,overflowX:"auto",paddingBottom:2},
-      dayChip:      {flex:"1 0 auto",minWidth:44,background:"#FFF",border:"1px solid #EFE4D6",borderRadius:11,padding:"8px 4px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:3},
-      dayChipActive:{background:"#3E332A",borderColor:"#3E332A"},
-      dayChipToday: {borderColor:"#B8825A"},
-      dayDow:       {fontSize:10,fontWeight:700,color:"#9C8E7E"},
-      dayNum:       {fontSize:15,fontWeight:700,color:"#3E332A"},
-      dayDot:       {width:5,height:5,borderRadius:3,background:"#B8825A",marginTop:1},
-      searchBar:    {display:"flex",alignItems:"center",gap:8,background:"#FFF",border:"1px solid #EFE4D6",borderRadius:11,padding:"10px 12px",marginBottom:16},
-      searchInput:  {border:"none",outline:"none",fontSize:14,flex:1,background:"transparent",color:"#3E332A"},
-      clientRow:    {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:14,padding:12,display:"flex",alignItems:"center",gap:10},
-      iconBtn:      {width:30,height:30,borderRadius:8,border:"1px solid #EFE4D6",background:"#FBF8F4",display:"flex",alignItems:"center",justifyContent:"center"},
-      overlay:      {position:"fixed",inset:0,background:"rgba(62,51,42,0.45)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50},
-      modal:        {background:"#FDF8F2",width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto",borderRadius:"18px 18px 0 0"},
-      modalHead:    {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 18px 10px",position:"sticky",top:0,background:"#FDF8F2",zIndex:1},
-      modalTitle:   {margin:0,fontSize:17,fontWeight:700,color:"#3E332A"},
-      modalClose:   {background:"#F1E6D8",border:"none",width:28,height:28,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"},
-      formBody:     {padding:"8px 18px 32px",display:"flex",flexDirection:"column",gap:14},
-      input:        {border:"1px solid #E8DDD0",borderRadius:10,padding:"10px 12px",fontSize:14.5,background:"#FFF",color:"#3E332A",width:"100%"},
-      freqGrid:     {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},
-      freqOpt:      {border:"1.5px solid #E8DDD0",borderRadius:10,padding:"9px 8px",fontSize:13.5,fontWeight:600,color:"#8A7A6C",background:"#FFF"},
-      freqOptActive:{borderColor:"#B8825A",background:"#FBF1E8",color:"#8A6A48"},
-      saveBtn:      {background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:11,padding:"13px",fontSize:15,fontWeight:700,marginTop:4},
-      stockTabRow:  {display:"flex",gap:6,marginBottom:16,background:"#F1E6D8",padding:4,borderRadius:12},
-      stockTab:     {flex:1,background:"transparent",border:"none",borderRadius:9,padding:"9px 8px",fontSize:13.5,fontWeight:600,color:"#8A7A6C"},
-      stockTabActive:{background:"#FFF",color:"#3E332A",boxShadow:"0 1px 2px rgba(62,51,42,0.08)"},
-      stockCard:    {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:14,padding:14},
-      stockTop:     {display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8},
-      balNum:       {fontSize:22,fontWeight:800,lineHeight:1},
-      balLabel:     {fontSize:10.5,color:"#A89A8C",marginTop:2,fontWeight:600},
-      lowWarn:      {display:"flex",alignItems:"center",gap:6,background:"#FBEAE6",color:"#A8412F",fontSize:12,fontWeight:600,padding:"7px 10px",borderRadius:9,marginTop:10},
-      stockRow:     {display:"flex",gap:8,marginTop:12},
-      addBtn:       {display:"flex",alignItems:"center",gap:4,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:10,padding:"0 14px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"},
-      histBtn:      {background:"transparent",border:"none",color:"#B8825A",fontSize:12.5,fontWeight:600,padding:"10px 0 0",textAlign:"left",cursor:"pointer"},
-      histList:     {marginTop:8,borderTop:"1px solid #F1E6D8",paddingTop:8,display:"flex",flexDirection:"column",gap:8},
-      histRow:      {display:"flex",alignItems:"center",gap:8},
-      histReason:   {fontSize:12.5,fontWeight:600,color:"#3E332A"},
-      histDate:     {fontSize:11,color:"#A89A8C"},
-      histEmpty:    {fontSize:12.5,color:"#A89A8C",margin:0},
-      picker:       {marginTop:12,background:"#FBF8F4",border:"1px solid #EFE4D6",borderRadius:11,padding:12},
-      pickerLabel:  {fontSize:12.5,fontWeight:600,color:"#8A7A6C",margin:"0 0 8px"},
-      confirmBtn:   {flex:1,background:"#B8825A",color:"#FFF7EF",border:"none",borderRadius:9,padding:"9px 10px",fontSize:13,fontWeight:700},
-      cancelBtn:    {background:"#EFE4D6",color:"#8A7A6C",border:"none",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:600},
-      newProdTrigger:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",background:"#FFF",border:"1.5px dashed #D9CBBC",borderRadius:12,padding:"12px",fontSize:13.5,fontWeight:600,color:"#B8825A"},
-      newProdBox:   {background:"#FFF",border:"1px solid #EFE4D6",borderRadius:12,padding:12},
-      delProdBtn:   {width:26,height:26,borderRadius:7,border:"1px solid #EFE4D6",background:"#FBF8F4",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"},
+      const subscribers = clients.filter(c => c.frequency !== "avulsa");
+
+      return (
+        <div style={styles.section}>
+          <div style={styles.sectionHeadRow}><h2 style={styles.sectionTitle}>Estoque</h2></div>
+          <div style={styles.stockTabRow}>
+            {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([key,label]) => (
+              <button key={key} style={{ ...styles.stockTabBtn, ...(tab===key ? styles.stockTabBtnActive : {}) }} onClick={() => setTab(key)}>{label}</button>
+            ))}
+          </div>
+
+          {tab === "assinantes" && (
+            subscribers.length === 0 ? <EmptyState text="Nenhum cliente assinante cadastrado ainda." /> : (
+              <div style={styles.cardList}>
+                {subscribers.map(c => {
+                  const balance = subscriberStock[c.id] ?? 0;
+                  const isLow = balance <= (c.units || 0);
+                  const log = subscriberStockLog[c.id] || [];
+                  const exp = expandedClient === c.id;
+                  return (
+                    <div key={c.id} style={styles.stockCard}>
+                      <div style={styles.stockCardTop}>
+                        <div style={styles.cardIdentity}>
+                          <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
+                          <div><div style={styles.cardDog}>{c.dog}</div><div style={styles.cardTutor}>{c.tutor}</div></div>
+                        </div>
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{balance}</div>
+                          <div style={styles.balanceLabel}>em estoque</div>
+                        </div>
+                      </div>
+                      {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Saldo baixo para a próxima entrega ({c.units||0} un.)</span></div>}
+                      <div style={styles.stockEntryRow}>
+                        <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas" value={productionInputs[c.id] || ""} onChange={e => setProductionInputs(p => ({ ...p, [c.id]: e.target.value }))} />
+                        <button style={styles.addStockBtn} onClick={() => { const a = parseInt(productionInputs[c.id],10); if (a>0) { onAddSubscriberProduction(c.id, a); setProductionInputs(p => ({ ...p, [c.id]:"" })); } }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                      </div>
+                      <button style={styles.historyToggle} onClick={() => setExpandedClient(exp ? null : c.id)}>{exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}</button>
+                      {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {tab === "avulsos" && (
+            <>
+              <div style={{ marginBottom:14 }}>
+                {showNewProduct ? (
+                  <div style={styles.newProductBox}>
+                    <input style={styles.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)" value={newProductName} onChange={e => setNewProductName(e.target.value)} autoFocus />
+                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                      <button style={styles.avulsaConfirmBtn} onClick={() => { if (!newProductName.trim()) return; onAddShelfProduct(newProductName.trim()); setNewProductName(""); setShowNewProduct(false); }}>Salvar</button>
+                      <button style={styles.avulsaCancelBtn} onClick={() => setShowNewProduct(false)}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button style={styles.newProductTrigger} onClick={() => setShowNewProduct(true)}><Plus size={16} strokeWidth={2.5} />Cadastrar produto de prateleira</button>
+                )}
+              </div>
+              {shelfProducts.length === 0 ? <EmptyState text="Nenhum produto de prateleira cadastrado ainda." /> : (
+                <div style={styles.cardList}>
+                  {shelfProducts.map(p => {
+                    const log = shelfStockLog[p.id] || [];
+                    const exp = expandedProduct === p.id;
+                    const isLow = p.balance <= 0;
+                    return (
+                      <div key={p.id} style={styles.stockCard}>
+                        <div style={styles.stockCardTop}>
+                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Package size={14} color="#B8825A" /></div><div style={styles.cardDog}>{p.name}</div></div>
+                          <div style={{ textAlign:"right" }}><div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
+                        </div>
+                        {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
+                        <div style={styles.stockEntryRow}>
+                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades a adicionar" value={stockInputs[p.id] || ""} onChange={e => setStockInputs(s => ({ ...s, [p.id]: e.target.value }))} />
+                          <button style={styles.addStockBtn} onClick={() => { const a = parseInt(stockInputs[p.id],10); if (a>0) { onAddShelfStockEntry(p.id, a); setStockInputs(s => ({ ...s, [p.id]:"" })); } }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
+                          <button style={styles.historyToggle} onClick={() => setExpandedProduct(exp ? null : p.id)}>{exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}</button>
+                          <button style={styles.deleteProductBtn} onClick={() => onDeleteShelfProduct(p.id)}><Trash2 size={13} color="#A89A8C" /></button>
+                        </div>
+                        {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === "petiscos" && (
+            <>
+              <div style={{ marginBottom:14 }}>
+                {showNewPetisco ? (
+                  <div style={styles.newProductBox}>
+                    <input style={styles.input} placeholder="Nome do petisco (ex: Biscoito de Frango 100g)" value={newPetiscoName} onChange={e => setNewPetiscoName(e.target.value)} autoFocus />
+                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                      <button style={styles.avulsaConfirmBtn} onClick={() => { if (!newPetiscoName.trim()) return; onAddPetiscoProduct(newPetiscoName.trim()); setNewPetiscoName(""); setShowNewPetisco(false); }}>Salvar</button>
+                      <button style={styles.avulsaCancelBtn} onClick={() => setShowNewPetisco(false)}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button style={styles.newProductTrigger} onClick={() => setShowNewPetisco(true)}><Plus size={16} strokeWidth={2.5} />Cadastrar petisco</button>
+                )}
+              </div>
+              {petiscoProducts.length === 0 ? <EmptyState text="Nenhum petisco cadastrado ainda." /> : (
+                <div style={styles.cardList}>
+                  {petiscoProducts.map(p => {
+                    const log = petiscoStockLog[p.id] || [];
+                    const exp = expandedPetisco === p.id;
+                    const isLow = p.balance <= 0;
+                    return (
+                      <div key={p.id} style={styles.stockCard}>
+                        <div style={styles.stockCardTop}>
+                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Cookie size={14} color="#B8825A" /></div><div style={styles.cardDog}>{p.name}</div></div>
+                          <div style={{ textAlign:"right" }}><div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
+                        </div>
+                        {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
+                        <div style={styles.stockEntryRow}>
+                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas" value={petiscoInputs[p.id] || ""} onChange={e => setPetiscoInputs(s => ({ ...s, [p.id]: e.target.value }))} />
+                          <button style={styles.addStockBtn} onClick={() => { const a = parseInt(petiscoInputs[p.id],10); if (a>0) { onAddPetiscoStockEntry(p.id, a); setPetiscoInputs(s => ({ ...s, [p.id]:"" })); } }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
+                          <button style={styles.historyToggle} onClick={() => setExpandedPetisco(exp ? null : p.id)}>{exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}</button>
+                          <button style={styles.deleteProductBtn} onClick={() => onDeletePetiscoProduct(p.id)}><Trash2 size={13} color="#A89A8C" /></button>
+                        </div>
+                        {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    function HistoryRow({ entry }) {
+      const positive = entry.amount > 0;
+      const Icon = positive ? ArrowUpCircle : ArrowDownCircle;
+      return (
+        <div style={styles.historyRow}>
+          <Icon size={15} color={positive ? "#5C8A5C" : "#C0594B"} style={{ flexShrink:0 }} />
+          <div style={{ flex:1 }}><div style={styles.historyReason}>{entry.reason}</div><div style={styles.historyDate}>{formatDateBR(entry.date)}</div></div>
+          <div style={{ ...styles.historyAmount, color: positive ? "#5C8A5C" : "#C0594B" }}>{positive ? "+" : ""}{entry.amount}</div>
+        </div>
+      );
+    }
+
+    // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
+    function ClientFormModal({ initial, clients, onClose, onSave }) {
+      const initIsSubscriber = initial ? initial.frequency !== "avulsa" : true;
+      const [tutor,           setTutor]           = useState(initial?.tutor    || "");
+      const [dog,             setDog]             = useState(initial?.dog      || "");
+      const [address,         setAddress]         = useState(initial?.address  || "");
+      const [isSubscriber,    setIsSubscriber]    = useState(initIsSubscriber);
+      const [frequency,       setFrequency]       = useState(
+        initial?.frequency && initial.frequency !== "avulsa" ? initial.frequency : "semanal"
+      );
+      const [nextDate,        setNextDate]        = useState(initial?.nextDate || todayISO());
+      const [units,           setUnits]           = useState(initial?.units ? String(initial.units) : "");
+      const [notes,           setNotes]           = useState(initial?.notes    || "");
+      const [labelFile,       setLabelFile]       = useState(initial?.labelFile || "");
+      const [labelFileEdited, setLabelFileEdited] = useState(!!initial?.labelFile);
+      const [error,           setError]           = useState("");
+      const [saving,          setSaving]          = useState(false);
+
+      useEffect(() => {
+        if (!labelFileEdited) {
+          setLabelFile(suggestLabelFile(dog, tutor, clients, initial?.id));
+        }
+      }, [dog, tutor, labelFileEdited]);
+
+      const handleSubmit = async () => {
+        if (!tutor.trim() || !dog.trim() || !address.trim()) { setError("Preencha tutor, cão e endereço."); return; }
+        if (isSubscriber && !nextDate) { setError("Informe a data da próxima entrega."); return; }
+        const unitsNum = units ? parseInt(units, 10) : null;
+        if (isSubscriber && (!unitsNum || unitsNum < 1)) { setError("Informe a quantidade de unidades por entrega."); return; }
+        setSaving(true);
+        await onSave({
+          tutor: tutor.trim(), dog: dog.trim(), address: address.trim(),
+          frequency: isSubscriber ? frequency : "avulsa",
+          nextDate:  isSubscriber ? nextDate : (initial?.nextDate || null),
+          units:     unitsNum,
+          notes,
+          labelFile: labelFile.trim(),
+        });
+        setSaving(false);
+      };
+
+      return (
+        <div style={styles.modalOverlay} onClick={onClose}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHead}>
+              <h3 style={styles.modalTitle}>{initial ? "Editar cliente" : "Novo cliente"}</h3>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C" /></button>
+            </div>
+            <div style={styles.formBody}>
+              <Field label="Nome do tutor">
+                <input style={styles.input} value={tutor} onChange={e => setTutor(e.target.value)} placeholder="Ex: Marina Costa" />
+              </Field>
+              <Field label="Nome do cão">
+                <input style={styles.input} value={dog} onChange={e => setDog(e.target.value)} placeholder="Ex: Mia" />
+              </Field>
+              <Field label="Endereço de entrega">
+                <input style={styles.input} value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro" />
+              </Field>
+
+              <Field label="Tipo de cliente">
+                <div style={styles.subscriberToggle}>
+                  <button type="button" onClick={() => setIsSubscriber(true)}
+                    style={{ ...styles.subscriberOpt, ...(isSubscriber ? styles.subscriberOptActive : {}) }}>
+                    <span style={{ ...styles.subscriberOptTitle, color: isSubscriber ? "#8A6A48" : "#3E332A" }}>
+                      Assinante
+                    </span>
+                    <span style={styles.subscriberOptSub}>entrega recorrente</span>
+                  </button>
+                  <button type="button" onClick={() => setIsSubscriber(false)}
+                    style={{ ...styles.subscriberOpt, ...(!isSubscriber ? styles.subscriberOptActive : {}) }}>
+                    <span style={{ ...styles.subscriberOptTitle, color: !isSubscriber ? "#8A6A48" : "#3E332A" }}>
+                      Avulso
+                    </span>
+                    <span style={styles.subscriberOptSub}>pedido por pedido</span>
+                  </button>
+                </div>
+              </Field>
+
+              {isSubscriber && (
+                <Field label="Frequência">
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                    {[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]].map(([key, label]) => (
+                      <button key={key} type="button" onClick={() => setFrequency(key)}
+                        style={{ ...styles.freqOption, ...(frequency===key ? styles.freqOptionActive : {}) }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              )}
+
+              {isSubscriber && (
+                <Field label="Próxima entrega">
+                  <input type="date" style={styles.input} value={nextDate} onChange={e => setNextDate(e.target.value)} />
+                </Field>
+              )}
+
+              <Field label={isSubscriber ? "Unidades por entrega" : "Unidades por entrega (opcional)"}>
+                <input type="number" min="1" style={styles.input} value={units} onChange={e => setUnits(e.target.value)} placeholder="Ex: 4" />
+              </Field>
+
+              <Field label="Arquivo de etiqueta (.btw)">
+                <div style={{ position:"relative" }}>
+                  <input
+                    style={{ ...styles.input, paddingRight: labelFileEdited ? 80 : 12 }}
+                    value={labelFile}
+                    onChange={e => { setLabelFile(e.target.value); setLabelFileEdited(true); }}
+                    placeholder="ex: mia  ou  mia - mc"
+                  />
+                  {labelFileEdited && (
+                    <button type="button" style={styles.labelSuggestBtn}
+                      onClick={() => { setLabelFileEdited(false); setLabelFile(suggestLabelFile(dog, tutor, clients, initial?.id)); }}>
+                      ↺ sugerir
+                    </button>
+                  )}
+                </div>
+                <p style={{ margin:"4px 0 0", fontSize:11.5, color:"#A89A8C", lineHeight:1.4 }}>
+                  Nome idêntico ao arquivo <strong>.btw</strong> salvo no OneDrive, sem a extensão.
+                  {!labelFile && dog && <span style={{ color:"#C0594B" }}>{" "}Configure para gerar o .bat do dia.</span>}
+                </p>
+              </Field>
+
+              <Field label="Observações (opcional)">
+                <textarea style={{ ...styles.input, minHeight:60, resize:"vertical", fontFamily:"inherit" }}
+                  value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: portaria pede documento" />
+              </Field>
+
+              {error && <p style={styles.errorText}>{error}</p>}
+              <button style={{ ...styles.saveBtn, opacity: saving ? 0.7 : 1 }} onClick={handleSubmit} disabled={saving}>
+                {saving ? "Salvando…" : initial ? "Salvar alterações" : "Adicionar cliente"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Field({ label, children }) {
+      return <div style={styles.field}><label style={styles.fieldLabel}>{label}</label>{children}</div>;
+    }
+
+    function EmptyState({ text }) {
+      return (
+        <div style={styles.empty}>
+          <PawPrint size={26} color="#D9CBBC" />
+          <p style={styles.emptyText}>{text}</p>
+        </div>
+      );
+    }
+
+    // ─── Styles ───────────────────────────────────────────────────────────────────
+    const globalCss = `
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      input:focus, textarea:focus { outline: 2px solid #B8825A; outline-offset: 1px; }
+      button:focus-visible { outline: 2px solid #B8825A; outline-offset: 2px; }
+      button { font-family: inherit; cursor: pointer; }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
+    `;
+
+    const styles = {
+      app:              { minHeight:"100vh", background:"#FDF8F2", fontFamily:"'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif", color:"#3E332A", paddingBottom:40 },
+      loadingScreen:    { minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#FDF8F2" },
+      toast:            { position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:8, background:"#5C8A5C", color:"#fff", fontSize:14, fontWeight:600, padding:"12px 20px", borderRadius:12, boxShadow:"0 4px 16px rgba(0,0,0,0.18)", zIndex:100, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"calc(100vw - 32px)" },
+      header:           { background:"#3E332A", paddingBottom:0, position:"sticky", top:0, zIndex:10 },
+      headerInner:      { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 20px 14px", flexWrap:"wrap", gap:12 },
+      brandRow:         { display:"flex", alignItems:"center", gap:10 },
+      brandMark:        { width:36, height:36, borderRadius:10, background:"#B8825A", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+      brandTitle:       { margin:0, fontSize:18, fontWeight:700, color:"#FBF1E8", letterSpacing:"0.2px" },
+      brandSub:         { margin:0, fontSize:12, color:"#C9BBA8", fontWeight:500 },
+      newBtn:           { display:"flex", alignItems:"center", gap:6, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:10, padding:"9px 14px", fontSize:13.5, fontWeight:600 },
+      tabRow:           { display:"flex", gap:4, padding:"0 16px" },
+      tab:              { background:"transparent", border:"none", color:"#9C8E7E", padding:"10px 14px", fontSize:14, fontWeight:600, borderBottom:"2px solid transparent" },
+      tabActive:        { color:"#FBF1E8", borderBottom:"2px solid #B8825A" },
+      main:             { maxWidth:640, margin:"0 auto", padding:"20px 16px" },
+      section:          {},
+      sectionHeadRow:   { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 },
+      sectionTitle:     { margin:0, fontSize:19, fontWeight:700, textTransform:"capitalize", color:"#3E332A" },
+      countPill:        { background:"#F1E6D8", color:"#8A6A48", fontSize:12.5, fontWeight:600, padding:"4px 10px", borderRadius:20 },
+      cardList:         { display:"flex", flexDirection:"column", gap:12 },
+      card:             { background:"#FFFFFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 },
+      cardTop:          { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 },
+      cardIdentity:     { display:"flex", alignItems:"center", gap:10 },
+      dogBadge:         { width:32, height:32, borderRadius:9, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+      cardDog:          { fontSize:15.5, fontWeight:700, color:"#3E332A" },
+      cardTutor:        { fontSize:13, color:"#8A7A6C", marginTop:1 },
+      freqTag:          { fontSize:11.5, fontWeight:600, color:"#8A6A48", background:"#F6EEE3", padding:"4px 9px", borderRadius:8, whiteSpace:"nowrap" },
+      unitsTag:         { fontSize:11.5, fontWeight:700, color:"#3E7CB1", background:"#EAF2F8", padding:"4px 9px", borderRadius:8, whiteSpace:"nowrap" },
+      cardAddress:      { display:"flex", gap:6, fontSize:12.5, color:"#7A6C5E", marginTop:10, lineHeight:1.4 },
+      statusRow:        { display:"flex", gap:6, marginTop:12 },
+      statusBtn:        { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:5, border:"1.5px solid", borderRadius:9, padding:"8px 6px", fontSize:12, fontWeight:600, transition:"all 0.15s" },
+      rescheduleBtn:    { display:"flex", alignItems:"center", gap:4, background:"transparent", border:"none", color:"#B8825A", fontSize:12, fontWeight:600, padding:0, cursor:"pointer" },
+      rescheduleInfo:   { display:"flex", alignItems:"center", gap:10, background:"#F6EEE3", borderRadius:11, padding:"10px 12px" },
+      weekNav:          { display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14 },
+      navArrow:         { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" },
+      weekLabel:        { fontSize:14, fontWeight:700, color:"#3E332A", minWidth:110, textAlign:"center" },
+      weekStrip:        { display:"flex", gap:6, overflowX:"auto", paddingBottom:2 },
+      dayChip:          { flex:"1 0 auto", minWidth:44, background:"#FFF", border:"1px solid #EFE4D6", borderRadius:11, padding:"8px 4px 10px", display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
+      dayChipActive:    { background:"#3E332A", borderColor:"#3E332A" },
+      dayChipToday:     { borderColor:"#B8825A", borderWidth:1.5 },
+      dayChipDow:       { fontSize:10, fontWeight:700, color:"#9C8E7E" },
+      dayChipNum:       { fontSize:15, fontWeight:700, color:"#3E332A" },
+      dayChipDot:       { width:5, height:5, borderRadius:3, background:"#B8825A", marginTop:1 },
+      searchBar:        { display:"flex", alignItems:"center", gap:8, background:"#FFF", border:"1px solid #EFE4D6", borderRadius:11, padding:"10px 12px", marginBottom:16 },
+      searchInput:      { border:"none", outline:"none", fontSize:14, flex:1, background:"transparent", color:"#3E332A" },
+      clientCard:       { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, overflow:"hidden" },
+      clientRow:        { padding:12, display:"flex", alignItems:"center", gap:10 },
+      clientMeta:       { fontSize:11.5, color:"#A89A8C", marginTop:3 },
+      rowActions:       { display:"flex", gap:6 },
+      iconBtn:          { width:30, height:30, borderRadius:8, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" },
+      orderList:        { borderTop:"1px solid #F6EEE3", padding:"8px 12px 10px", display:"flex", flexDirection:"column", gap:6, background:"#FDFAF6" },
+      orderRow:         { display:"flex", alignItems:"center", gap:8 },
+      orderDate:        { flex:1, fontSize:12.5, fontWeight:600, display:"flex", alignItems:"center", gap:6 },
+      orderPastBadge:   { fontSize:10, fontWeight:600, color:"#C9BBA8", background:"#F1E6D8", padding:"2px 6px", borderRadius:6 },
+      orderDeleteBtn:   { width:20, height:20, borderRadius:5, border:"1px solid #EFE4D6", background:"transparent", display:"flex", alignItems:"center", justifyContent:"center" },
+      empty:            { display:"flex", flexDirection:"column", alignItems:"center", gap:10, padding:"48px 20px", textAlign:"center" },
+      emptyText:        { color:"#A89A8C", fontSize:14, margin:0 },
+      modalOverlay:     { position:"fixed", inset:0, background:"rgba(62,51,42,0.45)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:50 },
+      modal:            { background:"#FDF8F2", width:"100%", maxWidth:480, maxHeight:"88vh", overflowY:"auto", borderRadius:"18px 18px 0 0", padding:0 },
+      modalHead:        { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 18px 10px", position:"sticky", top:0, background:"#FDF8F2" },
+      modalTitle:       { margin:0, fontSize:17, fontWeight:700, color:"#3E332A" },
+      modalClose:       { background:"#F1E6D8", border:"none", width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" },
+      formBody:         { padding:"8px 18px 26px", display:"flex", flexDirection:"column", gap:14 },
+      field:            { display:"flex", flexDirection:"column", gap:6 },
+      fieldLabel:       { fontSize:12.5, fontWeight:600, color:"#8A7A6C" },
+      input:            { border:"1px solid #E8DDD0", borderRadius:10, padding:"10px 12px", fontSize:14.5, background:"#FFF", color:"#3E332A" },
+      freqGrid:         { display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 },
+      freqOption:       { border:"1.5px solid #E8DDD0", borderRadius:10, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:"#8A7A6C", background:"#FFF" },
+      freqOptionActive: { borderColor:"#B8825A", background:"#FBF1E8", color:"#8A6A48" },
+      errorText:        { color:"#C0594B", fontSize:13, margin:0 },
+      saveBtn:          { background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:11, padding:"13px", fontSize:15, fontWeight:700, marginTop:4 },
+      stockTabRow:      { display:"flex", gap:6, marginBottom:16, background:"#F1E6D8", padding:4, borderRadius:12 },
+      stockTabBtn:      { flex:1, background:"transparent", border:"none", borderRadius:9, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:"#8A7A6C" },
+      stockTabBtnActive:{ background:"#FFF", color:"#3E332A", boxShadow:"0 1px 2px rgba(62,51,42,0.08)" },
+      stockCard:        { background:"#FFFFFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 },
+      stockCardTop:     { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 },
+      balanceNum:       { fontSize:22, fontWeight:800, lineHeight:1 },
+      balanceLabel:     { fontSize:10.5, color:"#A89A8C", marginTop:2, fontWeight:600 },
+      lowStockWarning:  { display:"flex", alignItems:"center", gap:6, background:"#FBEAE6", color:"#A8412F", fontSize:12, fontWeight:600, padding:"7px 10px", borderRadius:9, marginTop:10 },
+      stockEntryRow:    { display:"flex", gap:8, marginTop:12 },
+      addStockBtn:      { display:"flex", alignItems:"center", gap:4, background:"#3E332A", color:"#FBF1E8", border:"none", borderRadius:10, padding:"0 14px", fontSize:12.5, fontWeight:600, whiteSpace:"nowrap" },
+      historyToggle:    { background:"transparent", border:"none", color:"#B8825A", fontSize:12.5, fontWeight:600, padding:"10px 0 0", textAlign:"left" },
+      historyList:      { marginTop:8, borderTop:"1px solid #F1E6D8", paddingTop:8, display:"flex", flexDirection:"column", gap:8 },
+      historyRow:       { display:"flex", alignItems:"center", gap:8 },
+      historyReason:    { fontSize:12.5, fontWeight:600, color:"#3E332A" },
+      historyDate:      { fontSize:11, color:"#A89A8C" },
+      historyAmount:    { fontSize:13, fontWeight:700 },
+      historyEmpty:     { fontSize:12.5, color:"#A89A8C", margin:0 },
+      avulsaPicker:     { marginTop:12, background:"#FBF8F4", border:"1px solid #EFE4D6", borderRadius:11, padding:12 },
+      avulsaPickerLabel:{ fontSize:12.5, fontWeight:600, color:"#8A7A6C", margin:"0 0 8px" },
+      avulsaPickerEmpty:{ fontSize:12.5, color:"#C0594B", margin:0 },
+      avulsaConfirmBtn: { flex:1, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:9, padding:"9px 10px", fontSize:13, fontWeight:700 },
+      avulsaCancelBtn:  { background:"#EFE4D6", color:"#8A7A6C", border:"none", borderRadius:9, padding:"9px 14px", fontSize:13, fontWeight:600 },
+      newProductTrigger:{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", background:"#FFF", border:"1.5px dashed #D9CBBC", borderRadius:12, padding:"12px", fontSize:13.5, fontWeight:600, color:"#B8825A" },
+      newProductBox:    { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:12 },
+      deleteProductBtn: { width:26, height:26, borderRadius:7, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" },
+      batBtn:           { display:"flex", alignItems:"center", gap:5, background:"#3E332A", color:"#FBF1E8", border:"none", borderRadius:9, padding:"6px 12px", fontSize:12.5, fontWeight:600, whiteSpace:"nowrap" },
+      labelSuggestBtn:  { position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#B8825A", fontSize:11.5, fontWeight:600, cursor:"pointer", padding:"2px 6px" },
+      subscriberToggle: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 },
+      subscriberOpt:    { display:"flex", flexDirection:"column", alignItems:"center", gap:3, border:"1.5px solid #E8DDD0", borderRadius:12, padding:"13px 8px", background:"#FFF", cursor:"pointer" },
+      subscriberOptActive:{ borderColor:"#B8825A", background:"#FBF1E8" },
+      subscriberOptTitle: { fontSize:14.5, fontWeight:700 },
+      subscriberOptSub:   { fontSize:11, fontWeight:500, color:"#A89A8C" },
     };
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+    // ─── Mount ────────────────────────────────────────────────────────────────────
+    createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
