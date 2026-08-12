@@ -4,37 +4,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ObentōPet — Entregas</title>
+
+  <!-- React 18 (UMD) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Supabase (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+  <!-- Lucide React (UMD — versão com suporte UMD) -->
+  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+
+  <!-- Babel (transforma apenas JSX) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script type="importmap">
-  {
-    "imports": {
-      "react":       "https://esm.sh/react@18?dev",
-      "react-dom/client": "https://esm.sh/react-dom@18/client?dev",
-      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
-      "lucide-react": "https://esm.sh/lucide-react@0.344.0"
-    }
-  }
-  </script>
 </head>
 <body>
   <div id="root"></div>
 
-  <script type="text/babel" data-type="module">
-    import { useState, useEffect, useMemo } from "react";
-    import { createRoot } from "react-dom/client";
-    import { createClient } from "@supabase/supabase-js";
-    import {
+  <script type="text/babel">
+    // ─── Globals ──────────────────────────────────────────────────────────────
+    const { useState, useEffect, useMemo } = React;
+    const { createRoot } = ReactDOM;
+    const { createClient } = supabase;
+    const {
       Plus, Check, Clock, Truck, PawPrint, MapPin, X, Search,
       ChevronLeft, ChevronRight, Trash2, Edit3, Package,
       ArrowDownCircle, ArrowUpCircle, AlertTriangle, Cookie, CheckCircle, Calendar, Printer,
-    } from "lucide-react";
+    } = LucideReact;
 
-    // ─── Supabase ────────────────────────────────────────────────────────────────
+    // ─── Supabase ─────────────────────────────────────────────────────────────
     const SUPABASE_URL = "https://jyrudfwdwkwynolpbni.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A";
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────────
+    // ─── Helpers ──────────────────────────────────────────────────────────────
     const todayISO     = () => new Date().toISOString().split("T")[0];
     const weekdayNames = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
     const weekdayShort = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
@@ -60,13 +63,11 @@
       label_file: data.labelFile || null,
     });
 
-    // ─── Ocorrências ─────────────────────────────────────────────────────────────
+    // ─── Ocorrências ──────────────────────────────────────────────────────────
     function getOccurrencesInRange(client, startISO, endISO, clientReschedules = []) {
       if (client.frequency === "avulsa") return [];
-
       const rescheduledOriginals = new Set(clientReschedules.map(r => r.original_date));
       const rawOut = [];
-
       if (client.nextDate) {
         if (client.frequency === "mensal") {
           let cur = new Date(client.nextDate + "T00:00:00");
@@ -90,7 +91,6 @@
           }
         }
       }
-
       const result = new Set(rawOut);
       clientReschedules.forEach(r => {
         if (r.new_date >= startISO && r.new_date <= endISO) result.add(r.new_date);
@@ -98,7 +98,7 @@
       return Array.from(result).sort();
     }
 
-    // ─── Label helpers ────────────────────────────────────────────────────────────
+    // ─── Label helpers ────────────────────────────────────────────────────────
     const PASTA_ETIQUETAS = "C:\\Users\\ObentoPet\\OneDrive\\ObentōPet\\OPERAÇÃO\\ETIQUETAS & RÓTULOS\\ELGIN\\ENDEREÇOS";
 
     function normLabel(s) {
@@ -125,7 +125,7 @@
       entregue:   { label:"Entregue",   color:"#5C8A5C", icon:Check },
     };
 
-    // ─── Toast ────────────────────────────────────────────────────────────────────
+    // ─── Toast ────────────────────────────────────────────────────────────────
     function Toast({ message, onDismiss }) {
       useEffect(() => { const t = setTimeout(onDismiss, 3500); return () => clearTimeout(t); }, [onDismiss]);
       return (
@@ -136,7 +136,7 @@
       );
     }
 
-    // ─── App ──────────────────────────────────────────────────────────────────────
+    // ─── App ──────────────────────────────────────────────────────────────────
     function App() {
       const [clients,            setClients]            = useState([]);
       const [loaded,             setLoaded]             = useState(false);
@@ -160,7 +160,6 @@
 
       const showToast = (msg) => setToast(msg);
 
-      // ── Load all from Supabase ─────────────────────────────────────────────────
       useEffect(() => {
         (async () => {
           try {
@@ -177,17 +176,17 @@
               { data: rsData },
               { data: aoData },
             ] = await Promise.all([
-              supabase.from("clients").select("*"),
-              supabase.from("status_log").select("*"),
-              supabase.from("subscriber_stock").select("*"),
-              supabase.from("subscriber_stock_log").select("*").order("ts", { ascending: false }),
-              supabase.from("shelf_products").select("*"),
-              supabase.from("shelf_stock_log").select("*").order("ts", { ascending: false }),
-              supabase.from("delivery_deduction").select("*"),
-              supabase.from("snack_products").select("*"),
-              supabase.from("snack_stock_log").select("*").order("ts", { ascending: false }),
-              supabase.from("delivery_reschedules").select("*"),
-              supabase.from("avulsa_orders").select("*").order("date", { ascending: true }),
+              supabaseClient.from("clients").select("*"),
+              supabaseClient.from("status_log").select("*"),
+              supabaseClient.from("subscriber_stock").select("*"),
+              supabaseClient.from("subscriber_stock_log").select("*").order("ts", { ascending: false }),
+              supabaseClient.from("shelf_products").select("*"),
+              supabaseClient.from("shelf_stock_log").select("*").order("ts", { ascending: false }),
+              supabaseClient.from("delivery_deduction").select("*"),
+              supabaseClient.from("snack_products").select("*"),
+              supabaseClient.from("snack_stock_log").select("*").order("ts", { ascending: false }),
+              supabaseClient.from("delivery_reschedules").select("*"),
+              supabaseClient.from("avulsa_orders").select("*").order("date", { ascending: true }),
             ]);
 
             if (cData?.length) setClients(cData.map(dbToClient));
@@ -255,19 +254,19 @@
         })();
       }, []);
 
-      // ── Clientes ───────────────────────────────────────────────────────────────
+      // ── Clientes ─────────────────────────────────────────────────────────────
       const saveClient = async (data) => {
         const isEditing = !!editingClient;
         const id = isEditing ? editingClient.id : "c" + Date.now();
         const row = clientToDb(data, id);
         if (isEditing) {
-          await supabase.from("clients").update(row).eq("id", id);
+          await supabaseClient.from("clients").update(row).eq("id", id);
           setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
         } else {
-          await supabase.from("clients").insert(row);
+          await supabaseClient.from("clients").insert(row);
           setClients(prev => [...prev, { ...data, id }]);
           if (data.frequency !== "avulsa") {
-            await supabase.from("subscriber_stock").upsert({ client_id: id, balance: 0 });
+            await supabaseClient.from("subscriber_stock").upsert({ client_id: id, balance: 0 });
             setSubscriberStock(prev => ({ ...prev, [id]: 0 }));
           }
         }
@@ -277,14 +276,14 @@
       };
 
       const deleteClient = async (id) => {
-        await supabase.from("clients").delete().eq("id", id);
+        await supabaseClient.from("clients").delete().eq("id", id);
         setClients(prev => prev.filter(c => c.id !== id));
       };
 
-      // ── Pedidos avulsos ────────────────────────────────────────────────────────
+      // ── Pedidos avulsos ───────────────────────────────────────────────────────
       const addAvulsaOrder = async (clientId, date) => {
         const id = "ao" + Date.now();
-        await supabase.from("avulsa_orders").insert({ id, client_id: clientId, date });
+        await supabaseClient.from("avulsa_orders").insert({ id, client_id: clientId, date });
         setAvulsaOrders(prev => {
           const list = [...(prev[clientId] || []), { id, date }];
           list.sort((a, b) => a.date.localeCompare(b.date));
@@ -294,7 +293,7 @@
       };
 
       const deleteAvulsaOrder = async (clientId, orderId) => {
-        await supabase.from("avulsa_orders").delete().eq("id", orderId);
+        await supabaseClient.from("avulsa_orders").delete().eq("id", orderId);
         setAvulsaOrders(prev => ({
           ...prev,
           [clientId]: (prev[clientId] || []).filter(o => o.id !== orderId),
@@ -302,7 +301,7 @@
         showToast("Pedido removido.");
       };
 
-      // ── Status de entrega ─────────────────────────────────────────────────────
+      // ── Status ────────────────────────────────────────────────────────────────
       const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
 
       const setStatus = (clientId, date, status, deduction) => {
@@ -312,7 +311,7 @@
         const client = clients.find(c => c.id === clientId);
 
         setStatusLog(prev => ({ ...prev, [key]: status }));
-        supabase.from("status_log").upsert({ key, status });
+        supabaseClient.from("status_log").upsert({ key, status });
 
         if (!client) return;
 
@@ -320,13 +319,13 @@
           if (!wasEntregue && willEntregue && deduction?.productId) {
             applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
             setDeliveryDeduction(prev => ({ ...prev, [key]: deduction }));
-            supabase.from("delivery_deduction").upsert({ key, product_id: deduction.productId, amount: deduction.amount });
+            supabaseClient.from("delivery_deduction").upsert({ key, product_id: deduction.productId, amount: deduction.amount });
           }
           if (wasEntregue && !willEntregue) {
             const prev = deliveryDeduction[key];
             if (prev?.productId) applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
             setDeliveryDeduction(p => { const n = { ...p }; delete n[key]; return n; });
-            supabase.from("delivery_deduction").delete().eq("key", key);
+            supabaseClient.from("delivery_deduction").delete().eq("key", key);
           }
         } else {
           const amount = client.units || 0;
@@ -344,8 +343,8 @@
           ...prev,
           [clientId]: [{ date, amount: delta, reason, ts }, ...(prev[clientId] || [])].slice(0, 100),
         }));
-        supabase.from("subscriber_stock").upsert({ client_id: clientId, balance: newBalance });
-        supabase.from("subscriber_stock_log").insert({ client_id: clientId, date, amount: delta, reason, ts });
+        supabaseClient.from("subscriber_stock").upsert({ client_id: clientId, balance: newBalance });
+        supabaseClient.from("subscriber_stock_log").insert({ client_id: clientId, date, amount: delta, reason, ts });
       };
 
       const addSubscriberProduction = (clientId, amount) => {
@@ -353,7 +352,7 @@
         applySubscriberDelta(clientId, amount, todayISO(), "Produção da semana");
       };
 
-      // ── Estoque avulsos (prateleira) ──────────────────────────────────────────
+      // ── Estoque prateleira ────────────────────────────────────────────────────
       const applyShelfDelta = (productId, delta, date, reason) => {
         const product = shelfProducts.find(p => p.id === productId);
         const newBalance = (product?.balance || 0) + delta;
@@ -363,13 +362,13 @@
           ...prev,
           [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
         }));
-        supabase.from("shelf_products").update({ balance: newBalance }).eq("id", productId);
-        supabase.from("shelf_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
+        supabaseClient.from("shelf_products").update({ balance: newBalance }).eq("id", productId);
+        supabaseClient.from("shelf_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
       };
 
       const addShelfProduct = async (name) => {
         const id = "p" + Date.now();
-        await supabase.from("shelf_products").insert({ id, name, balance: 0 });
+        await supabaseClient.from("shelf_products").insert({ id, name, balance: 0 });
         setShelfProducts(prev => [...prev, { id, name, balance: 0 }]);
         return id;
       };
@@ -380,7 +379,7 @@
       };
 
       const deleteShelfProduct = async (productId) => {
-        await supabase.from("shelf_products").delete().eq("id", productId);
+        await supabaseClient.from("shelf_products").delete().eq("id", productId);
         setShelfProducts(prev => prev.filter(p => p.id !== productId));
       };
 
@@ -394,13 +393,13 @@
           ...prev,
           [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
         }));
-        supabase.from("snack_products").update({ balance: newBalance }).eq("id", productId);
-        supabase.from("snack_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
+        supabaseClient.from("snack_products").update({ balance: newBalance }).eq("id", productId);
+        supabaseClient.from("snack_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
       };
 
       const addPetiscoProduct = async (name) => {
         const id = "pet" + Date.now();
-        await supabase.from("snack_products").insert({ id, name, balance: 0 });
+        await supabaseClient.from("snack_products").insert({ id, name, balance: 0 });
         setPetiscoProducts(prev => [...prev, { id, name, balance: 0 }]);
         return id;
       };
@@ -411,30 +410,30 @@
       };
 
       const deletePetiscoProduct = async (productId) => {
-        await supabase.from("snack_products").delete().eq("id", productId);
+        await supabaseClient.from("snack_products").delete().eq("id", productId);
         setPetiscoProducts(prev => prev.filter(p => p.id !== productId));
       };
 
-      // ── Reagendamento ──────────────────────────────────────────────────────────
+      // ── Reagendamento ─────────────────────────────────────────────────────────
       const rescheduleDelivery = async (clientId, originalDate, newDate, scope, orderId) => {
         const client = clients.find(c => c.id === clientId);
         if (!client || !newDate || newDate === originalDate) return;
 
         if (client.frequency === "avulsa") {
           if (orderId) {
-            await supabase.from("avulsa_orders").update({ date: newDate }).eq("id", orderId);
+            await supabaseClient.from("avulsa_orders").update({ date: newDate }).eq("id", orderId);
             setAvulsaOrders(prev => {
               const list = (prev[clientId] || []).map(o => o.id === orderId ? { ...o, date: newDate } : o);
               list.sort((a, b) => a.date.localeCompare(b.date));
               return { ...prev, [clientId]: list };
             });
           } else {
-            await supabase.from("clients").update({ next_date: newDate }).eq("id", clientId);
+            await supabaseClient.from("clients").update({ next_date: newDate }).eq("id", clientId);
             setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextDate: newDate } : c));
           }
         } else if (scope === "only") {
           const id = `rs_${clientId}_${originalDate}`;
-          await supabase.from("delivery_reschedules").upsert({
+          await supabaseClient.from("delivery_reschedules").upsert({
             id, client_id: clientId, original_date: originalDate, new_date: newDate,
           });
           setReschedules(prev => {
@@ -442,10 +441,10 @@
             return { ...prev, [clientId]: [...existing, { original_date: originalDate, new_date: newDate }] };
           });
         } else {
-          await supabase.from("clients").update({ next_date: newDate }).eq("id", clientId);
+          await supabaseClient.from("clients").update({ next_date: newDate }).eq("id", clientId);
           setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextDate: newDate } : c));
           const id = `rs_${clientId}_${originalDate}`;
-          supabase.from("delivery_reschedules").delete().eq("id", id);
+          supabaseClient.from("delivery_reschedules").delete().eq("id", id);
           setReschedules(prev => ({
             ...prev,
             [clientId]: (prev[clientId] || []).filter(r => r.original_date !== originalDate),
@@ -459,24 +458,19 @@
       const openReschedule = (client, date, orderId) =>
         setRescheduleModal({ clientId: client.id, date, dog: client.dog, frequency: client.frequency, orderId });
 
-      // ── Geração do .bat de etiquetas ─────────────────────────────────────────
+      // ── .bat de etiquetas ─────────────────────────────────────────────────────
       const generateBat = (date, items) => {
         const comEtiqueta = items.filter(({ client }) => client.labelFile);
         const semEtiqueta = items.filter(({ client }) => !client.labelFile);
-
         const lines = [
-          "@echo off",
-          "chcp 65001 > nul",
+          "@echo off", "chcp 65001 > nul",
           `SET "BARTENDER=C:\\Program Files (x86)\\Seagull\\BarTender UltraLite\\BarTend.exe"`,
           `SET "PASTA=${PASTA_ETIQUETAS}"`,
-          "",
-          `echo ============================================`,
+          "", `echo ============================================`,
           `echo  ObentoPet - Etiquetas ${date}`,
           `echo  Total: ${comEtiqueta.length} etiqueta(s)`,
-          `echo ============================================`,
-          "",
+          `echo ============================================`, "",
         ];
-
         if (comEtiqueta.length === 0) {
           lines.push("echo Nenhuma etiqueta configurada para este dia.");
         } else {
@@ -488,27 +482,18 @@
           lines.push(`echo ============================================`);
           lines.push(`echo  Todas as etiquetas enviadas!`);
           if (semEtiqueta.length > 0) {
-            lines.push("");
-            lines.push(`echo ATENCAO: ${semEtiqueta.length} entrega(s) sem etiqueta configurada:`);
-            semEtiqueta.forEach(({ client }) => {
-              lines.push(`echo   - ${client.dog} (${client.tutor})`);
-            });
+            lines.push("", `echo ATENCAO: ${semEtiqueta.length} entrega(s) sem etiqueta configurada:`);
+            semEtiqueta.forEach(({ client }) => lines.push(`echo   - ${client.dog} (${client.tutor})`));
           }
         }
-
-        lines.push("echo ============================================");
-        lines.push("pause");
-
+        lines.push("echo ============================================", "pause");
         const content = lines.join("\r\n");
         const blob = new Blob(["\uFEFF" + content], { type: "text/plain;charset=utf-8" });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement("a");
-        a.href     = url;
-        a.download = `etiquetas_${date}.bat`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        a.href = url; a.download = `etiquetas_${date}.bat`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
         showToast("Arquivo .bat gerado!");
       };
 
@@ -523,50 +508,40 @@
 
       const todayDeliveries = useMemo(() => {
         const t = todayISO();
-
         const recurring = clients
           .filter(c => c.frequency !== "avulsa")
           .flatMap(c =>
             getOccurrencesInRange(c, t, t, reschedules[c.id] || []).map(date => ({ client: c, date, orderId: null }))
           );
-
         const avulsa = clients
           .filter(c => c.frequency === "avulsa")
           .flatMap(c => {
             const orders = avulsaOrders[c.id];
-            if (orders && orders.length > 0) {
+            if (orders && orders.length > 0)
               return orders.filter(o => o.date === t).map(o => ({ client: c, date: t, orderId: o.id }));
-            }
             if (c.nextDate === t) return [{ client: c, date: t, orderId: null }];
             return [];
           });
-
         return [...recurring, ...avulsa].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
       }, [clients, reschedules, avulsaOrders]);
 
       const weekDeliveries = useMemo(() => {
         const map = Object.fromEntries(weekDays.map(d => [d, []]));
-
         clients.filter(c => c.frequency !== "avulsa").forEach(c => {
           getOccurrencesInRange(c, weekDays[0], weekDays[6], reschedules[c.id] || []).forEach(d => {
             if (map[d]) map[d].push({ client: c, orderId: null });
           });
         });
-
         clients.filter(c => c.frequency === "avulsa").forEach(c => {
           const orders = avulsaOrders[c.id];
           if (orders && orders.length > 0) {
-            orders
-              .filter(o => o.date >= weekDays[0] && o.date <= weekDays[6])
+            orders.filter(o => o.date >= weekDays[0] && o.date <= weekDays[6])
               .forEach(o => { if (map[o.date]) map[o.date].push({ client: c, orderId: o.id }); });
           } else if (c.nextDate >= weekDays[0] && c.nextDate <= weekDays[6]) {
             if (map[c.nextDate]) map[c.nextDate].push({ client: c, orderId: null });
           }
         });
-
-        Object.keys(map).forEach(d =>
-          map[d].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor))
-        );
+        Object.keys(map).forEach(d => map[d].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor)));
         return map;
       }, [clients, weekDays, reschedules, avulsaOrders]);
 
@@ -579,7 +554,6 @@
         ) : clients;
       }, [clients, search]);
 
-      // ── Render ────────────────────────────────────────────────────────────────
       if (!loaded) return (
         <div style={styles.loadingScreen}><PawPrint size={32} color="#B8825A" /></div>
       );
@@ -587,9 +561,7 @@
       return (
         <div style={styles.app}>
           <style>{globalCss}</style>
-
           {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
-
           <header style={styles.header}>
             <div style={styles.headerInner}>
               <div style={styles.brandRow}>
@@ -612,7 +584,7 @@
           </header>
 
           <main style={styles.main}>
-            {view === "hoje"   && (
+            {view === "hoje" && (
               <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus}
                 shelfProducts={shelfProducts} onReschedule={openReschedule} />
             )}
@@ -640,26 +612,20 @@
           </main>
 
           {showForm && (
-            <ClientFormModal
-              initial={editingClient}
-              clients={clients}
+            <ClientFormModal initial={editingClient} clients={clients}
               onClose={() => { setShowForm(false); setEditingClient(null); }}
-              onSave={saveClient}
-            />
+              onSave={saveClient} />
           )}
-
           {rescheduleModal && (
-            <RescheduleModal
-              info={rescheduleModal}
+            <RescheduleModal info={rescheduleModal}
               onClose={() => setRescheduleModal(null)}
-              onConfirm={rescheduleDelivery}
-            />
+              onConfirm={rescheduleDelivery} />
           )}
         </div>
       );
     }
 
-    // ─── TODAY VIEW ───────────────────────────────────────────────────────────────
+    // ─── TODAY VIEW ───────────────────────────────────────────────────────────
     function TodayView({ items, getStatus, setStatus, shelfProducts, onReschedule }) {
       const t = todayISO();
       const d = new Date(t + "T00:00:00");
@@ -683,7 +649,7 @@
       );
     }
 
-    // ─── WEEK VIEW ────────────────────────────────────────────────────────────────
+    // ─── WEEK VIEW ────────────────────────────────────────────────────────────
     function WeekView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onGenerateBat }) {
       const [activeDay, setActiveDay] = useState(null);
       const t = todayISO();
@@ -702,8 +668,9 @@
               const count = weekDeliveries[d]?.length || 0;
               const isToday = d === t, isActive = d === activeDate;
               return (
-                <button key={d} onClick={() => setActiveDay(d)} style={{ ...styles.dayChip, ...(isActive ? styles.dayChipActive : {}), ...(isToday && !isActive ? styles.dayChipToday : {}) }}>
-                  <span style={{ ...styles.dayChipDow, ...(isActive ? { color:"#9C8E7E" } : {}) }}>{weekdayShort[i]}</span>
+                <button key={d} onClick={() => setActiveDay(d)}
+                  style={{ ...styles.dayChip, ...(isActive ? styles.dayChipActive : {}), ...(isToday && !isActive ? styles.dayChipToday : {}) }}>
+                  <span style={{ ...styles.dayChipDow, ...(isActive ? { color:"#C9BBA8" } : {}) }}>{weekdayShort[i]}</span>
                   <span style={{ ...styles.dayChipNum, ...(isActive ? { color:"#FBF1E8" } : {}) }}>{d.split("-")[2]}</span>
                   {count > 0 && <span style={{ ...styles.dayChipDot, ...(isActive ? { background:"#FBF1E8" } : {}) }} />}
                 </button>
@@ -723,20 +690,20 @@
             {activeDayItems.length === 0
               ? <EmptyState text="Nenhuma entrega marcada para este dia." />
               : (
-              <div style={styles.cardList}>
-                {activeDayItems.map(({ client, orderId }) => (
-                  <DeliveryCard key={client.id + activeDate + (orderId||"")} client={client} date={activeDate} orderId={orderId}
-                    status={getStatus(client.id, activeDate)} onStatusChange={(s, ded) => setStatus(client.id, activeDate, s, ded)}
-                    shelfProducts={shelfProducts} onReschedule={onReschedule} />
-                ))}
-              </div>
-            )}
+                <div style={styles.cardList}>
+                  {activeDayItems.map(({ client, orderId }) => (
+                    <DeliveryCard key={client.id + activeDate + (orderId||"")} client={client} date={activeDate} orderId={orderId}
+                      status={getStatus(client.id, activeDate)} onStatusChange={(s, ded) => setStatus(client.id, activeDate, s, ded)}
+                      shelfProducts={shelfProducts} onReschedule={onReschedule} />
+                  ))}
+                </div>
+              )}
           </div>
         </div>
       );
     }
 
-    // ─── DELIVERY CARD ────────────────────────────────────────────────────────────
+    // ─── DELIVERY CARD ────────────────────────────────────────────────────────
     function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule }) {
       const [pickerOpen, setPickerOpen] = useState(false);
       const [selectedProduct, setSelectedProduct] = useState("");
@@ -786,7 +753,8 @@
                 </select>
               )}
               <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                <input type="number" min="1" style={{ ...styles.input, flex:1 }} value={selectedAmount} onChange={e => setSelectedAmount(e.target.value)} placeholder="Qtd" />
+                <input type="number" min="1" style={{ ...styles.input, flex:1 }} value={selectedAmount}
+                  onChange={e => setSelectedAmount(e.target.value)} placeholder="Qtd" />
                 <button style={styles.avulsaConfirmBtn} onClick={confirmAvulsaDelivery} disabled={!selectedProduct}>Confirmar</button>
                 <button style={styles.avulsaCancelBtn} onClick={() => setPickerOpen(false)}>Cancelar</button>
               </div>
@@ -797,7 +765,8 @@
                 {Object.entries(statusConfig).map(([key, conf]) => {
                   const Icon = conf.icon; const active = status === key;
                   return (
-                    <button key={key} onClick={() => handleStatusClick(key)} style={{ ...styles.statusBtn, ...(active ? { background:conf.color, color:"#FFF7EF", borderColor:conf.color } : { background:"#FFF7EF", color:"#8A7A6C", borderColor:"#E8DDD0" }) }}>
+                    <button key={key} onClick={() => handleStatusClick(key)}
+                      style={{ ...styles.statusBtn, ...(active ? { background:conf.color, color:"#FFF7EF", borderColor:conf.color } : { background:"#FFF7EF", color:"#8A7A6C", borderColor:"#E8DDD0" }) }}>
                       <Icon size={13} strokeWidth={2.5} />{conf.label}
                     </button>
                   );
@@ -805,8 +774,7 @@
               </div>
               <div style={{ display:"flex", justifyContent:"flex-end", marginTop:8 }}>
                 <button style={styles.rescheduleBtn} onClick={() => onReschedule(client, date, orderId)}>
-                  <Calendar size={12} strokeWidth={2.5} />
-                  Reagendar
+                  <Calendar size={12} strokeWidth={2.5} />Reagendar
                 </button>
               </div>
             </>
@@ -815,13 +783,12 @@
       );
     }
 
-    // ─── RESCHEDULE MODAL ─────────────────────────────────────────────────────────
+    // ─── RESCHEDULE MODAL ─────────────────────────────────────────────────────
     function RescheduleModal({ info, onClose, onConfirm }) {
       const [newDate, setNewDate] = useState("");
       const [scope,   setScope]   = useState("only");
       const isRecurring = info.frequency !== "avulsa";
       const canConfirm  = newDate && newDate !== info.date;
-
       return (
         <div style={styles.modalOverlay} onClick={onClose}>
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
@@ -869,7 +836,7 @@
       );
     }
 
-    // ─── CLIENTS VIEW ─────────────────────────────────────────────────────────────
+    // ─── CLIENTS VIEW ─────────────────────────────────────────────────────────
     function ClientsView({ clients, search, setSearch, onEdit, onDelete, avulsaOrders, onAddAvulsaOrder, onDeleteAvulsaOrder }) {
       const [confirmDelete, setConfirmDelete] = useState(null);
       const [newOrderFor,   setNewOrderFor]   = useState(null);
@@ -877,9 +844,7 @@
 
       const getAvulsaMeta = (c) => {
         const orders = avulsaOrders[c.id] || [];
-        if (orders.length === 0) {
-          return `Avulsa · próxima: ${formatDateBR(c.nextDate)}`;
-        }
+        if (orders.length === 0) return `Avulsa · próxima: ${formatDateBR(c.nextDate)}`;
         const upcoming = orders.filter(o => o.date >= today);
         if (upcoming.length === 0) return "Avulsa · sem entrega agendada";
         return `Avulsa · ${upcoming.length} agendada${upcoming.length !== 1 ? "s" : ""} · próxima: ${formatDateBR(upcoming[0].date)}`;
@@ -889,14 +854,14 @@
         <div style={styles.section}>
           <div style={styles.searchBar}>
             <Search size={16} color="#A89A8C" />
-            <input style={styles.searchInput} placeholder="Buscar por tutor, cão ou endereço…" value={search} onChange={e => setSearch(e.target.value)} />
+            <input style={styles.searchInput} placeholder="Buscar por tutor, cão ou endereço…"
+              value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           {clients.length === 0 ? <EmptyState text="Nenhum cliente cadastrado ainda." /> : (
             <div style={styles.cardList}>
               {clients.map(c => {
                 const isAvulsa = c.frequency === "avulsa";
                 const orders   = isAvulsa ? (avulsaOrders[c.id] || []) : [];
-
                 return (
                   <div key={c.id} style={styles.clientCard}>
                     <div style={styles.clientRow}>
@@ -914,8 +879,7 @@
                         <div style={styles.clientMeta}>
                           {isAvulsa
                             ? getAvulsaMeta(c)
-                            : `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}`
-                          }
+                            : `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}`}
                         </div>
                       </div>
                       <div style={styles.rowActions}>
@@ -927,13 +891,15 @@
                         )}
                         <button style={styles.iconBtn} onClick={() => onEdit(c)}><Edit3 size={15} color="#8A7A6C" /></button>
                         {confirmDelete === c.id ? (
-                          <button style={{ ...styles.iconBtn, background:"#C0594B" }} onClick={() => { onDelete(c.id); setConfirmDelete(null); }}><Check size={15} color="#fff" /></button>
+                          <button style={{ ...styles.iconBtn, background:"#C0594B" }}
+                            onClick={() => { onDelete(c.id); setConfirmDelete(null); }}>
+                            <Check size={15} color="#fff" />
+                          </button>
                         ) : (
                           <button style={styles.iconBtn} onClick={() => setConfirmDelete(c.id)}><Trash2 size={15} color="#8A7A6C" /></button>
                         )}
                       </div>
                     </div>
-
                     {isAvulsa && orders.length > 0 && (
                       <div style={styles.orderList}>
                         {orders.map(o => {
@@ -958,7 +924,6 @@
               })}
             </div>
           )}
-
           {newOrderFor && (
             <NewOrderModal
               onClose={() => setNewOrderFor(null)}
@@ -969,7 +934,7 @@
       );
     }
 
-    // ─── NEW ORDER MODAL ──────────────────────────────────────────────────────────
+    // ─── NEW ORDER MODAL ──────────────────────────────────────────────────────
     function NewOrderModal({ onClose, onConfirm }) {
       const [date, setDate] = useState(todayISO());
       return (
@@ -992,7 +957,7 @@
       );
     }
 
-    // ─── STOCK VIEW ───────────────────────────────────────────────────────────────
+    // ─── STOCK VIEW ───────────────────────────────────────────────────────────
     function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct }) {
       const [tab, setTab] = useState("assinantes");
       const [expandedClient, setExpandedClient] = useState(null);
@@ -1013,7 +978,8 @@
           <div style={styles.sectionHeadRow}><h2 style={styles.sectionTitle}>Estoque</h2></div>
           <div style={styles.stockTabRow}>
             {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([key,label]) => (
-              <button key={key} style={{ ...styles.stockTabBtn, ...(tab===key ? styles.stockTabBtnActive : {}) }} onClick={() => setTab(key)}>{label}</button>
+              <button key={key} style={{ ...styles.stockTabBtn, ...(tab===key ? styles.stockTabBtnActive : {}) }}
+                onClick={() => setTab(key)}>{label}</button>
             ))}
           </div>
 
@@ -1039,10 +1005,16 @@
                       </div>
                       {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Saldo baixo para a próxima entrega ({c.units||0} un.)</span></div>}
                       <div style={styles.stockEntryRow}>
-                        <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas" value={productionInputs[c.id] || ""} onChange={e => setProductionInputs(p => ({ ...p, [c.id]: e.target.value }))} />
-                        <button style={styles.addStockBtn} onClick={() => { const a = parseInt(productionInputs[c.id],10); if (a>0) { onAddSubscriberProduction(c.id, a); setProductionInputs(p => ({ ...p, [c.id]:"" })); } }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                        <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas"
+                          value={productionInputs[c.id] || ""} onChange={e => setProductionInputs(p => ({ ...p, [c.id]: e.target.value }))} />
+                        <button style={styles.addStockBtn} onClick={() => {
+                          const a = parseInt(productionInputs[c.id],10);
+                          if (a>0) { onAddSubscriberProduction(c.id, a); setProductionInputs(p => ({ ...p, [c.id]:"" })); }
+                        }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
                       </div>
-                      <button style={styles.historyToggle} onClick={() => setExpandedClient(exp ? null : c.id)}>{exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}</button>
+                      <button style={styles.historyToggle} onClick={() => setExpandedClient(exp ? null : c.id)}>
+                        {exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}
+                      </button>
                       {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
                     </div>
                   );
@@ -1056,14 +1028,20 @@
               <div style={{ marginBottom:14 }}>
                 {showNewProduct ? (
                   <div style={styles.newProductBox}>
-                    <input style={styles.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)" value={newProductName} onChange={e => setNewProductName(e.target.value)} autoFocus />
+                    <input style={styles.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)"
+                      value={newProductName} onChange={e => setNewProductName(e.target.value)} autoFocus />
                     <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                      <button style={styles.avulsaConfirmBtn} onClick={() => { if (!newProductName.trim()) return; onAddShelfProduct(newProductName.trim()); setNewProductName(""); setShowNewProduct(false); }}>Salvar</button>
+                      <button style={styles.avulsaConfirmBtn} onClick={() => {
+                        if (!newProductName.trim()) return;
+                        onAddShelfProduct(newProductName.trim()); setNewProductName(""); setShowNewProduct(false);
+                      }}>Salvar</button>
                       <button style={styles.avulsaCancelBtn} onClick={() => setShowNewProduct(false)}>Cancelar</button>
                     </div>
                   </div>
                 ) : (
-                  <button style={styles.newProductTrigger} onClick={() => setShowNewProduct(true)}><Plus size={16} strokeWidth={2.5} />Cadastrar produto de prateleira</button>
+                  <button style={styles.newProductTrigger} onClick={() => setShowNewProduct(true)}>
+                    <Plus size={16} strokeWidth={2.5} />Cadastrar produto de prateleira
+                  </button>
                 )}
               </div>
               {shelfProducts.length === 0 ? <EmptyState text="Nenhum produto de prateleira cadastrado ainda." /> : (
@@ -1080,11 +1058,17 @@
                         </div>
                         {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
                         <div style={styles.stockEntryRow}>
-                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades a adicionar" value={stockInputs[p.id] || ""} onChange={e => setStockInputs(s => ({ ...s, [p.id]: e.target.value }))} />
-                          <button style={styles.addStockBtn} onClick={() => { const a = parseInt(stockInputs[p.id],10); if (a>0) { onAddShelfStockEntry(p.id, a); setStockInputs(s => ({ ...s, [p.id]:"" })); } }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades a adicionar"
+                            value={stockInputs[p.id] || ""} onChange={e => setStockInputs(s => ({ ...s, [p.id]: e.target.value }))} />
+                          <button style={styles.addStockBtn} onClick={() => {
+                            const a = parseInt(stockInputs[p.id],10);
+                            if (a>0) { onAddShelfStockEntry(p.id, a); setStockInputs(s => ({ ...s, [p.id]:"" })); }
+                          }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
                         </div>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                          <button style={styles.historyToggle} onClick={() => setExpandedProduct(exp ? null : p.id)}>{exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}</button>
+                          <button style={styles.historyToggle} onClick={() => setExpandedProduct(exp ? null : p.id)}>
+                            {exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}
+                          </button>
                           <button style={styles.deleteProductBtn} onClick={() => onDeleteShelfProduct(p.id)}><Trash2 size={13} color="#A89A8C" /></button>
                         </div>
                         {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
@@ -1101,14 +1085,20 @@
               <div style={{ marginBottom:14 }}>
                 {showNewPetisco ? (
                   <div style={styles.newProductBox}>
-                    <input style={styles.input} placeholder="Nome do petisco (ex: Biscoito de Frango 100g)" value={newPetiscoName} onChange={e => setNewPetiscoName(e.target.value)} autoFocus />
+                    <input style={styles.input} placeholder="Nome do petisco (ex: Biscoito de Frango 100g)"
+                      value={newPetiscoName} onChange={e => setNewPetiscoName(e.target.value)} autoFocus />
                     <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                      <button style={styles.avulsaConfirmBtn} onClick={() => { if (!newPetiscoName.trim()) return; onAddPetiscoProduct(newPetiscoName.trim()); setNewPetiscoName(""); setShowNewPetisco(false); }}>Salvar</button>
+                      <button style={styles.avulsaConfirmBtn} onClick={() => {
+                        if (!newPetiscoName.trim()) return;
+                        onAddPetiscoProduct(newPetiscoName.trim()); setNewPetiscoName(""); setShowNewPetisco(false);
+                      }}>Salvar</button>
                       <button style={styles.avulsaCancelBtn} onClick={() => setShowNewPetisco(false)}>Cancelar</button>
                     </div>
                   </div>
                 ) : (
-                  <button style={styles.newProductTrigger} onClick={() => setShowNewPetisco(true)}><Plus size={16} strokeWidth={2.5} />Cadastrar petisco</button>
+                  <button style={styles.newProductTrigger} onClick={() => setShowNewPetisco(true)}>
+                    <Plus size={16} strokeWidth={2.5} />Cadastrar petisco
+                  </button>
                 )}
               </div>
               {petiscoProducts.length === 0 ? <EmptyState text="Nenhum petisco cadastrado ainda." /> : (
@@ -1125,11 +1115,17 @@
                         </div>
                         {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
                         <div style={styles.stockEntryRow}>
-                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas" value={petiscoInputs[p.id] || ""} onChange={e => setPetiscoInputs(s => ({ ...s, [p.id]: e.target.value }))} />
-                          <button style={styles.addStockBtn} onClick={() => { const a = parseInt(petiscoInputs[p.id],10); if (a>0) { onAddPetiscoStockEntry(p.id, a); setPetiscoInputs(s => ({ ...s, [p.id]:"" })); } }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas"
+                            value={petiscoInputs[p.id] || ""} onChange={e => setPetiscoInputs(s => ({ ...s, [p.id]: e.target.value }))} />
+                          <button style={styles.addStockBtn} onClick={() => {
+                            const a = parseInt(petiscoInputs[p.id],10);
+                            if (a>0) { onAddPetiscoStockEntry(p.id, a); setPetiscoInputs(s => ({ ...s, [p.id]:"" })); }
+                          }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
                         </div>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                          <button style={styles.historyToggle} onClick={() => setExpandedPetisco(exp ? null : p.id)}>{exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}</button>
+                          <button style={styles.historyToggle} onClick={() => setExpandedPetisco(exp ? null : p.id)}>
+                            {exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}
+                          </button>
                           <button style={styles.deleteProductBtn} onClick={() => onDeletePetiscoProduct(p.id)}><Trash2 size={13} color="#A89A8C" /></button>
                         </div>
                         {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
@@ -1150,13 +1146,16 @@
       return (
         <div style={styles.historyRow}>
           <Icon size={15} color={positive ? "#5C8A5C" : "#C0594B"} style={{ flexShrink:0 }} />
-          <div style={{ flex:1 }}><div style={styles.historyReason}>{entry.reason}</div><div style={styles.historyDate}>{formatDateBR(entry.date)}</div></div>
+          <div style={{ flex:1 }}>
+            <div style={styles.historyReason}>{entry.reason}</div>
+            <div style={styles.historyDate}>{formatDateBR(entry.date)}</div>
+          </div>
           <div style={{ ...styles.historyAmount, color: positive ? "#5C8A5C" : "#C0594B" }}>{positive ? "+" : ""}{entry.amount}</div>
         </div>
       );
     }
 
-    // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
+    // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────
     function ClientFormModal({ initial, clients, onClose, onSave }) {
       const initIsSubscriber = initial ? initial.frequency !== "avulsa" : true;
       const [tutor,           setTutor]           = useState(initial?.tutor    || "");
@@ -1219,16 +1218,12 @@
                 <div style={styles.subscriberToggle}>
                   <button type="button" onClick={() => setIsSubscriber(true)}
                     style={{ ...styles.subscriberOpt, ...(isSubscriber ? styles.subscriberOptActive : {}) }}>
-                    <span style={{ ...styles.subscriberOptTitle, color: isSubscriber ? "#8A6A48" : "#3E332A" }}>
-                      Assinante
-                    </span>
+                    <span style={{ ...styles.subscriberOptTitle, color: isSubscriber ? "#8A6A48" : "#3E332A" }}>Assinante</span>
                     <span style={styles.subscriberOptSub}>entrega recorrente</span>
                   </button>
                   <button type="button" onClick={() => setIsSubscriber(false)}
                     style={{ ...styles.subscriberOpt, ...(!isSubscriber ? styles.subscriberOptActive : {}) }}>
-                    <span style={{ ...styles.subscriberOptTitle, color: !isSubscriber ? "#8A6A48" : "#3E332A" }}>
-                      Avulso
-                    </span>
+                    <span style={{ ...styles.subscriberOptTitle, color: !isSubscriber ? "#8A6A48" : "#3E332A" }}>Avulso</span>
                     <span style={styles.subscriberOptSub}>pedido por pedido</span>
                   </button>
                 </div>
@@ -1254,7 +1249,8 @@
               )}
 
               <Field label={isSubscriber ? "Unidades por entrega" : "Unidades por entrega (opcional)"}>
-                <input type="number" min="1" style={styles.input} value={units} onChange={e => setUnits(e.target.value)} placeholder="Ex: 4" />
+                <input type="number" min="1" style={styles.input} value={units}
+                  onChange={e => setUnits(e.target.value)} placeholder="Ex: 4" />
               </Field>
 
               <Field label="Arquivo de etiqueta (.btw)">
@@ -1306,7 +1302,7 @@
       );
     }
 
-    // ─── Styles ───────────────────────────────────────────────────────────────────
+    // ─── Styles ───────────────────────────────────────────────────────────────
     const globalCss = `
       * { box-sizing: border-box; }
       body { margin: 0; }
@@ -1422,7 +1418,7 @@
       subscriberOptSub:   { fontSize:11, fontWeight:500, color:"#A89A8C" },
     };
 
-    // ─── Mount ────────────────────────────────────────────────────────────────────
+    // ─── Mount ────────────────────────────────────────────────────────────────
     createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
