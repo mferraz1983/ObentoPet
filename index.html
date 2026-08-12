@@ -84,14 +84,14 @@
       id: r.id, tutor: r.tutor, dog: r.dog, address: r.address,
       phone: r.phone || "",
       frequency: r.frequency, nextDate: r.next_date,
-      units: r.units, notes: r.notes || "",
+      units: r.units, volumes: r.volumes||null, notes: r.notes || "",
       labelFile: r.label_file || "",
     });
     const clientToDb = (data, id) => ({
       id, tutor: data.tutor, dog: data.dog, address: data.address,
       phone: data.phone || "",
       frequency: data.frequency, next_date: data.nextDate,
-      units: data.units, notes: data.notes,
+      units: data.units, volumes: data.volumes||null, notes: data.notes,
       label_file: data.labelFile || null,
     });
 
@@ -347,8 +347,8 @@
 
       const downloadClientsTemplate = () => {
         downloadTemplate(
-          ["Tutor","Cachorro","Endereço","Telefone","Tipo","Frequência","Data de Entrega (AAAA-MM-DD)","Unidades","Etiqueta (.btw)","Observações"],
-          ["Maria Silva","Rex","Rua A, 10, Centro","(11) 98765-4321","Assinante","semanal",todayISO(),"4","rex - ms","Portaria solicita documento"],
+          ["Tutor","Cachorro","Endereço","Telefone","Tipo","Frequência","Data de Entrega (AAAA-MM-DD)","Unidades","Volumes","Etiqueta (.btw)","Observações"],
+          ["Maria Silva","Rex","Rua A, 10, Centro","(11) 98765-4321","Assinante","semanal",todayISO(),"4","2","rex - ms","Portaria solicita documento"],
           "template_clientes.xlsx", "Clientes"
         );
       };
@@ -386,12 +386,13 @@
             const freq     = isAvulsa ? "avulsa" : (["semanal","quinzenal","mensal"].includes(rawFreq)?rawFreq:"semanal");
             const dateRaw  = String(row["Data de Entrega (AAAA-MM-DD)"]||"").trim();
             const nextDate = !isAvulsa ? (dateRaw||todayISO()) : null;
-            const units    = parseInt(row["Unidades"],10)||null;
-            const id       = genId();
+            const units   = parseInt(row["Unidades"],10)||null;
+            const volumes = parseInt(row["Volumes"],10)||null;
+            const id      = genId();
             const clientData = {
               tutor, dog, address,
               phone:     String(row["Telefone"]||"").trim(),
-              frequency: freq, nextDate, units,
+              frequency: freq, nextDate, units, volumes,
               notes:     String(row["Observações"]||"").trim(),
               labelFile: String(row["Etiqueta (.btw)"]||"").trim(),
             };
@@ -723,6 +724,33 @@
       const openReschedule = (client, date, orderId) =>
         setRescheduleModal({clientId:client.id,date,dog:client.dog,frequency:client.frequency,orderId});
 
+      const cancelDelivery = async (client, date, orderId) => {
+        try {
+          if (client.frequency==="avulsa") {
+            // Avulso: deleta o pedido → entrega some da lista
+            if (orderId) {
+              const {error} = await db.from("avulsa_orders").delete().eq("id",orderId);
+              if (error) throw error;
+              setAvulsaOrders(prev=>({...prev,[client.id]:(prev[client.id]||[]).filter(o=>o.id!==orderId)}));
+            }
+          } else {
+            // Assinante: registra em delivery_reschedules com new_date sentinel (data passada que nunca aparece)
+            const id = `rs_${client.id}_${date}`;
+            const {error} = await db.from("delivery_reschedules").upsert({
+              id, client_id:client.id, original_date:date, new_date:"1900-01-01"
+            });
+            if (error) throw error;
+            setReschedules(prev=>{
+              const existing=(prev[client.id]||[]).filter(r=>r.original_date!==date);
+              return {...prev,[client.id]:[...existing,{original_date:date,new_date:"1900-01-01"}]};
+            });
+          }
+          showToast(`Entrega de ${client.dog} cancelada.`,"info");
+        } catch(err) {
+          showToast(`Erro ao cancelar: ${err.message}`,"error");
+        }
+      };
+
       // ── Backup export ─────────────────────────────────────────────────────
       const exportBackup = async () => {
         showToast("Gerando backup…", "info");
@@ -889,12 +917,12 @@
           <main style={styles.main}>
             {view==="hoje"&&(
               <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus}
-                shelfProducts={shelfProducts} onReschedule={openReschedule}/>
+                shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery}/>
             )}
             {view==="entregas"&&(
               <EntregasView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset}
                 setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus}
-                shelfProducts={shelfProducts} onReschedule={openReschedule} onGenerateBat={generateBat}
+                shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery} onGenerateBat={generateBat}
                 filter={entregasFilter} setFilter={setEntregasFilter}
                 getDeliveriesForRange={getDeliveriesForRange}/>
             )}
@@ -941,7 +969,7 @@
 
 
     // ─── TODAY VIEW ───────────────────────────────────────────────────────────
-    function TodayView({ items, getStatus, setStatus, shelfProducts, onReschedule }) {
+    function TodayView({ items, getStatus, setStatus, shelfProducts, onReschedule, onCancelDelivery }) {
       const t = todayISO();
       const label = formatDateFull(t);
       const pendentes = items.filter(({client,date})=>getStatus(client.id,date)!=="entregue").length;
@@ -959,7 +987,7 @@
               {items.map(({client,date,orderId})=>(
                 <DeliveryCard key={client.id+date+(orderId||"")} client={client} date={date} orderId={orderId}
                   status={getStatus(client.id,date)} onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)}
-                  shelfProducts={shelfProducts} onReschedule={onReschedule}/>
+                  shelfProducts={shelfProducts} onReschedule={onReschedule} onCancelDelivery={onCancelDelivery}/>
               ))}
             </div>
           )}
@@ -968,7 +996,7 @@
     }
 
     // ─── ENTREGAS VIEW ────────────────────────────────────────────────────────
-    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onGenerateBat, filter, setFilter, getDeliveriesForRange }) {
+    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onCancelDelivery, onGenerateBat, filter, setFilter, getDeliveriesForRange }) {
       const [activeDay, setActiveDay] = useState(null);
       const t = todayISO();
       const tmrw = tomorrowISO();
@@ -1008,7 +1036,7 @@
                 {filterItems.map(({client,date,orderId})=>(
                   <DeliveryCard key={client.id+date+(orderId||"")} client={client} date={date} orderId={orderId}
                     status={getStatus(client.id,date)} onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)}
-                    shelfProducts={shelfProducts} onReschedule={onReschedule} showDate={filter!=="hoje"&&filter!=="amanha"}/>
+                    shelfProducts={shelfProducts} onReschedule={onReschedule} onCancelDelivery={onCancelDelivery} showDate={filter!=="hoje"&&filter!=="amanha"}/>
                 ))}
               </div>
             )}
@@ -1067,7 +1095,7 @@
                 {activeDayItems.map(({client,orderId})=>(
                   <DeliveryCard key={client.id+activeDate+(orderId||"")} client={client} date={activeDate} orderId={orderId}
                     status={getStatus(client.id,activeDate)} onStatusChange={(s,ded)=>setStatus(client.id,activeDate,s,ded)}
-                    shelfProducts={shelfProducts} onReschedule={onReschedule}/>
+                    shelfProducts={shelfProducts} onReschedule={onReschedule} onCancelDelivery={onCancelDelivery}/>
                 ))}
               </div>
             )}
@@ -1077,8 +1105,9 @@
     }
 
     // ─── DELIVERY CARD ────────────────────────────────────────────────────────
-    function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule, showDate=false }) {
-      const [pickerOpen, setPickerOpen] = useState(false);
+    function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule, onCancelDelivery, showDate=false }) {
+      const [pickerOpen,    setPickerOpen]    = useState(false);
+      const [confirmCancel, setConfirmCancel] = useState(false);
       const [selectedProduct, setSelectedProduct] = useState("");
       const [selectedAmount, setSelectedAmount] = useState(String(client.units||1));
       const isAvulsa = client.frequency==="avulsa";
@@ -1107,6 +1136,7 @@
             <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
               {showDate&&<span style={{fontSize:11.5,fontWeight:700,color:"#B8825A"}}>{formatDateBR(date)}</span>}
               <span style={styles.freqTag}>{frequencyLabel[client.frequency]}</span>
+              {client.volumes?<span style={{...styles.unitsTag,background:"#F0EBE3",color:"#8A6A48"}}>{client.volumes} {client.volumes===1?"volume":"volumes"}</span>:null}
               {client.units?<span style={styles.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span>:null}
             </div>
           </div>
@@ -1151,10 +1181,28 @@
                   );
                 })}
               </div>
-              <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
-                <button style={styles.rescheduleBtn} onClick={()=>onReschedule(client,date,orderId)}>
-                  <Calendar size={12} strokeWidth={2.5}/>Reagendar
-                </button>
+              <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
+                {confirmCancel?(
+                  <>
+                    <span style={{fontSize:12,color:"#8A7A6C",alignSelf:"center",marginRight:4}}>Confirmar cancelamento?</span>
+                    <button style={{...styles.rescheduleBtn,background:"#C0594B",color:"#fff",borderColor:"#C0594B"}}
+                      onClick={()=>{onCancelDelivery(client,date,orderId);setConfirmCancel(false);}}>
+                      <Check size={12} strokeWidth={2.5}/>Sim
+                    </button>
+                    <button style={styles.rescheduleBtn} onClick={()=>setConfirmCancel(false)}>
+                      <X size={12} strokeWidth={2.5}/>Não
+                    </button>
+                  </>
+                ):(
+                  <>
+                    <button style={styles.rescheduleBtn} onClick={()=>setConfirmCancel(true)}>
+                      <X size={12} strokeWidth={2.5}/>Cancelar entrega
+                    </button>
+                    <button style={styles.rescheduleBtn} onClick={()=>onReschedule(client,date,orderId)}>
+                      <Calendar size={12} strokeWidth={2.5}/>Reagendar
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -1233,7 +1281,7 @@
                         <div style={styles.cardTutor}>{c.tutor}</div>
                         {c.phone&&<div style={{fontSize:11,color:"#A89A8C",display:"flex",alignItems:"center",gap:4,marginTop:2}}><Phone size={10} color="#C9BBA8"/>{c.phone}</div>}
                         <div style={styles.clientMeta}>
-                          {isAvulsa?getAvulsaMeta(c):`${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units?` · ${c.units} ${c.units===1?"unidade":"unidades"}`:""}`}
+                          {isAvulsa?getAvulsaMeta(c):`${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.volumes?` · ${c.volumes} vol.`:""}${c.units?` · ${c.units} un.`:""}`}
                         </div>
                         {(()=>{const last=getLastDelivery(c.id);return last?(<div style={{fontSize:10.5,color:"#A89A8C",marginTop:2,display:"flex",alignItems:"center",gap:4}}><CheckCircle size={10} color="#5C8A5C"/>última entrega: {formatDateBR(last)}</div>):null;})()}
                       </div>
@@ -1680,7 +1728,8 @@
         items.forEach(({client,date},i)=>{
           lines.push(`${i+1}. 🐾 *${client.dog}* (${client.tutor})`);
           lines.push(`   📍 ${client.address}`);
-          if (client.units) lines.push(`   📦 ${client.units} unidade${client.units!==1?"s":""}`);
+          if (client.volumes) lines.push(`   📦 ${client.volumes} volume${client.volumes!==1?"s":""}${client.units?` · ${client.units} un.`:""}`);
+          else if (client.units) lines.push(`   📦 ${client.units} unidade${client.units!==1?"s":""}`);
           if (client.phone) lines.push(`   📱 ${client.phone}`);
           lines.push("");
         });
@@ -1697,7 +1746,7 @@
         win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Roteiro ${dateLabel}</title>
           <style>body{font-family:sans-serif;padding:24px;color:#3E332A}h1{font-size:18px;margin-bottom:4px}.sub{font-size:13px;color:#8A7A6C;margin-bottom:20px}.card{border:1px solid #E8DDD0;border-radius:10px;padding:14px 16px;margin-bottom:12px}.num{font-size:11px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:4px}.dog{font-size:16px;font-weight:700}.tutor{font-size:13px;color:#8A7A6C}.addr{font-size:13px;margin-top:6px;color:#3E332A}.info{font-size:12px;color:#A89A8C;margin-top:3px}@media print{body{padding:12px}}</style>
           </head><body><h1>Roteiro ObentōPet</h1><p class="sub">${dateLabel} · ${items.length} entrega${items.length!==1?"s":""}</p>
-          ${items.map(({client},i)=>`<div class="card"><div class="num">Entrega ${i+1}</div><div class="dog">🐾 ${client.dog}</div><div class="tutor">${client.tutor}</div><div class="addr">📍 ${client.address}</div>${client.units?`<div class="info">📦 ${client.units} unidade${client.units!==1?"s":""}</div>`:""}${client.phone?`<div class="info">📱 ${client.phone}</div>`:""}</div>`).join("")}
+          ${items.map(({client},i)=>`<div class="card"><div class="num">Entrega ${i+1}</div><div class="dog">🐾 ${client.dog}</div><div class="tutor">${client.tutor}</div><div class="addr">📍 ${client.address}</div>${client.volumes?`<div class="info">📦 ${client.volumes} volume${client.volumes!==1?"s":""}${client.units?` · ${client.units} un.`:""}</div>`:client.units?`<div class="info">📦 ${client.units} unidade${client.units!==1?"s":""}</div>`:""}${client.phone?`<div class="info">📱 ${client.phone}</div>`:""}</div>`).join("")}
           </body></html>`);
         win.document.close();
         win.print();
@@ -1740,7 +1789,10 @@
                         {client.address}
                       </div>
                       {client.phone&&<div style={{fontSize:12,color:"#A89A8C",marginTop:3,display:"flex",gap:4,alignItems:"center"}}><Phone size={11} color="#C9BBA8"/>{client.phone}</div>}
-                      {client.units&&<div style={{fontSize:11.5,color:"#B8825A",fontWeight:600,marginTop:3}}>{client.units} unidade{client.units!==1?"s":""}</div>}
+                      {(client.volumes||client.units)&&<div style={{fontSize:11.5,color:"#B8825A",fontWeight:600,marginTop:3,display:"flex",gap:10}}>
+                        {client.volumes&&<span>📦 {client.volumes} vol.</span>}
+                        {client.units&&<span>{client.units} un.</span>}
+                      </div>}
                     </div>
                   </div>
                 </div>
@@ -1815,6 +1867,7 @@
       const [nextDate,        setNextDate]        = useState(initial?.nextDate ||todayISO());
       const [firstDate,       setFirstDate]       = useState(todayISO());
       const [units,           setUnits]           = useState(initial?.units?String(initial.units):"");
+      const [volumes,         setVolumes]         = useState(initial?.volumes?String(initial.volumes):"");
       const [notes,           setNotes]           = useState(initial?.notes    ||"");
       const [labelFile,       setLabelFile]       = useState(initial?.labelFile||"");
       const [labelFileEdited, setLabelFileEdited] = useState(!!initial?.labelFile);
@@ -1828,14 +1881,15 @@
       const handleSubmit = async () => {
         if (!tutor.trim()||!dog.trim()||!address.trim()) { setError("Preencha tutor, cão e endereço."); return; }
         if (isSubscriber&&!nextDate) { setError("Informe a data da próxima entrega."); return; }
-        const unitsNum = units?parseInt(units,10):null;
+        const unitsNum   = units?parseInt(units,10):null;
+        const volumesNum = volumes?parseInt(volumes,10):null;
         if (isSubscriber&&(!unitsNum||unitsNum<1)) { setError("Informe a quantidade de unidades por entrega."); return; }
         setSaving(true);
         await onSave({
           tutor:tutor.trim(), dog:dog.trim(), address:address.trim(), phone:phone.trim(),
           frequency:isSubscriber?frequency:"avulsa",
           nextDate: isSubscriber?nextDate:(initial?.nextDate||null),
-          units:unitsNum, notes,
+          units:unitsNum, volumes:volumesNum, notes,
           labelFile:labelFile.trim(),
           firstDate: (!initial&&!isSubscriber&&firstDate)?firstDate:undefined,
         });
@@ -1901,6 +1955,11 @@
               )}
               <Field label={isSubscriber?"Unidades por entrega":"Unidades por entrega (opcional)"}>
                 <input type="number" min="1" style={styles.input} value={units} onChange={e=>setUnits(e.target.value)} placeholder="Ex: 4"/>
+                <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>Quantidade de produtos dentro dos volumes (marmitas, biscoitos etc.).</p>
+              </Field>
+              <Field label="Número de volumes (caixas/sacolas) (opcional)">
+                <input type="number" min="1" style={styles.input} value={volumes} onChange={e=>setVolumes(e.target.value)} placeholder="Ex: 2"/>
+                <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>Caixas ou sacolas entregues à transportadora por entrega.</p>
               </Field>
               <Field label="Arquivo de etiqueta (.btw)">
                 <div style={{position:"relative"}}>
