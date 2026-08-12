@@ -4,12 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ObentōPet — Entregas</title>
-
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <script>
     window.onerror = function(msg, src, line) {
       var r = document.getElementById("root");
@@ -19,9 +17,8 @@
 </head>
 <body>
   <div id="root"><p style="font-family:sans-serif;padding:40px;color:#B8825A">Carregando…</p></div>
-
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useCallback } = React;
     const { createRoot } = ReactDOM;
     const { createClient } = supabase;
 
@@ -51,6 +48,14 @@
     const CheckCircle     = _i('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>');
     const Calendar        = _i('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
     const Printer         = _i('<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>');
+    const Download        = _i('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>');
+    const ClipboardList   = _i('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>');
+    const Route           = _i('<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>');
+    const Phone           = _i('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>');
+    const MessageCircle   = _i('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>');
+    const RefreshCw       = _i('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>');
+    const Wifi            = _i('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>');
+    const WifiOff         = _i('<line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>');
 
     // ─── Supabase ─────────────────────────────────────────────────────────────
     const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
@@ -61,23 +66,26 @@
     const todayISO     = () => new Date().toISOString().split("T")[0];
     const weekdayNames = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
     const weekdayShort = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
+    const monthNames   = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
+    function genId() { return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "id_" + Date.now() + "_" + Math.random().toString(36).slice(2); }
     function dateToISO(d)       { return d.toISOString().split("T")[0]; }
     function formatDateBR(iso)  { if (!iso) return ""; const [,m,d] = iso.split("-"); return `${d}/${m}`; }
-    function addDays(iso, days) {
-      const d = new Date(iso + "T00:00:00");
-      d.setDate(d.getDate() + days);
-      return dateToISO(d);
-    }
+    function formatDateFull(iso){ if (!iso) return ""; const d = new Date(iso+"T00:00:00"); return `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${monthNames[d.getMonth()]}`; }
+    function addDays(iso, days) { const d = new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return dateToISO(d); }
+    function tomorrowISO()      { return addDays(todayISO(), 1); }
+    function getWeekNumber(iso) { const d = new Date(iso+"T00:00:00"); const jan1 = new Date(d.getFullYear(),0,1); return Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7); }
 
     const dbToClient = (r) => ({
       id: r.id, tutor: r.tutor, dog: r.dog, address: r.address,
+      phone: r.phone || "",
       frequency: r.frequency, nextDate: r.next_date,
       units: r.units, notes: r.notes || "",
       labelFile: r.label_file || "",
     });
     const clientToDb = (data, id) => ({
       id, tutor: data.tutor, dog: data.dog, address: data.address,
+      phone: data.phone || "",
       frequency: data.frequency, next_date: data.nextDate,
       units: data.units, notes: data.notes,
       label_file: data.labelFile || null,
@@ -89,11 +97,11 @@
       const rawOut = [];
       if (client.nextDate) {
         if (client.frequency === "mensal") {
-          let cur = new Date(client.nextDate + "T00:00:00");
-          const start = new Date(startISO + "T00:00:00");
-          const end   = new Date(endISO   + "T00:00:00");
+          let cur = new Date(client.nextDate+"T00:00:00");
+          const start = new Date(startISO+"T00:00:00");
+          const end   = new Date(endISO+"T00:00:00");
           while (cur > start) { const p = new Date(cur); p.setMonth(p.getMonth()-1); cur = p; }
-          while (cur <= end)  {
+          while (cur <= end) {
             if (cur >= start) { const d = dateToISO(cur); if (!rescheduledOriginals.has(d)) rawOut.push(d); }
             const n = new Date(cur); n.setMonth(n.getMonth()+1); cur = n;
           }
@@ -101,7 +109,7 @@
           const step = client.frequency === "semanal" ? 7 : 14;
           let cur = client.nextDate;
           while (cur > startISO) cur = addDays(cur, -step);
-          while (cur <= endISO)  {
+          while (cur <= endISO) {
             if (cur >= startISO && !rescheduledOriginals.has(cur)) rawOut.push(cur);
             cur = addDays(cur, step);
           }
@@ -115,36 +123,50 @@
     const PASTA_ETIQUETAS = "C:\\Users\\ObentoPet\\OneDrive\\ObentōPet\\OPERAÇÃO\\ETIQUETAS & RÓTULOS\\ELGIN\\ENDEREÇOS";
 
     function normLabel(s) {
-      return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s-]/g, "").trim();
+      return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9\s-]/g,"").trim();
     }
-    function suggestLabelFile(dog, tutor, allClients = [], editingId = null) {
+    function suggestLabelFile(dog, tutor, allClients=[], editingId=null) {
       const base = normLabel(dog);
       if (!base) return "";
-      const hasDuplicate = allClients.some(c => c.id !== editingId && normLabel(c.dog) === base);
-      if (hasDuplicate) {
-        const initials = (tutor || "").trim().split(/\s+/).map(w => normLabel(w)[0]).filter(Boolean).join("");
+      const hasDup = allClients.some(c => c.id !== editingId && normLabel(c.dog) === base);
+      if (hasDup) {
+        const initials = (tutor||"").trim().split(/\s+/).map(w=>normLabel(w)[0]).filter(Boolean).join("");
         return initials ? `${base} - ${initials}` : base;
       }
       return base;
     }
 
     const frequencyLabel = { semanal:"Semanal", quinzenal:"Quinzenal", mensal:"Mensal", avulsa:"Avulsa" };
-    const statusConfig   = {
+    const statusConfig = {
       preparando: { label:"Preparando", color:"#B8825A", icon:Clock },
       a_caminho:  { label:"A caminho",  color:"#3E7CB1", icon:Truck },
       entregue:   { label:"Entregue",   color:"#5C8A5C", icon:Check },
     };
 
     // ─── Toast ────────────────────────────────────────────────────────────────
-    function Toast({ message, onDismiss }) {
-      useEffect(() => { const t = setTimeout(onDismiss, 3500); return () => clearTimeout(t); }, [onDismiss]);
+    function Toast({ message, type="success", onDismiss }) {
+      useEffect(() => { const t = setTimeout(onDismiss, type==="error"?5000:3500); return ()=>clearTimeout(t); }, [onDismiss]);
+      const bg = type==="error" ? "#C0594B" : type==="info" ? "#3E7CB1" : "#5C8A5C";
+      const Icon = type==="error" ? AlertTriangle : CheckCircle;
       return (
-        <div style={styles.toast} onClick={onDismiss}>
-          <CheckCircle size={16} color="#fff" strokeWidth={2.5} />
+        <div style={{...styles.toast, background:bg}} onClick={onDismiss}>
+          <Icon size={16} color="#fff" strokeWidth={2.5} />
           <span>{message}</span>
         </div>
       );
     }
+
+    // ─── Connection indicator ─────────────────────────────────────────────────
+    function ConnBadge({ online }) {
+      if (online === null) return null;
+      return (
+        <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,fontWeight:600,color:online?"#7BBF7B":"#C0594B"}}>
+          {online ? <Wifi size={11} color="#7BBF7B"/> : <WifiOff size={11} color="#C0594B"/>}
+          {online ? "Online" : "Offline"}
+        </div>
+      );
+    }
+
 
     // ─── App ──────────────────────────────────────────────────────────────────
     function App() {
@@ -153,10 +175,11 @@
       const [statusLog,          setStatusLog]          = useState({});
       const [view,               setView]               = useState("hoje");
       const [weekOffset,         setWeekOffset]         = useState(0);
+      const [entregasFilter,     setEntregasFilter]     = useState("hoje");
       const [search,             setSearch]             = useState("");
       const [showForm,           setShowForm]           = useState(false);
       const [editingClient,      setEditingClient]      = useState(null);
-      const [toast,              setToast]              = useState(null);
+      const [toastQueue,         setToastQueue]         = useState([]);
       const [reschedules,        setReschedules]        = useState({});
       const [rescheduleModal,    setRescheduleModal]    = useState(null);
       const [avulsaOrders,       setAvulsaOrders]       = useState({});
@@ -167,462 +190,623 @@
       const [deliveryDeduction,  setDeliveryDeduction]  = useState({});
       const [petiscoProducts,    setPetiscoProducts]    = useState([]);
       const [petiscoStockLog,    setPetiscoStockLog]    = useState({});
+      const [realtimeOnline,     setRealtimeOnline]     = useState(null);
 
-      const showToast = (msg) => setToast(msg);
+      const showToast = useCallback((msg, type="success") => {
+        const id = genId();
+        setToastQueue(q => [...q, { id, msg, type }]);
+      }, []);
+      const dismissToast = useCallback((id) => setToastQueue(q => q.filter(t => t.id !== id)), []);
 
+      // ── Initial data load ─────────────────────────────────────────────────
       useEffect(() => {
         (async () => {
           try {
             const [
-              { data: cData,   error: e1  },
-              { data: sData,   error: e2  },
-              { data: ssData,  error: e3  },
-              { data: sslData, error: e4  },
-              { data: spData,  error: e5  },
-              { data: splData, error: e6  },
-              { data: ddData,  error: e7  },
-              { data: ppData,  error: e8  },
-              { data: pplData, error: e9  },
-              { data: rsData,  error: e10 },
-              { data: aoData,  error: e11 },
+              { data:cData,   error:e1  },
+              { data:sData,   error:e2  },
+              { data:ssData,  error:e3  },
+              { data:sslData, error:e4  },
+              { data:spData,  error:e5  },
+              { data:splData, error:e6  },
+              { data:ddData,  error:e7  },
+              { data:ppData,  error:e8  },
+              { data:pplData, error:e9  },
+              { data:rsData,  error:e10 },
+              { data:aoData,  error:e11 },
             ] = await Promise.all([
               db.from("clients").select("*"),
               db.from("status_log").select("*"),
               db.from("subscriber_stock").select("*"),
-              db.from("subscriber_stock_log").select("*").order("ts", { ascending: false }),
+              db.from("subscriber_stock_log").select("*").order("ts",{ascending:false}),
               db.from("shelf_products").select("*"),
-              db.from("shelf_stock_log").select("*").order("ts", { ascending: false }),
+              db.from("shelf_stock_log").select("*").order("ts",{ascending:false}),
               db.from("delivery_deduction").select("*"),
               db.from("snack_products").select("*"),
-              db.from("snack_stock_log").select("*").order("ts", { ascending: false }),
+              db.from("snack_stock_log").select("*").order("ts",{ascending:false}),
               db.from("delivery_reschedules").select("*"),
-              db.from("avulsa_orders").select("*").order("date", { ascending: true }),
+              db.from("avulsa_orders").select("*").order("date",{ascending:true}),
             ]);
-
-            const errors = [e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11].filter(Boolean);
-            if (errors.length) console.warn("Erros ao carregar:", errors.map(e => e.message));
-
+            const errs = [e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11].filter(Boolean);
+            if (errs.length) console.warn("Erros ao carregar:", errs.map(e=>e.message));
             if (cData?.length) setClients(cData.map(dbToClient));
-
             const sl = {};
-            (sData || []).forEach(r => { sl[r.key] = r.status; });
+            (sData||[]).forEach(r => { sl[r.key] = r.status; });
             setStatusLog(sl);
-
             const ss = {};
-            (ssData || []).forEach(r => { ss[r.client_id] = r.balance; });
+            (ssData||[]).forEach(r => { ss[r.client_id] = r.balance; });
             setSubscriberStock(ss);
-
             const ssl = {};
-            (sslData || []).forEach(r => {
+            (sslData||[]).forEach(r => {
               if (!ssl[r.client_id]) ssl[r.client_id] = [];
               if (ssl[r.client_id].length < 100)
-                ssl[r.client_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+                ssl[r.client_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
             });
             setSubscriberStockLog(ssl);
-
-            setShelfProducts((spData || []).map(p => ({ id: p.id, name: p.name, balance: p.balance })));
-
+            setShelfProducts((spData||[]).map(p=>({id:p.id,name:p.name,balance:p.balance,min_stock:p.min_stock??0})));
             const spl = {};
-            (splData || []).forEach(r => {
+            (splData||[]).forEach(r => {
               if (!spl[r.product_id]) spl[r.product_id] = [];
               if (spl[r.product_id].length < 100)
-                spl[r.product_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+                spl[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
             });
             setShelfStockLog(spl);
-
             const dd = {};
-            (ddData || []).forEach(r => { dd[r.key] = { productId: r.product_id, amount: r.amount }; });
+            (ddData||[]).forEach(r => { dd[r.key] = {productId:r.product_id,amount:r.amount}; });
             setDeliveryDeduction(dd);
-
-            setPetiscoProducts((ppData || []).map(p => ({ id: p.id, name: p.name, balance: p.balance })));
-
+            setPetiscoProducts((ppData||[]).map(p=>({id:p.id,name:p.name,balance:p.balance,min_stock:p.min_stock??0})));
             const ppl = {};
-            (pplData || []).forEach(r => {
+            (pplData||[]).forEach(r => {
               if (!ppl[r.product_id]) ppl[r.product_id] = [];
               if (ppl[r.product_id].length < 100)
-                ppl[r.product_id].push({ date: r.date, amount: r.amount, reason: r.reason, ts: r.ts });
+                ppl[r.product_id].push({date:r.date,amount:r.amount,reason:r.reason,ts:r.ts});
             });
             setPetiscoStockLog(ppl);
-
             const rs = {};
-            (rsData || []).forEach(r => {
+            (rsData||[]).forEach(r => {
               if (!rs[r.client_id]) rs[r.client_id] = [];
-              if (!rs[r.client_id].find(e => e.original_date === r.original_date))
-                rs[r.client_id].push({ original_date: r.original_date, new_date: r.new_date });
+              if (!rs[r.client_id].find(e=>e.original_date===r.original_date))
+                rs[r.client_id].push({original_date:r.original_date,new_date:r.new_date});
             });
             setReschedules(rs);
-
             const ao = {};
-            (aoData || []).forEach(r => {
+            (aoData||[]).forEach(r => {
               if (!ao[r.client_id]) ao[r.client_id] = [];
-              ao[r.client_id].push({ id: r.id, date: r.date });
+              ao[r.client_id].push({id:r.id,date:r.date});
             });
             setAvulsaOrders(ao);
-
-          } catch (e) {
+          } catch(e) {
             console.error("Erro ao carregar dados:", e);
+            showToast("Erro ao carregar dados. Verifique a conexão.", "error");
           } finally {
             setLoaded(true);
           }
         })();
       }, []);
 
+      // ── Realtime sync ─────────────────────────────────────────────────────
+      useEffect(() => {
+        const channel = db.channel("obentopet-realtime")
+          .on("postgres_changes",{event:"*",schema:"public",table:"status_log"},({eventType,new:n,old:o})=>{
+            if (eventType==="INSERT"||eventType==="UPDATE") setStatusLog(prev=>({...prev,[n.key]:n.status}));
+            else if (eventType==="DELETE") setStatusLog(prev=>{const c={...prev};delete c[o.key];return c;});
+          })
+          .on("postgres_changes",{event:"UPDATE",schema:"public",table:"subscriber_stock"},({new:n})=>{
+            setSubscriberStock(prev=>({...prev,[n.client_id]:n.balance}));
+          })
+          .on("postgres_changes",{event:"UPDATE",schema:"public",table:"shelf_products"},({new:n})=>{
+            setShelfProducts(prev=>prev.map(p=>p.id===n.id?{...p,balance:n.balance,min_stock:n.min_stock??p.min_stock}:p));
+          })
+          .on("postgres_changes",{event:"UPDATE",schema:"public",table:"snack_products"},({new:n})=>{
+            setPetiscoProducts(prev=>prev.map(p=>p.id===n.id?{...p,balance:n.balance,min_stock:n.min_stock??p.min_stock}:p));
+          })
+          .on("postgres_changes",{event:"*",schema:"public",table:"avulsa_orders"},({eventType,new:n,old:o})=>{
+            if (eventType==="INSERT") {
+              setAvulsaOrders(prev=>{
+                const list=[...(prev[n.client_id]||[]),{id:n.id,date:n.date}];
+                list.sort((a,b)=>a.date.localeCompare(b.date));
+                return {...prev,[n.client_id]:list};
+              });
+            } else if (eventType==="DELETE") {
+              setAvulsaOrders(prev=>({...prev,[o.client_id]:(prev[o.client_id]||[]).filter(x=>x.id!==o.id)}));
+            } else if (eventType==="UPDATE") {
+              setAvulsaOrders(prev=>{
+                const list=(prev[n.client_id]||[]).map(x=>x.id===n.id?{...x,date:n.date}:x);
+                list.sort((a,b)=>a.date.localeCompare(b.date));
+                return {...prev,[n.client_id]:list};
+              });
+            }
+          })
+          .on("postgres_changes",{event:"*",schema:"public",table:"clients"},({eventType,new:n,old:o})=>{
+            if (eventType==="INSERT") setClients(prev=>[...prev,dbToClient(n)]);
+            else if (eventType==="UPDATE") setClients(prev=>prev.map(c=>c.id===n.id?dbToClient(n):c));
+            else if (eventType==="DELETE") setClients(prev=>prev.filter(c=>c.id!==o.id));
+          })
+          .subscribe((status)=>{
+            setRealtimeOnline(status==="SUBSCRIBED");
+          });
+        return ()=>{ db.removeChannel(channel); };
+      }, []);
+
+      // ── Client operations ─────────────────────────────────────────────────
       const saveClient = async (data) => {
         const isEditing = !!editingClient;
-        const id = isEditing ? editingClient.id : "c" + Date.now();
+        const id = isEditing ? editingClient.id : genId();
         const row = clientToDb(data, id);
-        if (isEditing) {
-          await db.from("clients").update(row).eq("id", id);
-          setClients(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-        } else {
-          await db.from("clients").insert(row);
-          setClients(prev => [...prev, { ...data, id }]);
-          if (data.frequency !== "avulsa") {
-            await db.from("subscriber_stock").upsert({ client_id: id, balance: 0 });
-            setSubscriberStock(prev => ({ ...prev, [id]: 0 }));
+        try {
+          if (isEditing) {
+            const {error} = await db.from("clients").update(row).eq("id",id);
+            if (error) throw error;
+            setClients(prev=>prev.map(c=>c.id===id?{...c,...data,id}:c));
+          } else {
+            const {error} = await db.from("clients").insert(row);
+            if (error) throw error;
+            setClients(prev=>[...prev,{...data,id}]);
+            if (data.frequency!=="avulsa") {
+              await db.from("subscriber_stock").upsert({client_id:id,balance:0});
+              setSubscriberStock(prev=>({...prev,[id]:0}));
+            }
           }
+          setShowForm(false); setEditingClient(null);
+          showToast(isEditing?`${data.dog} atualizado!`:`${data.dog} adicionado!`);
+        } catch(err) {
+          showToast(`Erro ao salvar: ${err.message||"verifique a conexão"}`, "error");
         }
-        setShowForm(false); setEditingClient(null);
-        showToast(isEditing ? `${data.dog} atualizado!` : `${data.dog} adicionado com sucesso!`);
       };
 
       const deleteClient = async (id) => {
-        await db.from("clients").delete().eq("id", id);
-        setClients(prev => prev.filter(c => c.id !== id));
+        try {
+          const {error} = await db.from("clients").delete().eq("id",id);
+          if (error) throw error;
+          setClients(prev=>prev.filter(c=>c.id!==id));
+          showToast("Cliente removido.");
+        } catch(err) {
+          showToast(`Erro ao remover: ${err.message}`, "error");
+        }
       };
 
       const addAvulsaOrder = async (clientId, date) => {
-        const id = "ao" + Date.now();
-        await db.from("avulsa_orders").insert({ id, client_id: clientId, date });
-        setAvulsaOrders(prev => {
-          const list = [...(prev[clientId] || []), { id, date }];
-          list.sort((a, b) => a.date.localeCompare(b.date));
-          return { ...prev, [clientId]: list };
-        });
-        showToast("Pedido adicionado!");
+        const id = genId();
+        try {
+          const {error} = await db.from("avulsa_orders").insert({id,client_id:clientId,date});
+          if (error) throw error;
+          setAvulsaOrders(prev=>{
+            const list=[...(prev[clientId]||[]),{id,date}];
+            list.sort((a,b)=>a.date.localeCompare(b.date));
+            return {...prev,[clientId]:list};
+          });
+          showToast("Pedido adicionado!");
+        } catch(err) {
+          showToast(`Erro ao adicionar pedido: ${err.message}`, "error");
+        }
       };
 
       const deleteAvulsaOrder = async (clientId, orderId) => {
-        await db.from("avulsa_orders").delete().eq("id", orderId);
-        setAvulsaOrders(prev => ({
-          ...prev, [clientId]: (prev[clientId] || []).filter(o => o.id !== orderId),
-        }));
-        showToast("Pedido removido.");
-      };
-
-      const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`] || "preparando";
-
-      const setStatus = (clientId, date, status, deduction) => {
-        const key = `${clientId}|${date}`;
-        const wasEntregue  = getStatus(clientId, date) === "entregue";
-        const willEntregue = status === "entregue";
-        const client = clients.find(c => c.id === clientId);
-        setStatusLog(prev => ({ ...prev, [key]: status }));
-        db.from("status_log").upsert({ key, status });
-        if (!client) return;
-        if (client.frequency === "avulsa") {
-          if (!wasEntregue && willEntregue && deduction?.productId) {
-            applyShelfDelta(deduction.productId, -deduction.amount, date, "Entrega avulsa");
-            setDeliveryDeduction(prev => ({ ...prev, [key]: deduction }));
-            db.from("delivery_deduction").upsert({ key, product_id: deduction.productId, amount: deduction.amount });
-          }
-          if (wasEntregue && !willEntregue) {
-            const prev = deliveryDeduction[key];
-            if (prev?.productId) applyShelfDelta(prev.productId, prev.amount, date, "Estorno (status revertido)");
-            setDeliveryDeduction(p => { const n = { ...p }; delete n[key]; return n; });
-            db.from("delivery_deduction").delete().eq("key", key);
-          }
-        } else {
-          const amount = client.units || 0;
-          if (!wasEntregue && willEntregue)  applySubscriberDelta(clientId, -amount, date, "Entrega realizada");
-          if (wasEntregue  && !willEntregue) applySubscriberDelta(clientId,  amount, date, "Estorno (status revertido)");
+        try {
+          const {error} = await db.from("avulsa_orders").delete().eq("id",orderId);
+          if (error) throw error;
+          setAvulsaOrders(prev=>({...prev,[clientId]:(prev[clientId]||[]).filter(o=>o.id!==orderId)}));
+          showToast("Pedido removido.");
+        } catch(err) {
+          showToast(`Erro ao remover pedido: ${err.message}`, "error");
         }
       };
 
-      const applySubscriberDelta = (clientId, delta, date, reason) => {
-        const newBalance = (subscriberStock[clientId] || 0) + delta;
+      const getStatus = (clientId, date) => statusLog[`${clientId}|${date}`]||"preparando";
+
+      const setStatus = useCallback((clientId, date, status, deduction) => {
+        const key = `${clientId}|${date}`;
+        const wasEntregue  = (statusLog[`${clientId}|${date}`]||"preparando")==="entregue";
+        const willEntregue = status==="entregue";
+        const client = clients.find(c=>c.id===clientId);
+        setStatusLog(prev=>({...prev,[key]:status}));
+        db.from("status_log").upsert({key,status}).then(({error})=>{
+          if (error) { showToast("Erro ao salvar status.","error"); setStatusLog(prev=>({...prev,[key]:wasEntregue?"entregue":"preparando"})); }
+        });
+        if (!client) return;
+        if (client.frequency==="avulsa") {
+          if (!wasEntregue&&willEntregue&&deduction?.productId) {
+            applyShelfDelta(deduction.productId,-deduction.amount,date,"Entrega avulsa");
+            setDeliveryDeduction(prev=>({...prev,[key]:deduction}));
+            db.from("delivery_deduction").upsert({key,product_id:deduction.productId,amount:deduction.amount});
+          }
+          if (wasEntregue&&!willEntregue) {
+            const prev2 = deliveryDeduction[key];
+            if (prev2?.productId) applyShelfDelta(prev2.productId,prev2.amount,date,"Estorno (status revertido)");
+            setDeliveryDeduction(p=>{const n={...p};delete n[key];return n;});
+            db.from("delivery_deduction").delete().eq("key",key);
+          }
+        } else {
+          const amount = client.units||0;
+          if (!wasEntregue&&willEntregue) applySubscriberDelta(clientId,-amount,date,"Entrega realizada");
+          if (wasEntregue&&!willEntregue) applySubscriberDelta(clientId,amount,date,"Estorno (status revertido)");
+        }
+      }, [statusLog, clients, deliveryDeduction]);
+
+      // ── Stock operations (atomic via RPC, fallback to upsert) ─────────────
+      const applySubscriberDelta = async (clientId, delta, date, reason) => {
         const ts = Date.now();
-        setSubscriberStock(prev => ({ ...prev, [clientId]: newBalance }));
-        setSubscriberStockLog(prev => ({
-          ...prev,
-          [clientId]: [{ date, amount: delta, reason, ts }, ...(prev[clientId] || [])].slice(0, 100),
+        setSubscriberStock(prev=>({...prev,[clientId]:(prev[clientId]||0)+delta}));
+        setSubscriberStockLog(prev=>({
+          ...prev,[clientId]:[{date,amount:delta,reason,ts},...(prev[clientId]||[])].slice(0,100),
         }));
-        db.from("subscriber_stock").upsert({ client_id: clientId, balance: newBalance });
-        db.from("subscriber_stock_log").insert({ client_id: clientId, date, amount: delta, reason, ts });
+        try {
+          const {data:rpcData, error:rpcErr} = await db.rpc("increment_subscriber_balance",{p_client_id:clientId,p_delta:delta});
+          if (rpcErr || rpcData===null) {
+            const curBal = (subscriberStock[clientId]||0)+delta;
+            await db.from("subscriber_stock").upsert({client_id:clientId,balance:curBal});
+          } else {
+            setSubscriberStock(prev=>({...prev,[clientId]:rpcData}));
+          }
+          await db.from("subscriber_stock_log").insert({client_id:clientId,date,amount:delta,reason,ts});
+        } catch(e) {
+          showToast("Erro ao atualizar estoque. Recarregue a página.", "error");
+        }
       };
 
       const addSubscriberProduction = (clientId, amount) => {
-        if (!amount || amount <= 0) return;
-        applySubscriberDelta(clientId, amount, todayISO(), "Produção da semana");
+        if (!amount||amount<=0) return;
+        applySubscriberDelta(clientId,amount,todayISO(),"Produção da semana");
       };
 
-      const applyShelfDelta = (productId, delta, date, reason) => {
-        const product = shelfProducts.find(p => p.id === productId);
-        const newBalance = (product?.balance || 0) + delta;
+      const applyShelfDelta = async (productId, delta, date, reason) => {
+        const product = shelfProducts.find(p=>p.id===productId);
         const ts = Date.now();
-        setShelfProducts(prev => prev.map(p => p.id === productId ? { ...p, balance: newBalance } : p));
-        setShelfStockLog(prev => ({
-          ...prev,
-          [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
+        setShelfProducts(prev=>prev.map(p=>p.id===productId?{...p,balance:(p.balance||0)+delta}:p));
+        setShelfStockLog(prev=>({
+          ...prev,[productId]:[{date,amount:delta,reason,ts},...(prev[productId]||[])].slice(0,100),
         }));
-        db.from("shelf_products").update({ balance: newBalance }).eq("id", productId);
-        db.from("shelf_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
+        try {
+          const {data:rpcData, error:rpcErr} = await db.rpc("increment_shelf_balance",{p_product_id:productId,p_delta:delta});
+          if (rpcErr || rpcData===null) {
+            const curBal = (product?.balance||0)+delta;
+            await db.from("shelf_products").update({balance:curBal}).eq("id",productId);
+          } else {
+            setShelfProducts(prev=>prev.map(p=>p.id===productId?{...p,balance:rpcData}:p));
+          }
+          await db.from("shelf_stock_log").insert({product_id:productId,date,amount:delta,reason,ts});
+        } catch(e) {
+          showToast("Erro ao atualizar estoque avulso.", "error");
+        }
       };
 
       const addShelfProduct = async (name) => {
-        const id = "p" + Date.now();
-        await db.from("shelf_products").insert({ id, name, balance: 0 });
-        setShelfProducts(prev => [...prev, { id, name, balance: 0 }]);
-        return id;
+        const id = genId();
+        try {
+          const {error} = await db.from("shelf_products").insert({id,name,balance:0,min_stock:0});
+          if (error) throw error;
+          setShelfProducts(prev=>[...prev,{id,name,balance:0,min_stock:0}]);
+          return id;
+        } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
       };
-      const addShelfStockEntry = (productId, amount) => {
-        if (!amount || amount <= 0) return;
-        applyShelfDelta(productId, amount, todayISO(), "Entrada de estoque");
-      };
+      const addShelfStockEntry = (productId, amount) => { if (!amount||amount<=0) return; applyShelfDelta(productId,amount,todayISO(),"Entrada de estoque"); };
       const deleteShelfProduct = async (productId) => {
-        await db.from("shelf_products").delete().eq("id", productId);
-        setShelfProducts(prev => prev.filter(p => p.id !== productId));
+        try {
+          const {error} = await db.from("shelf_products").delete().eq("id",productId);
+          if (error) throw error;
+          setShelfProducts(prev=>prev.filter(p=>p.id!==productId));
+        } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
+      };
+      const updateShelfMinStock = async (productId, minStock) => {
+        setShelfProducts(prev=>prev.map(p=>p.id===productId?{...p,min_stock:minStock}:p));
+        await db.from("shelf_products").update({min_stock:minStock}).eq("id",productId);
       };
 
-      const applyPetiscoDelta = (productId, delta, date, reason) => {
-        const product = petiscoProducts.find(p => p.id === productId);
-        const newBalance = (product?.balance || 0) + delta;
+      const applyPetiscoDelta = async (productId, delta, date, reason) => {
+        const product = petiscoProducts.find(p=>p.id===productId);
         const ts = Date.now();
-        setPetiscoProducts(prev => prev.map(p => p.id === productId ? { ...p, balance: newBalance } : p));
-        setPetiscoStockLog(prev => ({
-          ...prev,
-          [productId]: [{ date, amount: delta, reason, ts }, ...(prev[productId] || [])].slice(0, 100),
+        setPetiscoProducts(prev=>prev.map(p=>p.id===productId?{...p,balance:(p.balance||0)+delta}:p));
+        setPetiscoStockLog(prev=>({
+          ...prev,[productId]:[{date,amount:delta,reason,ts},...(prev[productId]||[])].slice(0,100),
         }));
-        db.from("snack_products").update({ balance: newBalance }).eq("id", productId);
-        db.from("snack_stock_log").insert({ product_id: productId, date, amount: delta, reason, ts });
+        try {
+          const {data:rpcData, error:rpcErr} = await db.rpc("increment_snack_balance",{p_product_id:productId,p_delta:delta});
+          if (rpcErr || rpcData===null) {
+            const curBal = (product?.balance||0)+delta;
+            await db.from("snack_products").update({balance:curBal}).eq("id",productId);
+          } else {
+            setPetiscoProducts(prev=>prev.map(p=>p.id===productId?{...p,balance:rpcData}:p));
+          }
+          await db.from("snack_stock_log").insert({product_id:productId,date,amount:delta,reason,ts});
+        } catch(e) {
+          showToast("Erro ao atualizar estoque de petiscos.", "error");
+        }
       };
       const addPetiscoProduct = async (name) => {
-        const id = "pet" + Date.now();
-        await db.from("snack_products").insert({ id, name, balance: 0 });
-        setPetiscoProducts(prev => [...prev, { id, name, balance: 0 }]);
-        return id;
+        const id = genId();
+        try {
+          const {error} = await db.from("snack_products").insert({id,name,balance:0,min_stock:0});
+          if (error) throw error;
+          setPetiscoProducts(prev=>[...prev,{id,name,balance:0,min_stock:0}]);
+          return id;
+        } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
       };
-      const addPetiscoStockEntry = (productId, amount) => {
-        if (!amount || amount <= 0) return;
-        applyPetiscoDelta(productId, amount, todayISO(), "Produção adicionada");
-      };
+      const addPetiscoStockEntry = (productId, amount) => { if (!amount||amount<=0) return; applyPetiscoDelta(productId,amount,todayISO(),"Produção adicionada"); };
       const deletePetiscoProduct = async (productId) => {
-        await db.from("snack_products").delete().eq("id", productId);
-        setPetiscoProducts(prev => prev.filter(p => p.id !== productId));
+        try {
+          const {error} = await db.from("snack_products").delete().eq("id",productId);
+          if (error) throw error;
+          setPetiscoProducts(prev=>prev.filter(p=>p.id!==productId));
+        } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
+      };
+      const updatePetiscoMinStock = async (productId, minStock) => {
+        setPetiscoProducts(prev=>prev.map(p=>p.id===productId?{...p,min_stock:minStock}:p));
+        await db.from("snack_products").update({min_stock:minStock}).eq("id",productId);
       };
 
+      // ── Reschedule ────────────────────────────────────────────────────────
       const rescheduleDelivery = async (clientId, originalDate, newDate, scope, orderId) => {
-        const client = clients.find(c => c.id === clientId);
-        if (!client || !newDate || newDate === originalDate) return;
-        if (client.frequency === "avulsa") {
-          if (orderId) {
-            await db.from("avulsa_orders").update({ date: newDate }).eq("id", orderId);
-            setAvulsaOrders(prev => {
-              const list = (prev[clientId] || []).map(o => o.id === orderId ? { ...o, date: newDate } : o);
-              list.sort((a, b) => a.date.localeCompare(b.date));
-              return { ...prev, [clientId]: list };
+        const client = clients.find(c=>c.id===clientId);
+        if (!client||!newDate||newDate===originalDate) return;
+        try {
+          if (client.frequency==="avulsa") {
+            if (orderId) {
+              const {error} = await db.from("avulsa_orders").update({date:newDate}).eq("id",orderId);
+              if (error) throw error;
+              setAvulsaOrders(prev=>{
+                const list=(prev[clientId]||[]).map(o=>o.id===orderId?{...o,date:newDate}:o);
+                list.sort((a,b)=>a.date.localeCompare(b.date));
+                return {...prev,[clientId]:list};
+              });
+            }
+          } else if (scope==="only") {
+            const id=`rs_${clientId}_${originalDate}`;
+            const {error} = await db.from("delivery_reschedules").upsert({id,client_id:clientId,original_date:originalDate,new_date:newDate});
+            if (error) throw error;
+            setReschedules(prev=>{
+              const existing=(prev[clientId]||[]).filter(r=>r.original_date!==originalDate);
+              return {...prev,[clientId]:[...existing,{original_date:originalDate,new_date:newDate}]};
             });
           } else {
-            await db.from("clients").update({ next_date: newDate }).eq("id", clientId);
-            setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextDate: newDate } : c));
+            const {error} = await db.from("clients").update({next_date:newDate}).eq("id",clientId);
+            if (error) throw error;
+            setClients(prev=>prev.map(c=>c.id===clientId?{...c,nextDate:newDate}:c));
+            const id=`rs_${clientId}_${originalDate}`;
+            db.from("delivery_reschedules").delete().eq("id",id);
+            setReschedules(prev=>({...prev,[clientId]:(prev[clientId]||[]).filter(r=>r.original_date!==originalDate)}));
           }
-        } else if (scope === "only") {
-          const id = `rs_${clientId}_${originalDate}`;
-          await db.from("delivery_reschedules").upsert({ id, client_id: clientId, original_date: originalDate, new_date: newDate });
-          setReschedules(prev => {
-            const existing = (prev[clientId] || []).filter(r => r.original_date !== originalDate);
-            return { ...prev, [clientId]: [...existing, { original_date: originalDate, new_date: newDate }] };
-          });
-        } else {
-          await db.from("clients").update({ next_date: newDate }).eq("id", clientId);
-          setClients(prev => prev.map(c => c.id === clientId ? { ...c, nextDate: newDate } : c));
-          const id = `rs_${clientId}_${originalDate}`;
-          db.from("delivery_reschedules").delete().eq("id", id);
-          setReschedules(prev => ({
-            ...prev, [clientId]: (prev[clientId] || []).filter(r => r.original_date !== originalDate),
-          }));
+          setRescheduleModal(null);
+          showToast(`Entrega de ${client.dog} reagendada!`);
+        } catch(err) {
+          showToast(`Erro ao reagendar: ${err.message}`,"error");
         }
-        setRescheduleModal(null);
-        showToast(`Entrega de ${client.dog} reagendada!`);
       };
 
       const openReschedule = (client, date, orderId) =>
-        setRescheduleModal({ clientId: client.id, date, dog: client.dog, frequency: client.frequency, orderId });
+        setRescheduleModal({clientId:client.id,date,dog:client.dog,frequency:client.frequency,orderId});
 
+      // ── Backup export ─────────────────────────────────────────────────────
+      const exportBackup = async () => {
+        showToast("Gerando backup…", "info");
+        try {
+          const [c,sl,ss,ssl,sp,spl,dd,pp,ppl,rs,ao] = await Promise.all([
+            db.from("clients").select("*"),
+            db.from("status_log").select("*"),
+            db.from("subscriber_stock").select("*"),
+            db.from("subscriber_stock_log").select("*"),
+            db.from("shelf_products").select("*"),
+            db.from("shelf_stock_log").select("*"),
+            db.from("delivery_deduction").select("*"),
+            db.from("snack_products").select("*"),
+            db.from("snack_stock_log").select("*"),
+            db.from("delivery_reschedules").select("*"),
+            db.from("avulsa_orders").select("*"),
+          ]);
+          const backup = {
+            exported_at: new Date().toISOString(),
+            clients: c.data, status_log: sl.data,
+            subscriber_stock: ss.data, subscriber_stock_log: ssl.data,
+            shelf_products: sp.data, shelf_stock_log: spl.data,
+            delivery_deduction: dd.data,
+            snack_products: pp.data, snack_stock_log: ppl.data,
+            delivery_reschedules: rs.data, avulsa_orders: ao.data,
+          };
+          const blob = new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement("a");
+          const date = todayISO();
+          a.href=url; a.download=`obentopet_backup_${date}.json`;
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a); URL.revokeObjectURL(url);
+          showToast("Backup exportado com sucesso!");
+        } catch(err) {
+          showToast(`Erro no backup: ${err.message}`,"error");
+        }
+      };
+
+      // ── BAT generation ────────────────────────────────────────────────────
       const generateBat = (date, items) => {
-        const comEtiqueta = items.filter(({ client }) => client.labelFile);
-        const semEtiqueta = items.filter(({ client }) => !client.labelFile);
+        const comEtiqueta = items.filter(({client})=>client.labelFile);
+        const semEtiqueta = items.filter(({client})=>!client.labelFile);
         const lines = [
-          "@echo off", "chcp 65001 > nul",
+          "@echo off","chcp 65001 > nul",
           `SET "BARTENDER=C:\\Program Files (x86)\\Seagull\\BarTender UltraLite\\BarTend.exe"`,
           `SET "PASTA=${PASTA_ETIQUETAS}"`,
-          "", `echo ============================================`,
+          "",`echo ============================================`,
           `echo  ObentoPet - Etiquetas ${date}`,
           `echo  Total: ${comEtiqueta.length} etiqueta(s)`,
-          `echo ============================================`, "",
+          `echo ============================================`,"",
         ];
-        if (comEtiqueta.length === 0) {
+        if (comEtiqueta.length===0) {
           lines.push("echo Nenhuma etiqueta configurada para este dia.");
         } else {
-          comEtiqueta.forEach(({ client }) => {
+          comEtiqueta.forEach(({client})=>{
             lines.push(`echo Imprimindo: ${client.dog} — ${client.tutor}...`);
             lines.push(`"%BARTENDER%" /f="%PASTA%\\${client.labelFile}.btw" /p /x`);
             lines.push("");
           });
           lines.push(`echo ============================================`);
           lines.push(`echo  Todas as etiquetas enviadas!`);
-          if (semEtiqueta.length > 0) {
-            lines.push("", `echo ATENCAO: ${semEtiqueta.length} entrega(s) sem etiqueta configurada:`);
-            semEtiqueta.forEach(({ client }) => lines.push(`echo   - ${client.dog} (${client.tutor})`));
+          if (semEtiqueta.length>0) {
+            lines.push("",`echo ATENCAO: ${semEtiqueta.length} entrega(s) sem etiqueta configurada:`);
+            semEtiqueta.forEach(({client})=>lines.push(`echo   - ${client.dog} (${client.tutor})`));
           }
         }
-        lines.push("echo ============================================", "pause");
+        lines.push(`echo ============================================`,"pause");
         const content = lines.join("\r\n");
-        const blob = new Blob(["\uFEFF" + content], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = `etiquetas_${date}.bat`;
+        const blob = new Blob(["\uFEFF"+content],{type:"text/plain;charset=utf-8"});
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href=url; a.download=`etiquetas_${date}.bat`;
         document.body.appendChild(a); a.click();
         document.body.removeChild(a); URL.revokeObjectURL(url);
         showToast("Arquivo .bat gerado!");
       };
 
-      const weekStart = useMemo(() => {
-        const d = new Date();
-        d.setDate(d.getDate() + weekOffset * 7 - d.getDay());
-        return dateToISO(d);
-      }, [weekOffset]);
+      // ── Computed deliveries ────────────────────────────────────────────────
+      const weekStart = useMemo(()=>{
+        const d=new Date(); d.setDate(d.getDate()+weekOffset*7-d.getDay()); return dateToISO(d);
+      },[weekOffset]);
+      const weekDays = useMemo(()=>Array.from({length:7},(_,i)=>addDays(weekStart,i)),[weekStart]);
 
-      const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
-
-      const todayDeliveries = useMemo(() => {
-        const t = todayISO();
+      const getDeliveriesForRange = useCallback((startISO, endISO) => {
         const recurring = clients
-          .filter(c => c.frequency !== "avulsa")
-          .flatMap(c => getOccurrencesInRange(c, t, t, reschedules[c.id] || []).map(date => ({ client: c, date, orderId: null })));
+          .filter(c=>c.frequency!=="avulsa")
+          .flatMap(c=>getOccurrencesInRange(c,startISO,endISO,reschedules[c.id]||[]).map(date=>({client:c,date,orderId:null})));
         const avulsa = clients
-          .filter(c => c.frequency === "avulsa")
-          .flatMap(c => {
+          .filter(c=>c.frequency==="avulsa")
+          .flatMap(c=>{
             const orders = avulsaOrders[c.id];
-            if (orders && orders.length > 0)
-              return orders.filter(o => o.date === t).map(o => ({ client: c, date: t, orderId: o.id }));
-            if (c.nextDate === t) return [{ client: c, date: t, orderId: null }];
+            if (orders&&orders.length>0)
+              return orders.filter(o=>o.date>=startISO&&o.date<=endISO).map(o=>({client:c,date:o.date,orderId:o.id}));
+            if (c.nextDate>=startISO&&c.nextDate<=endISO) return [{client:c,date:c.nextDate,orderId:null}];
             return [];
           });
-        return [...recurring, ...avulsa].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor));
-      }, [clients, reschedules, avulsaOrders]);
+        return [...recurring,...avulsa].sort((a,b)=>a.date.localeCompare(b.date)||a.client.tutor.localeCompare(b.client.tutor));
+      },[clients,reschedules,avulsaOrders]);
 
-      const weekDeliveries = useMemo(() => {
-        const map = Object.fromEntries(weekDays.map(d => [d, []]));
-        clients.filter(c => c.frequency !== "avulsa").forEach(c => {
-          getOccurrencesInRange(c, weekDays[0], weekDays[6], reschedules[c.id] || []).forEach(d => {
-            if (map[d]) map[d].push({ client: c, orderId: null });
+      const todayDeliveries = useMemo(()=>{
+        const t=todayISO();
+        return getDeliveriesForRange(t,t);
+      },[getDeliveriesForRange]);
+
+      const weekDeliveries = useMemo(()=>{
+        const map = Object.fromEntries(weekDays.map(d=>[d,[]]));
+        clients.filter(c=>c.frequency!=="avulsa").forEach(c=>{
+          getOccurrencesInRange(c,weekDays[0],weekDays[6],reschedules[c.id]||[]).forEach(d=>{
+            if (map[d]) map[d].push({client:c,orderId:null});
           });
         });
-        clients.filter(c => c.frequency === "avulsa").forEach(c => {
-          const orders = avulsaOrders[c.id];
-          if (orders && orders.length > 0) {
-            orders.filter(o => o.date >= weekDays[0] && o.date <= weekDays[6])
-              .forEach(o => { if (map[o.date]) map[o.date].push({ client: c, orderId: o.id }); });
-          } else if (c.nextDate >= weekDays[0] && c.nextDate <= weekDays[6]) {
-            if (map[c.nextDate]) map[c.nextDate].push({ client: c, orderId: null });
+        clients.filter(c=>c.frequency==="avulsa").forEach(c=>{
+          const orders=avulsaOrders[c.id];
+          if (orders&&orders.length>0) {
+            orders.filter(o=>o.date>=weekDays[0]&&o.date<=weekDays[6]).forEach(o=>{if(map[o.date])map[o.date].push({client:c,orderId:o.id});});
+          } else if (c.nextDate>=weekDays[0]&&c.nextDate<=weekDays[6]) {
+            if(map[c.nextDate]) map[c.nextDate].push({client:c,orderId:null});
           }
         });
-        Object.keys(map).forEach(d => map[d].sort((a, b) => a.client.tutor.localeCompare(b.client.tutor)));
+        Object.keys(map).forEach(d=>map[d].sort((a,b)=>a.client.tutor.localeCompare(b.client.tutor)));
         return map;
-      }, [clients, weekDays, reschedules, avulsaOrders]);
+      },[clients,weekDays,reschedules,avulsaOrders]);
 
-      const filteredClients = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return q ? clients.filter(c =>
-          c.tutor.toLowerCase().includes(q) ||
-          c.dog.toLowerCase().includes(q) ||
-          c.address.toLowerCase().includes(q)
-        ) : clients;
-      }, [clients, search]);
+      const filteredClients = useMemo(()=>{
+        const q=search.trim().toLowerCase();
+        return q?clients.filter(c=>c.tutor.toLowerCase().includes(q)||c.dog.toLowerCase().includes(q)||c.address.toLowerCase().includes(q)):clients;
+      },[clients,search]);
 
-      if (!loaded) return <div style={styles.loadingScreen}><PawPrint size={32} color="#B8825A" /></div>;
+      if (!loaded) return <div style={styles.loadingScreen}><PawPrint size={32} color="#B8825A"/></div>;
 
       return (
         <div style={styles.app}>
           <style>{globalCss}</style>
-          {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+          {toastQueue.map(t=>(
+            <Toast key={t.id} message={t.msg} type={t.type} onDismiss={()=>dismissToast(t.id)}/>
+          ))}
           <header style={styles.header}>
             <div style={styles.headerInner}>
               <div style={styles.brandRow}>
-                <div style={styles.brandMark}><PawPrint size={20} color="#FBF1E8" strokeWidth={2.5} /></div>
+                <div style={styles.brandMark}><PawPrint size={20} color="#FBF1E8" strokeWidth={2.5}/></div>
                 <div>
                   <h1 style={styles.brandTitle}>ObentōPet</h1>
                   <p style={styles.brandSub}>Controle de Entregas</p>
                 </div>
               </div>
-              <button style={styles.newBtn} onClick={() => { setEditingClient(null); setShowForm(true); }}>
-                <Plus size={18} strokeWidth={2.5} /><span>Novo cliente</span>
-              </button>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <ConnBadge online={realtimeOnline}/>
+                <button style={styles.backupBtn} onClick={exportBackup} title="Exportar backup JSON">
+                  <Download size={14} strokeWidth={2.5}/>
+                </button>
+                <button style={styles.newBtn} onClick={()=>{setEditingClient(null);setShowForm(true);}}>
+                  <Plus size={18} strokeWidth={2.5}/><span>Novo cliente</span>
+                </button>
+              </div>
             </div>
             <nav style={styles.tabRow}>
-              {[["hoje","Hoje"],["semana","Entregas"],["clientes","Clientes"],["estoque","Estoque"]].map(([key,label]) => (
-                <button key={key} onClick={() => setView(key)}
-                  style={{ ...styles.tab, ...(view === key ? styles.tabActive : {}) }}>{label}</button>
+              {[["hoje","Hoje"],["entregas","Entregas"],["clientes","Clientes"],["estoque","Estoque"],["producao","Produção"],["roteiro","Roteiro"]].map(([key,label])=>(
+                <button key={key} onClick={()=>setView(key)}
+                  style={{...styles.tab,...(view===key?styles.tabActive:{})}}>{label}</button>
               ))}
             </nav>
           </header>
           <main style={styles.main}>
-            {view === "hoje" && (
+            {view==="hoje"&&(
               <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus}
-                shelfProducts={shelfProducts} onReschedule={openReschedule} />
+                shelfProducts={shelfProducts} onReschedule={openReschedule}/>
             )}
-            {view === "semana" && (
-              <WeekView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset}
+            {view==="entregas"&&(
+              <EntregasView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset}
                 setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus}
-                shelfProducts={shelfProducts} onReschedule={openReschedule} onGenerateBat={generateBat} />
+                shelfProducts={shelfProducts} onReschedule={openReschedule} onGenerateBat={generateBat}
+                filter={entregasFilter} setFilter={setEntregasFilter}
+                getDeliveriesForRange={getDeliveriesForRange}/>
             )}
-            {view === "clientes" && (
+            {view==="clientes"&&(
               <ClientsView clients={filteredClients} search={search} setSearch={setSearch}
-                onEdit={c => { setEditingClient(c); setShowForm(true); }} onDelete={deleteClient}
-                avulsaOrders={avulsaOrders} onAddAvulsaOrder={addAvulsaOrder} onDeleteAvulsaOrder={deleteAvulsaOrder} />
+                onEdit={c=>{setEditingClient(c);setShowForm(true);}} onDelete={deleteClient}
+                avulsaOrders={avulsaOrders} onAddAvulsaOrder={addAvulsaOrder} onDeleteAvulsaOrder={deleteAvulsaOrder}/>
             )}
-            {view === "estoque" && (
+            {view==="estoque"&&(
               <StockView
                 clients={clients}
                 subscriberStock={subscriberStock} subscriberStockLog={subscriberStockLog}
-                shelfProducts={shelfProducts}     shelfStockLog={shelfStockLog}
+                shelfProducts={shelfProducts} shelfStockLog={shelfStockLog}
                 petiscoProducts={petiscoProducts} petiscoStockLog={petiscoStockLog}
                 onAddSubscriberProduction={addSubscriberProduction}
-                onAddShelfProduct={addShelfProduct}     onAddShelfStockEntry={addShelfStockEntry}     onDeleteShelfProduct={deleteShelfProduct}
-                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct}
-              />
+                onAddShelfProduct={addShelfProduct} onAddShelfStockEntry={addShelfStockEntry} onDeleteShelfProduct={deleteShelfProduct} onUpdateShelfMinStock={updateShelfMinStock}
+                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct} onUpdatePetiscoMinStock={updatePetiscoMinStock}/>
+            )}
+            {view==="producao"&&(
+              <ProducaoView clients={clients} subscriberStock={subscriberStock}
+                shelfProducts={shelfProducts} petiscoProducts={petiscoProducts}/>
+            )}
+            {view==="roteiro"&&(
+              <RoteiroView todayDeliveries={todayDeliveries} getStatus={getStatus}
+                getDeliveriesForRange={getDeliveriesForRange}/>
             )}
           </main>
-          {showForm && (
+          {showForm&&(
             <ClientFormModal initial={editingClient} clients={clients}
-              onClose={() => { setShowForm(false); setEditingClient(null); }} onSave={saveClient} />
+              onClose={()=>{setShowForm(false);setEditingClient(null);}} onSave={saveClient}/>
           )}
-          {rescheduleModal && (
+          {rescheduleModal&&(
             <RescheduleModal info={rescheduleModal}
-              onClose={() => setRescheduleModal(null)} onConfirm={rescheduleDelivery} />
+              onClose={()=>setRescheduleModal(null)} onConfirm={rescheduleDelivery}/>
           )}
         </div>
       );
     }
 
+
     // ─── TODAY VIEW ───────────────────────────────────────────────────────────
     function TodayView({ items, getStatus, setStatus, shelfProducts, onReschedule }) {
       const t = todayISO();
-      const d = new Date(t + "T00:00:00");
-      const label = `${weekdayNames[d.getDay()]}, ${d.getDate()} de ${d.toLocaleDateString("pt-BR", { month:"long" })}`;
+      const label = formatDateFull(t);
+      const pendentes = items.filter(({client,date})=>getStatus(client.id,date)!=="entregue").length;
       return (
         <div style={styles.section}>
           <div style={styles.sectionHeadRow}>
             <h2 style={styles.sectionTitle}>{label}</h2>
-            <span style={styles.countPill}>{items.length} entrega{items.length !== 1 ? "s" : ""}</span>
+            <div style={{display:"flex",gap:6}}>
+              {pendentes>0&&<span style={{...styles.countPill,background:"#FBEAE6",color:"#A8412F"}}>{pendentes} pendente{pendentes!==1?"s":""}</span>}
+              <span style={styles.countPill}>{items.length} entrega{items.length!==1?"s":""}</span>
+            </div>
           </div>
-          {items.length === 0 ? <EmptyState text="Nenhuma entrega marcada para hoje." /> : (
+          {items.length===0?<EmptyState text="Nenhuma entrega marcada para hoje."/>:(
             <div style={styles.cardList}>
-              {items.map(({ client, date, orderId }) => (
-                <DeliveryCard key={client.id + date + (orderId||"")} client={client} date={date} orderId={orderId}
-                  status={getStatus(client.id, date)} onStatusChange={(s, ded) => setStatus(client.id, date, s, ded)}
-                  shelfProducts={shelfProducts} onReschedule={onReschedule} />
+              {items.map(({client,date,orderId})=>(
+                <DeliveryCard key={client.id+date+(orderId||"")} client={client} date={date} orderId={orderId}
+                  status={getStatus(client.id,date)} onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)}
+                  shelfProducts={shelfProducts} onReschedule={onReschedule}/>
               ))}
             </div>
           )}
@@ -630,50 +814,107 @@
       );
     }
 
-    // ─── WEEK VIEW ────────────────────────────────────────────────────────────
-    function WeekView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onGenerateBat }) {
+    // ─── ENTREGAS VIEW ────────────────────────────────────────────────────────
+    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onGenerateBat, filter, setFilter, getDeliveriesForRange }) {
       const [activeDay, setActiveDay] = useState(null);
       const t = todayISO();
-      const activeDate = activeDay || (weekDays.includes(t) ? t : weekDays[0]);
-      const activeDayItems = weekDeliveries[activeDate] || [];
-      const comEtiqueta = activeDayItems.filter(({ client }) => client.labelFile).length;
+      const tmrw = tomorrowISO();
+
+      const filterRanges = useMemo(()=>{
+        const wStart = weekDays[0], wEnd = weekDays[6];
+        const nextWStart = addDays(wEnd,1), nextWEnd = addDays(wEnd,7);
+        return { hoje:[t,t], amanha:[tmrw,tmrw], semana:[wStart,wEnd], proxima:[nextWStart,nextWEnd] };
+      },[weekDays,t,tmrw]);
+
+      const filterItems = useMemo(()=>{
+        if (filter==="semana"||filter==="proxima") return null; // use weekDeliveries
+        const [s,e] = filterRanges[filter]||[t,t];
+        return getDeliveriesForRange(s,e);
+      },[filter,filterRanges,getDeliveriesForRange,t]);
+
+      const activeDate = activeDay||(weekDays.includes(t)?t:weekDays[0]);
+      const activeDayItems = weekDeliveries[activeDate]||[];
+      const comEtiqueta = activeDayItems.filter(({client})=>client.labelFile).length;
+
+      const weekNum = getWeekNumber(weekDays[0]);
+
+      if (filter!=="semana"&&filter!=="proxima") {
+        const [rangeStart] = filterRanges[filter]||[t,t];
+        const label = filter==="hoje"?formatDateFull(t):filter==="amanha"?formatDateFull(tmrw):"";
+        return (
+          <div style={styles.section}>
+            <div style={styles.filterRow}>
+              {[["hoje","Hoje"],["amanha","Amanhã"],["semana","Semana"],["proxima","Prox. semana"]].map(([key,lbl])=>(
+                <button key={key} onClick={()=>setFilter(key)}
+                  style={{...styles.filterBtn,...(filter===key?styles.filterBtnActive:{})}}>{lbl}</button>
+              ))}
+            </div>
+            <h2 style={{...styles.sectionTitle,marginBottom:16}}>{label}</h2>
+            {filterItems.length===0?<EmptyState text="Nenhuma entrega neste período."/>:(
+              <div style={styles.cardList}>
+                {filterItems.map(({client,date,orderId})=>(
+                  <DeliveryCard key={client.id+date+(orderId||"")} client={client} date={date} orderId={orderId}
+                    status={getStatus(client.id,date)} onStatusChange={(s,ded)=>setStatus(client.id,date,s,ded)}
+                    shelfProducts={shelfProducts} onReschedule={onReschedule} showDate={filter!=="hoje"&&filter!=="amanha"}/>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      const isNextWeek = filter==="proxima";
+      const displayWeekDays = isNextWeek ? Array.from({length:7},(_,i)=>addDays(weekDays[6],i+1)) : weekDays;
+      const displayDeliveries = isNextWeek
+        ? (()=>{ const m=Object.fromEntries(displayWeekDays.map(d=>[d,[]])); /* simplified */; return m; })()
+        : weekDeliveries;
+
       return (
         <div style={styles.section}>
+          <div style={styles.filterRow}>
+            {[["hoje","Hoje"],["amanha","Amanhã"],["semana","Semana"],["proxima","Prox. semana"]].map(([key,lbl])=>(
+              <button key={key} onClick={()=>setFilter(key)}
+                style={{...styles.filterBtn,...(filter===key?styles.filterBtnActive:{})}}>{lbl}</button>
+            ))}
+          </div>
           <div style={styles.weekNav}>
-            <button style={styles.navArrow} onClick={() => setWeekOffset(w => w-1)}><ChevronLeft size={18} /></button>
-            <span style={styles.weekLabel}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</span>
-            <button style={styles.navArrow} onClick={() => setWeekOffset(w => w+1)}><ChevronRight size={18} /></button>
+            <button style={styles.navArrow} onClick={()=>setWeekOffset(w=>w-1)}><ChevronLeft size={18}/></button>
+            <div style={{textAlign:"center"}}>
+              <div style={styles.weekLabel}>{formatDateBR(weekDays[0])} – {formatDateBR(weekDays[6])}</div>
+              <div style={{fontSize:10.5,color:"#A89A8C",fontWeight:600}}>Semana {weekNum}</div>
+            </div>
+            <button style={styles.navArrow} onClick={()=>setWeekOffset(w=>w+1)}><ChevronRight size={18}/></button>
           </div>
           <div style={styles.weekStrip}>
-            {weekDays.map((d, i) => {
-              const count = weekDeliveries[d]?.length || 0;
-              const isToday = d === t, isActive = d === activeDate;
+            {weekDays.map((d,i)=>{
+              const count=weekDeliveries[d]?.length||0;
+              const isToday=d===t, isActive=d===activeDate;
               return (
-                <button key={d} onClick={() => setActiveDay(d)}
-                  style={{ ...styles.dayChip, ...(isActive ? styles.dayChipActive : {}), ...(isToday && !isActive ? styles.dayChipToday : {}) }}>
-                  <span style={{ ...styles.dayChipDow, ...(isActive ? { color:"#C9BBA8" } : {}) }}>{weekdayShort[i]}</span>
-                  <span style={{ ...styles.dayChipNum, ...(isActive ? { color:"#FBF1E8" } : {}) }}>{d.split("-")[2]}</span>
-                  {count > 0 && <span style={{ ...styles.dayChipDot, ...(isActive ? { background:"#FBF1E8" } : {}) }} />}
+                <button key={d} onClick={()=>setActiveDay(d)}
+                  style={{...styles.dayChip,...(isActive?styles.dayChipActive:{}),...(isToday&&!isActive?styles.dayChipToday:{})}}>
+                  <span style={{...styles.dayChipDow,...(isActive?{color:"#C9BBA8"}:{})}}>{weekdayShort[i]}</span>
+                  <span style={{...styles.dayChipNum,...(isActive?{color:"#FBF1E8"}:{})}}>{d.split("-")[2]}</span>
+                  {count>0&&<span style={{...styles.dayChipDot,...(isActive?{background:"#FBF1E8"}:{})}}/>}
                 </button>
               );
             })}
           </div>
-          <div style={{ marginTop:20 }}>
-            {activeDayItems.length > 0 && (
-              <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
-                <button style={styles.batBtn} onClick={() => onGenerateBat(activeDate, activeDayItems)}
+          <div style={{marginTop:20}}>
+            {activeDayItems.length>0&&(
+              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+                <button style={styles.batBtn} onClick={()=>onGenerateBat(activeDate,activeDayItems)}
                   title={`${comEtiqueta} de ${activeDayItems.length} com etiqueta configurada`}>
-                  <Printer size={13} strokeWidth={2.5} />
-                  Etiquetas{comEtiqueta < activeDayItems.length ? ` (${comEtiqueta}/${activeDayItems.length})` : ""}
+                  <Printer size={13} strokeWidth={2.5}/>
+                  Etiquetas{comEtiqueta<activeDayItems.length?` (${comEtiqueta}/${activeDayItems.length})`:""}
                 </button>
               </div>
             )}
-            {activeDayItems.length === 0 ? <EmptyState text="Nenhuma entrega marcada para este dia." /> : (
+            {activeDayItems.length===0?<EmptyState text="Nenhuma entrega marcada para este dia."/>:(
               <div style={styles.cardList}>
-                {activeDayItems.map(({ client, orderId }) => (
-                  <DeliveryCard key={client.id + activeDate + (orderId||"")} client={client} date={activeDate} orderId={orderId}
-                    status={getStatus(client.id, activeDate)} onStatusChange={(s, ded) => setStatus(client.id, activeDate, s, ded)}
-                    shelfProducts={shelfProducts} onReschedule={onReschedule} />
+                {activeDayItems.map(({client,orderId})=>(
+                  <DeliveryCard key={client.id+activeDate+(orderId||"")} client={client} date={activeDate} orderId={orderId}
+                    status={getStatus(client.id,activeDate)} onStatusChange={(s,ded)=>setStatus(client.id,activeDate,s,ded)}
+                    shelfProducts={shelfProducts} onReschedule={onReschedule}/>
                 ))}
               </div>
             )}
@@ -683,20 +924,20 @@
     }
 
     // ─── DELIVERY CARD ────────────────────────────────────────────────────────
-    function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule }) {
+    function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule, showDate=false }) {
       const [pickerOpen, setPickerOpen] = useState(false);
       const [selectedProduct, setSelectedProduct] = useState("");
-      const [selectedAmount, setSelectedAmount] = useState(String(client.units || 1));
-      const isAvulsa = client.frequency === "avulsa";
+      const [selectedAmount, setSelectedAmount] = useState(String(client.units||1));
+      const isAvulsa = client.frequency==="avulsa";
 
       const handleStatusClick = (key) => {
-        if (key === "entregue" && isAvulsa && status !== "entregue") { setPickerOpen(true); return; }
+        if (key==="entregue"&&isAvulsa&&status!=="entregue") { setPickerOpen(true); return; }
         onStatusChange(key);
       };
       const confirmAvulsaDelivery = () => {
-        const amount = parseInt(selectedAmount, 10);
-        if (!selectedProduct || !amount || amount < 1) return;
-        onStatusChange("entregue", { productId: selectedProduct, amount });
+        const amount = parseInt(selectedAmount,10);
+        if (!selectedProduct||!amount||amount<1) return;
+        onStatusChange("entregue",{productId:selectedProduct,amount});
         setPickerOpen(false);
       };
 
@@ -704,112 +945,66 @@
         <div style={styles.card}>
           <div style={styles.cardTop}>
             <div style={styles.cardIdentity}>
-              <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
+              <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
               <div>
                 <div style={styles.cardDog}>{client.dog}</div>
                 <div style={styles.cardTutor}>{client.tutor}</div>
               </div>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5 }}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
+              {showDate&&<span style={{fontSize:11.5,fontWeight:700,color:"#B8825A"}}>{formatDateBR(date)}</span>}
               <span style={styles.freqTag}>{frequencyLabel[client.frequency]}</span>
-              {client.units ? <span style={styles.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span> : null}
+              {client.units?<span style={styles.unitsTag}>{client.units} {client.units===1?"unidade":"unidades"}</span>:null}
             </div>
           </div>
           <div style={styles.cardAddress}>
-            <MapPin size={13} color="#A89A8C" style={{ flexShrink:0, marginTop:2 }} />
+            <MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/>
             <span>{client.address}</span>
           </div>
-          {pickerOpen ? (
+          {client.phone&&(
+            <div style={{display:"flex",gap:6,fontSize:12,color:"#A89A8C",marginTop:4,alignItems:"center"}}>
+              <Phone size={11} color="#A89A8C" style={{flexShrink:0}}/>
+              <span>{client.phone}</span>
+            </div>
+          )}
+          {pickerOpen?(
             <div style={styles.avulsaPicker}>
               <p style={styles.avulsaPickerLabel}>Qual produto sai do estoque?</p>
-              {shelfProducts.length === 0 ? (
+              {shelfProducts.length===0?(
                 <p style={styles.avulsaPickerEmpty}>Nenhum produto cadastrado em Estoque ainda.</p>
-              ) : (
-                <select style={styles.input} value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}>
+              ):(
+                <select style={styles.input} value={selectedProduct} onChange={e=>setSelectedProduct(e.target.value)}>
                   <option value="">Selecione um produto…</option>
-                  {shelfProducts.map(p => <option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
+                  {shelfProducts.map(p=><option key={p.id} value={p.id}>{p.name} (saldo: {p.balance})</option>)}
                 </select>
               )}
-              <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                <input type="number" min="1" style={{ ...styles.input, flex:1 }} value={selectedAmount}
-                  onChange={e => setSelectedAmount(e.target.value)} placeholder="Qtd" />
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                <input type="number" min="1" style={{...styles.input,flex:1}} value={selectedAmount}
+                  onChange={e=>setSelectedAmount(e.target.value)} placeholder="Qtd"/>
                 <button style={styles.avulsaConfirmBtn} onClick={confirmAvulsaDelivery} disabled={!selectedProduct}>Confirmar</button>
-                <button style={styles.avulsaCancelBtn} onClick={() => setPickerOpen(false)}>Cancelar</button>
+                <button style={styles.avulsaCancelBtn} onClick={()=>setPickerOpen(false)}>Cancelar</button>
               </div>
             </div>
-          ) : (
+          ):(
             <>
               <div style={styles.statusRow}>
-                {Object.entries(statusConfig).map(([key, conf]) => {
-                  const Icon = conf.icon; const active = status === key;
+                {Object.entries(statusConfig).map(([key,conf])=>{
+                  const Icon=conf.icon; const active=status===key;
                   return (
-                    <button key={key} onClick={() => handleStatusClick(key)}
-                      style={{ ...styles.statusBtn, ...(active ? { background:conf.color, color:"#FFF7EF", borderColor:conf.color } : { background:"#FFF7EF", color:"#8A7A6C", borderColor:"#E8DDD0" }) }}>
-                      <Icon size={13} strokeWidth={2.5} />{conf.label}
+                    <button key={key} onClick={()=>handleStatusClick(key)}
+                      style={{...styles.statusBtn,...(active?{background:conf.color,color:"#FFF7EF",borderColor:conf.color}:{background:"#FFF7EF",color:"#8A7A6C",borderColor:"#E8DDD0"})}}>
+                      <Icon size={13} strokeWidth={2.5}/>{conf.label}
                     </button>
                   );
                 })}
               </div>
-              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:8 }}>
-                <button style={styles.rescheduleBtn} onClick={() => onReschedule(client, date, orderId)}>
-                  <Calendar size={12} strokeWidth={2.5} />Reagendar
+              <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+                <button style={styles.rescheduleBtn} onClick={()=>onReschedule(client,date,orderId)}>
+                  <Calendar size={12} strokeWidth={2.5}/>Reagendar
                 </button>
               </div>
             </>
           )}
-        </div>
-      );
-    }
-
-    // ─── RESCHEDULE MODAL ─────────────────────────────────────────────────────
-    function RescheduleModal({ info, onClose, onConfirm }) {
-      const [newDate, setNewDate] = useState("");
-      const [scope,   setScope]   = useState("only");
-      const isRecurring = info.frequency !== "avulsa";
-      const canConfirm  = newDate && newDate !== info.date;
-      return (
-        <div style={styles.modalOverlay} onClick={onClose}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <div style={styles.modalHead}>
-              <h3 style={styles.modalTitle}>Reagendar entrega</h3>
-              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C" /></button>
-            </div>
-            <div style={styles.formBody}>
-              <div style={styles.rescheduleInfo}>
-                <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
-                <div>
-                  <div style={{ fontSize:15.5, fontWeight:700, color:"#3E332A" }}>{info.dog}</div>
-                  <div style={{ fontSize:12.5, color:"#A89A8C", marginTop:1 }}>entrega original: {formatDateBR(info.date)}</div>
-                </div>
-              </div>
-              <Field label="Nova data de entrega">
-                <input type="date" style={styles.input} value={newDate} onChange={e => setNewDate(e.target.value)} />
-              </Field>
-              {isRecurring && (
-                <Field label="O que alterar?">
-                  <div style={styles.freqGrid}>
-                    <button type="button" onClick={() => setScope("only")}
-                      style={{ ...styles.freqOption, ...(scope==="only" ? styles.freqOptionActive : {}), textAlign:"center", lineHeight:1.35 }}>
-                      Só esta entrega
-                    </button>
-                    <button type="button" onClick={() => setScope("following")}
-                      style={{ ...styles.freqOption, ...(scope==="following" ? styles.freqOptionActive : {}), textAlign:"center", lineHeight:1.35 }}>
-                      Esta e as seguintes
-                    </button>
-                  </div>
-                  <p style={{ margin:"6px 0 0", fontSize:11.5, color:"#A89A8C", lineHeight:1.4 }}>
-                    {scope === "only"
-                      ? "A data original volta a aparecer normalmente nas próximas ocorrências."
-                      : "O dia fixo de entrega será alterado permanentemente a partir desta data."}
-                  </p>
-                </Field>
-              )}
-              <button style={{ ...styles.saveBtn, opacity: canConfirm ? 1 : 0.45 }} disabled={!canConfirm}
-                onClick={() => { if (canConfirm) onConfirm(info.clientId, info.date, newDate, scope, info.orderId); }}>
-                Confirmar reagendamento
-              </button>
-            </div>
-          </div>
         </div>
       );
     }
@@ -821,77 +1016,72 @@
       const today = todayISO();
 
       const getAvulsaMeta = (c) => {
-        const orders = avulsaOrders[c.id] || [];
-        if (orders.length === 0) return `Avulsa · próxima: ${formatDateBR(c.nextDate)}`;
-        const upcoming = orders.filter(o => o.date >= today);
-        if (upcoming.length === 0) return "Avulsa · sem entrega agendada";
-        return `Avulsa · ${upcoming.length} agendada${upcoming.length !== 1 ? "s" : ""} · próxima: ${formatDateBR(upcoming[0].date)}`;
+        const orders = avulsaOrders[c.id]||[];
+        if (orders.length===0) return `Avulsa · próxima: ${formatDateBR(c.nextDate)}`;
+        const upcoming = orders.filter(o=>o.date>=today);
+        if (upcoming.length===0) return "Avulsa · sem entrega agendada";
+        return `Avulsa · ${upcoming.length} agendada${upcoming.length!==1?"s":""} · próxima: ${formatDateBR(upcoming[0].date)}`;
       };
 
       return (
         <div style={styles.section}>
           <div style={styles.searchBar}>
-            <Search size={16} color="#A89A8C" />
+            <Search size={16} color="#A89A8C"/>
             <input style={styles.searchInput} placeholder="Buscar por tutor, cão ou endereço…"
-              value={search} onChange={e => setSearch(e.target.value)} />
+              value={search} onChange={e=>setSearch(e.target.value)}/>
           </div>
-          {clients.length === 0 ? <EmptyState text="Nenhum cliente cadastrado ainda." /> : (
+          {clients.length===0?<EmptyState text="Nenhum cliente cadastrado ainda."/>:(
             <div style={styles.cardList}>
-              {clients.map(c => {
-                const isAvulsa = c.frequency === "avulsa";
-                const orders = isAvulsa ? (avulsaOrders[c.id] || []) : [];
+              {clients.map(c=>{
+                const isAvulsa=c.frequency==="avulsa";
+                const orders=isAvulsa?(avulsaOrders[c.id]||[]):[];
                 return (
                   <div key={c.id} style={styles.clientCard}>
                     <div style={styles.clientRow}>
-                      <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <div style={styles.cardDog}>{c.dog}</div>
-                          <span style={{
-                            fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6, whiteSpace:"nowrap",
-                            color:      isAvulsa ? "#8A6A48" : "#3E7CB1",
-                            background: isAvulsa ? "#F6EEE3" : "#EAF2F8",
-                          }}>{isAvulsa ? "Avulso" : "Assinante"}</span>
+                          <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,whiteSpace:"nowrap",
+                            color:isAvulsa?"#8A6A48":"#3E7CB1",background:isAvulsa?"#F6EEE3":"#EAF2F8"}}>
+                            {isAvulsa?"Avulso":"Assinante"}
+                          </span>
                         </div>
                         <div style={styles.cardTutor}>{c.tutor}</div>
+                        {c.phone&&<div style={{fontSize:11,color:"#A89A8C",display:"flex",alignItems:"center",gap:4,marginTop:2}}><Phone size={10} color="#C9BBA8"/>{c.phone}</div>}
                         <div style={styles.clientMeta}>
-                          {isAvulsa
-                            ? getAvulsaMeta(c)
-                            : `${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units ? ` · ${c.units} ${c.units===1?"unidade":"unidades"}` : ""}`
-                          }
+                          {isAvulsa?getAvulsaMeta(c):`${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.units?` · ${c.units} ${c.units===1?"unidade":"unidades"}`:""}`}
                         </div>
                       </div>
                       <div style={styles.rowActions}>
-                        {isAvulsa && (
-                          <button style={{ ...styles.iconBtn, borderColor:"#D4A574" }} title="Novo pedido"
-                            onClick={() => setNewOrderFor(c.id)}>
-                            <Plus size={15} color="#B8825A" />
+                        {isAvulsa&&(
+                          <button style={{...styles.iconBtn,borderColor:"#D4A574"}} title="Novo pedido" onClick={()=>setNewOrderFor(c.id)}>
+                            <Plus size={15} color="#B8825A"/>
                           </button>
                         )}
-                        <button style={styles.iconBtn} onClick={() => onEdit(c)}><Edit3 size={15} color="#8A7A6C" /></button>
-                        {confirmDelete === c.id ? (
-                          <button style={{ ...styles.iconBtn, background:"#C0594B" }}
-                            onClick={() => { onDelete(c.id); setConfirmDelete(null); }}>
-                            <Check size={15} color="#fff" />
+                        <button style={styles.iconBtn} onClick={()=>onEdit(c)}><Edit3 size={15} color="#8A7A6C"/></button>
+                        {confirmDelete===c.id?(
+                          <button style={{...styles.iconBtn,background:"#C0594B"}} onClick={()=>{onDelete(c.id);setConfirmDelete(null);}}>
+                            <Check size={15} color="#fff"/>
                           </button>
-                        ) : (
-                          <button style={styles.iconBtn} onClick={() => setConfirmDelete(c.id)}><Trash2 size={15} color="#8A7A6C" /></button>
+                        ):(
+                          <button style={styles.iconBtn} onClick={()=>setConfirmDelete(c.id)}><Trash2 size={15} color="#8A7A6C"/></button>
                         )}
                       </div>
                     </div>
-                    {isAvulsa && orders.length > 0 && (
+                    {isAvulsa&&orders.length>0&&(
                       <div style={styles.orderList}>
-                        {orders.map(o => {
-                          const isPast = o.date < today;
+                        {orders.map(o=>{
+                          const isPast=o.date<today;
                           return (
                             <div key={o.id} style={styles.orderRow}>
-                              <Calendar size={12} color={isPast ? "#C9BBA8" : "#B8825A"} style={{ flexShrink:0 }} />
-                              <span style={{ ...styles.orderDate, color: isPast ? "#C9BBA8" : "#3E332A" }}>
+                              <Calendar size={12} color={isPast?"#C9BBA8":"#B8825A"} style={{flexShrink:0}}/>
+                              <span style={{...styles.orderDate,color:isPast?"#C9BBA8":"#3E332A"}}>
                                 {formatDateBR(o.date)}
-                                {isPast && <span style={styles.orderPastBadge}>passado</span>}
+                                {isPast&&<span style={styles.orderPastBadge}>passado</span>}
                               </span>
-                              <button style={styles.orderDeleteBtn} onClick={() => onDeleteAvulsaOrder(c.id, o.id)}>
-                                <X size={11} color="#C9BBA8" />
+                              <button style={styles.orderDeleteBtn} onClick={()=>onDeleteAvulsaOrder(c.id,o.id)}>
+                                <X size={11} color="#C9BBA8"/>
                               </button>
                             </div>
                           );
@@ -903,98 +1093,96 @@
               })}
             </div>
           )}
-          {newOrderFor && (
-            <NewOrderModal
-              onClose={() => setNewOrderFor(null)}
-              onConfirm={(date) => { onAddAvulsaOrder(newOrderFor, date); setNewOrderFor(null); }}
-            />
+          {newOrderFor&&(
+            <NewOrderModal onClose={()=>setNewOrderFor(null)}
+              onConfirm={(date)=>{onAddAvulsaOrder(newOrderFor,date);setNewOrderFor(null);}}/>
           )}
         </div>
       );
     }
 
-    // ─── NEW ORDER MODAL ──────────────────────────────────────────────────────
     function NewOrderModal({ onClose, onConfirm }) {
       const [date, setDate] = useState(todayISO());
       return (
         <div style={styles.modalOverlay} onClick={onClose}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+          <div style={styles.modal} onClick={e=>e.stopPropagation()}>
             <div style={styles.modalHead}>
               <h3 style={styles.modalTitle}>Novo pedido avulso</h3>
-              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C" /></button>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C"/></button>
             </div>
             <div style={styles.formBody}>
               <Field label="Data de entrega">
-                <input type="date" style={styles.input} value={date} onChange={e => setDate(e.target.value)} />
+                <input type="date" style={styles.input} value={date} onChange={e=>setDate(e.target.value)}/>
               </Field>
-              <button style={styles.saveBtn} onClick={() => { if (date) onConfirm(date); }}>
-                Adicionar pedido
-              </button>
+              <button style={styles.saveBtn} onClick={()=>{if(date)onConfirm(date);}}>Adicionar pedido</button>
             </div>
           </div>
         </div>
       );
     }
 
-    // ─── STOCK VIEW ───────────────────────────────────────────────────────────
-    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct }) {
-      const [tab, setTab] = useState("assinantes");
-      const [expandedClient,  setExpandedClient]  = useState(null);
-      const [productionInputs,setProductionInputs]= useState({});
-      const [expandedProduct, setExpandedProduct] = useState(null);
-      const [showNewProduct,  setShowNewProduct]  = useState(false);
-      const [newProductName,  setNewProductName]  = useState("");
-      const [stockInputs,     setStockInputs]     = useState({});
-      const [expandedPetisco, setExpandedPetisco] = useState(null);
-      const [showNewPetisco,  setShowNewPetisco]  = useState(false);
-      const [newPetiscoName,  setNewPetiscoName]  = useState("");
-      const [petiscoInputs,   setPetiscoInputs]   = useState({});
 
-      const subscribers = clients.filter(c => c.frequency !== "avulsa");
+    // ─── STOCK VIEW ───────────────────────────────────────────────────────────
+    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onUpdateShelfMinStock, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct, onUpdatePetiscoMinStock }) {
+      const [tab, setTab]                       = useState("assinantes");
+      const [expandedClient,  setExpandedClient]= useState(null);
+      const [productionInputs,setProductionInputs]=useState({});
+      const [expandedProduct, setExpandedProduct]=useState(null);
+      const [showNewProduct,  setShowNewProduct] =useState(false);
+      const [newProductName,  setNewProductName] =useState("");
+      const [stockInputs,     setStockInputs]    =useState({});
+      const [minStockInputs,  setMinStockInputs] =useState({});
+      const [expandedPetisco, setExpandedPetisco]=useState(null);
+      const [showNewPetisco,  setShowNewPetisco] =useState(false);
+      const [newPetiscoName,  setNewPetiscoName] =useState("");
+      const [petiscoInputs,   setPetiscoInputs]  =useState({});
+      const [petiscoMinInputs,setPetiscoMinInputs]=useState({});
+
+      const subscribers = clients.filter(c=>c.frequency!=="avulsa");
 
       return (
         <div style={styles.section}>
           <div style={styles.sectionHeadRow}><h2 style={styles.sectionTitle}>Estoque</h2></div>
           <div style={styles.stockTabRow}>
-            {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([key,label]) => (
-              <button key={key} style={{ ...styles.stockTabBtn, ...(tab===key ? styles.stockTabBtnActive : {}) }}
-                onClick={() => setTab(key)}>{label}</button>
+            {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([key,label])=>(
+              <button key={key} style={{...styles.stockTabBtn,...(tab===key?styles.stockTabBtnActive:{})}}
+                onClick={()=>setTab(key)}>{label}</button>
             ))}
           </div>
 
-          {tab === "assinantes" && (
-            subscribers.length === 0 ? <EmptyState text="Nenhum cliente assinante cadastrado ainda." /> : (
+          {tab==="assinantes"&&(
+            subscribers.length===0?<EmptyState text="Nenhum cliente assinante cadastrado ainda."/>:(
               <div style={styles.cardList}>
-                {subscribers.map(c => {
-                  const balance = subscriberStock[c.id] ?? 0;
-                  const isLow = balance <= (c.units || 0);
-                  const log = subscriberStockLog[c.id] || [];
-                  const exp = expandedClient === c.id;
+                {subscribers.map(c=>{
+                  const balance=subscriberStock[c.id]??0;
+                  const isLow=balance<=(c.units||0);
+                  const log=subscriberStockLog[c.id]||[];
+                  const exp=expandedClient===c.id;
                   return (
                     <div key={c.id} style={styles.stockCard}>
                       <div style={styles.stockCardTop}>
                         <div style={styles.cardIdentity}>
-                          <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A" /></div>
+                          <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
                           <div><div style={styles.cardDog}>{c.dog}</div><div style={styles.cardTutor}>{c.tutor}</div></div>
                         </div>
-                        <div style={{ textAlign:"right" }}>
-                          <div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{balance}</div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{...styles.balanceNum,color:isLow?"#C0594B":"#3E332A"}}>{balance}</div>
                           <div style={styles.balanceLabel}>em estoque</div>
                         </div>
                       </div>
-                      {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Saldo baixo para a próxima entrega ({c.units||0} un.)</span></div>}
+                      {isLow&&<div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B"/><span>Saldo baixo para a próxima entrega ({c.units||0} un.)</span></div>}
                       <div style={styles.stockEntryRow}>
-                        <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas"
-                          value={productionInputs[c.id] || ""} onChange={e => setProductionInputs(p => ({ ...p, [c.id]: e.target.value }))} />
-                        <button style={styles.addStockBtn} onClick={() => {
-                          const a = parseInt(productionInputs[c.id],10);
-                          if (a>0) { onAddSubscriberProduction(c.id, a); setProductionInputs(p => ({ ...p, [c.id]:"" })); }
-                        }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                        <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades produzidas"
+                          value={productionInputs[c.id]||""} onChange={e=>setProductionInputs(p=>({...p,[c.id]:e.target.value}))}/>
+                        <button style={styles.addStockBtn} onClick={()=>{
+                          const a=parseInt(productionInputs[c.id],10);
+                          if(a>0){onAddSubscriberProduction(c.id,a);setProductionInputs(p=>({...p,[c.id]:""}));}
+                        }}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                       </div>
-                      <button style={styles.historyToggle} onClick={() => setExpandedClient(exp ? null : c.id)}>
-                        {exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}
+                      <button style={styles.historyToggle} onClick={()=>setExpandedClient(exp?null:c.id)}>
+                        {exp?"Ocultar histórico":`Ver histórico (${log.length})`}
                       </button>
-                      {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
+                      {exp&&<div style={styles.historyList}>{log.length===0?<p style={styles.historyEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistoryRow key={i} entry={e}/>)}</div>}
                     </div>
                   );
                 })}
@@ -1002,55 +1190,57 @@
             )
           )}
 
-          {tab === "avulsos" && (
+          {tab==="avulsos"&&(
             <>
-              <div style={{ marginBottom:14 }}>
-                {showNewProduct ? (
+              <div style={{marginBottom:14}}>
+                {showNewProduct?(
                   <div style={styles.newProductBox}>
                     <input style={styles.input} placeholder="Nome do produto (ex: Biscoito Natural 200g)"
-                      value={newProductName} onChange={e => setNewProductName(e.target.value)} autoFocus />
-                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                      <button style={styles.avulsaConfirmBtn} onClick={() => {
-                        if (!newProductName.trim()) return;
-                        onAddShelfProduct(newProductName.trim()); setNewProductName(""); setShowNewProduct(false);
-                      }}>Salvar</button>
-                      <button style={styles.avulsaCancelBtn} onClick={() => setShowNewProduct(false)}>Cancelar</button>
+                      value={newProductName} onChange={e=>setNewProductName(e.target.value)} autoFocus/>
+                    <div style={{display:"flex",gap:8,marginTop:8}}>
+                      <button style={styles.avulsaConfirmBtn} onClick={()=>{if(!newProductName.trim())return;onAddShelfProduct(newProductName.trim());setNewProductName("");setShowNewProduct(false);}}>Salvar</button>
+                      <button style={styles.avulsaCancelBtn} onClick={()=>setShowNewProduct(false)}>Cancelar</button>
                     </div>
                   </div>
-                ) : (
-                  <button style={styles.newProductTrigger} onClick={() => setShowNewProduct(true)}>
-                    <Plus size={16} strokeWidth={2.5} />Cadastrar produto de prateleira
+                ):(
+                  <button style={styles.newProductTrigger} onClick={()=>setShowNewProduct(true)}>
+                    <Plus size={16} strokeWidth={2.5}/>Cadastrar produto de prateleira
                   </button>
                 )}
               </div>
-              {shelfProducts.length === 0 ? <EmptyState text="Nenhum produto de prateleira cadastrado ainda." /> : (
+              {shelfProducts.length===0?<EmptyState text="Nenhum produto de prateleira cadastrado ainda."/>:(
                 <div style={styles.cardList}>
-                  {shelfProducts.map(p => {
-                    const log = shelfStockLog[p.id] || [];
-                    const exp = expandedProduct === p.id;
-                    const isLow = p.balance <= 0;
+                  {shelfProducts.map(p=>{
+                    const log=shelfStockLog[p.id]||[];
+                    const exp=expandedProduct===p.id;
+                    const isLow=p.balance<=(p.min_stock||0);
                     return (
                       <div key={p.id} style={styles.stockCard}>
                         <div style={styles.stockCardTop}>
-                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Package size={14} color="#B8825A" /></div><div style={styles.cardDog}>{p.name}</div></div>
-                          <div style={{ textAlign:"right" }}><div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
+                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Package size={14} color="#B8825A"/></div><div style={styles.cardDog}>{p.name}</div></div>
+                          <div style={{textAlign:"right"}}><div style={{...styles.balanceNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
                         </div>
-                        {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
+                        {isLow&&<div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B"/><span>{p.balance<=0?"Sem saldo disponível":`Estoque baixo (mín: ${p.min_stock})`}</span></div>}
                         <div style={styles.stockEntryRow}>
-                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades a adicionar"
-                            value={stockInputs[p.id] || ""} onChange={e => setStockInputs(s => ({ ...s, [p.id]: e.target.value }))} />
-                          <button style={styles.addStockBtn} onClick={() => {
-                            const a = parseInt(stockInputs[p.id],10);
-                            if (a>0) { onAddShelfStockEntry(p.id, a); setStockInputs(s => ({ ...s, [p.id]:"" })); }
-                          }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                          <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades a adicionar"
+                            value={stockInputs[p.id]||""} onChange={e=>setStockInputs(s=>({...s,[p.id]:e.target.value}))}/>
+                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}))}}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                         </div>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                          <button style={styles.historyToggle} onClick={() => setExpandedProduct(exp ? null : p.id)}>
-                            {exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
+                          <input type="number" min="0" style={{...styles.input,width:80,padding:"6px 8px",fontSize:12.5}} placeholder="Mín"
+                            value={minStockInputs[p.id]??p.min_stock} onChange={e=>setMinStockInputs(s=>({...s,[p.id]:e.target.value}))}/>
+                          <button style={{...styles.addStockBtn,background:"#9C8E7E",fontSize:11.5,padding:"0 10px"}} onClick={()=>{
+                            const v=parseInt(minStockInputs[p.id]??p.min_stock,10);
+                            if(!isNaN(v)&&v>=0)onUpdateShelfMinStock(p.id,v);
+                          }}>Salvar mín.</button>
+                        </div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                          <button style={styles.historyToggle} onClick={()=>setExpandedProduct(exp?null:p.id)}>
+                            {exp?"Ocultar histórico":`Ver histórico (${log.length})`}
                           </button>
-                          <button style={styles.deleteProductBtn} onClick={() => onDeleteShelfProduct(p.id)}><Trash2 size={13} color="#A89A8C" /></button>
+                          <button style={styles.deleteProductBtn} onClick={()=>onDeleteShelfProduct(p.id)}><Trash2 size={13} color="#A89A8C"/></button>
                         </div>
-                        {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
+                        {exp&&<div style={styles.historyList}>{log.length===0?<p style={styles.historyEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistoryRow key={i} entry={e}/>)}</div>}
                       </div>
                     );
                   })}
@@ -1059,55 +1249,57 @@
             </>
           )}
 
-          {tab === "petiscos" && (
+          {tab==="petiscos"&&(
             <>
-              <div style={{ marginBottom:14 }}>
-                {showNewPetisco ? (
+              <div style={{marginBottom:14}}>
+                {showNewPetisco?(
                   <div style={styles.newProductBox}>
                     <input style={styles.input} placeholder="Nome do petisco (ex: Biscoito de Frango 100g)"
-                      value={newPetiscoName} onChange={e => setNewPetiscoName(e.target.value)} autoFocus />
-                    <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                      <button style={styles.avulsaConfirmBtn} onClick={() => {
-                        if (!newPetiscoName.trim()) return;
-                        onAddPetiscoProduct(newPetiscoName.trim()); setNewPetiscoName(""); setShowNewPetisco(false);
-                      }}>Salvar</button>
-                      <button style={styles.avulsaCancelBtn} onClick={() => setShowNewPetisco(false)}>Cancelar</button>
+                      value={newPetiscoName} onChange={e=>setNewPetiscoName(e.target.value)} autoFocus/>
+                    <div style={{display:"flex",gap:8,marginTop:8}}>
+                      <button style={styles.avulsaConfirmBtn} onClick={()=>{if(!newPetiscoName.trim())return;onAddPetiscoProduct(newPetiscoName.trim());setNewPetiscoName("");setShowNewPetisco(false);}}>Salvar</button>
+                      <button style={styles.avulsaCancelBtn} onClick={()=>setShowNewPetisco(false)}>Cancelar</button>
                     </div>
                   </div>
-                ) : (
-                  <button style={styles.newProductTrigger} onClick={() => setShowNewPetisco(true)}>
-                    <Plus size={16} strokeWidth={2.5} />Cadastrar petisco
+                ):(
+                  <button style={styles.newProductTrigger} onClick={()=>setShowNewPetisco(true)}>
+                    <Plus size={16} strokeWidth={2.5}/>Cadastrar petisco
                   </button>
                 )}
               </div>
-              {petiscoProducts.length === 0 ? <EmptyState text="Nenhum petisco cadastrado ainda." /> : (
+              {petiscoProducts.length===0?<EmptyState text="Nenhum petisco cadastrado ainda."/>:(
                 <div style={styles.cardList}>
-                  {petiscoProducts.map(p => {
-                    const log = petiscoStockLog[p.id] || [];
-                    const exp = expandedPetisco === p.id;
-                    const isLow = p.balance <= 0;
+                  {petiscoProducts.map(p=>{
+                    const log=petiscoStockLog[p.id]||[];
+                    const exp=expandedPetisco===p.id;
+                    const isLow=p.balance<=(p.min_stock||0);
                     return (
                       <div key={p.id} style={styles.stockCard}>
                         <div style={styles.stockCardTop}>
-                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Cookie size={14} color="#B8825A" /></div><div style={styles.cardDog}>{p.name}</div></div>
-                          <div style={{ textAlign:"right" }}><div style={{ ...styles.balanceNum, color: isLow ? "#C0594B" : "#3E332A" }}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
+                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Cookie size={14} color="#B8825A"/></div><div style={styles.cardDog}>{p.name}</div></div>
+                          <div style={{textAlign:"right"}}><div style={{...styles.balanceNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
                         </div>
-                        {isLow && <div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B" /><span>Sem saldo disponível</span></div>}
+                        {isLow&&<div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B"/><span>{p.balance<=0?"Sem saldo disponível":`Estoque baixo (mín: ${p.min_stock})`}</span></div>}
                         <div style={styles.stockEntryRow}>
-                          <input type="number" min="1" style={{ ...styles.input, flex:1 }} placeholder="Unidades produzidas"
-                            value={petiscoInputs[p.id] || ""} onChange={e => setPetiscoInputs(s => ({ ...s, [p.id]: e.target.value }))} />
-                          <button style={styles.addStockBtn} onClick={() => {
-                            const a = parseInt(petiscoInputs[p.id],10);
-                            if (a>0) { onAddPetiscoStockEntry(p.id, a); setPetiscoInputs(s => ({ ...s, [p.id]:"" })); }
-                          }}><Plus size={14} strokeWidth={2.5} />Adicionar</button>
+                          <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades produzidas"
+                            value={petiscoInputs[p.id]||""} onChange={e=>setPetiscoInputs(s=>({...s,[p.id]:e.target.value}))}/>
+                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(petiscoInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetiscoInputs(s=>({...s,[p.id]:""}))}}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                         </div>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                          <button style={styles.historyToggle} onClick={() => setExpandedPetisco(exp ? null : p.id)}>
-                            {exp ? "Ocultar histórico" : `Ver histórico (${log.length})`}
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
+                          <input type="number" min="0" style={{...styles.input,width:80,padding:"6px 8px",fontSize:12.5}} placeholder="Mín"
+                            value={petiscoMinInputs[p.id]??p.min_stock} onChange={e=>setPetiscoMinInputs(s=>({...s,[p.id]:e.target.value}))}/>
+                          <button style={{...styles.addStockBtn,background:"#9C8E7E",fontSize:11.5,padding:"0 10px"}} onClick={()=>{
+                            const v=parseInt(petiscoMinInputs[p.id]??p.min_stock,10);
+                            if(!isNaN(v)&&v>=0)onUpdatePetiscoMinStock(p.id,v);
+                          }}>Salvar mín.</button>
+                        </div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                          <button style={styles.historyToggle} onClick={()=>setExpandedPetisco(exp?null:p.id)}>
+                            {exp?"Ocultar histórico":`Ver histórico (${log.length})`}
                           </button>
-                          <button style={styles.deleteProductBtn} onClick={() => onDeletePetiscoProduct(p.id)}><Trash2 size={13} color="#A89A8C" /></button>
+                          <button style={styles.deleteProductBtn} onClick={()=>onDeletePetiscoProduct(p.id)}><Trash2 size={13} color="#A89A8C"/></button>
                         </div>
-                        {exp && <div style={styles.historyList}>{log.length === 0 ? <p style={styles.historyEmpty}>Sem movimentações ainda.</p> : log.map((e,i) => <HistoryRow key={i} entry={e} />)}</div>}
+                        {exp&&<div style={styles.historyList}>{log.length===0?<p style={styles.historyEmpty}>Sem movimentações ainda.</p>:log.map((e,i)=><HistoryRow key={i} entry={e}/>)}</div>}
                       </div>
                     );
                   })}
@@ -1120,134 +1312,403 @@
     }
 
     function HistoryRow({ entry }) {
-      const positive = entry.amount > 0;
-      const Icon = positive ? ArrowUpCircle : ArrowDownCircle;
+      const positive = entry.amount>0;
+      const Icon = positive?ArrowUpCircle:ArrowDownCircle;
       return (
         <div style={styles.historyRow}>
-          <Icon size={15} color={positive ? "#5C8A5C" : "#C0594B"} style={{ flexShrink:0 }} />
-          <div style={{ flex:1 }}>
+          <Icon size={15} color={positive?"#5C8A5C":"#C0594B"} style={{flexShrink:0}}/>
+          <div style={{flex:1}}>
             <div style={styles.historyReason}>{entry.reason}</div>
             <div style={styles.historyDate}>{formatDateBR(entry.date)}</div>
           </div>
-          <div style={{ ...styles.historyAmount, color: positive ? "#5C8A5C" : "#C0594B" }}>{positive ? "+" : ""}{entry.amount}</div>
+          <div style={{...styles.historyAmount,color:positive?"#5C8A5C":"#C0594B"}}>{positive?"+":""}{entry.amount}</div>
+        </div>
+      );
+    }
+
+    // ─── PRODUÇÃO VIEW ────────────────────────────────────────────────────────
+    function ProducaoView({ clients, subscriberStock, shelfProducts, petiscoProducts }) {
+      const subscribers = clients.filter(c=>c.frequency!=="avulsa");
+      const lowSubscribers = subscribers.filter(c=>(subscriberStock[c.id]??0)<=(c.units||0));
+      const lowShelf       = shelfProducts.filter(p=>p.balance<=(p.min_stock||0));
+      const lowPetiscos    = petiscoProducts.filter(p=>p.balance<=(p.min_stock||0));
+      const total = lowSubscribers.length+lowShelf.length+lowPetiscos.length;
+
+      const handlePrint = () => {
+        const win = window.open("","_blank","width=700,height=600");
+        const t = todayISO();
+        const rows = [
+          ...lowSubscribers.map(c=>({cat:"Assinante",name:c.dog+" ("+c.tutor+")",atual:subscriberStock[c.id]??0,min:c.units||0,deficit:(c.units||0)-(subscriberStock[c.id]??0)})),
+          ...lowShelf.map(p=>({cat:"Avulso",name:p.name,atual:p.balance,min:p.min_stock||0,deficit:(p.min_stock||0)-p.balance})),
+          ...lowPetiscos.map(p=>({cat:"Petisco",name:p.name,atual:p.balance,min:p.min_stock||0,deficit:(p.min_stock||0)-p.balance})),
+        ];
+        win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Produção ${t}</title>
+          <style>body{font-family:sans-serif;padding:24px;color:#3E332A}h1{font-size:18px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;font-size:13px}th{background:#F6EEE3;font-weight:700}tr:nth-child(even){background:#FDFAF6}.deficit{color:#C0594B;font-weight:700}</style>
+          </head><body><h1>Produção necessária — ${t}</h1>
+          <table><tr><th>Categoria</th><th>Produto/Pet</th><th>Saldo atual</th><th>Mín</th><th>Produzir</th></tr>
+          ${rows.map(r=>`<tr><td>${r.cat}</td><td>${r.name}</td><td>${r.atual}</td><td>${r.min}</td><td class="deficit">+${Math.max(0,r.deficit)}</td></tr>`).join("")}
+          </table></body></html>`);
+        win.document.close();
+        win.print();
+      };
+
+      return (
+        <div style={styles.section}>
+          <div style={styles.sectionHeadRow}>
+            <h2 style={styles.sectionTitle}>Produção</h2>
+            <div style={{display:"flex",gap:8}}>
+              {total>0&&<span style={{...styles.countPill,background:"#FBEAE6",color:"#A8412F"}}>{total} item{total!==1?"s":""} em falta</span>}
+              {total>0&&<button style={styles.batBtn} onClick={handlePrint}><Printer size={13} strokeWidth={2.5}/>Imprimir PDF</button>}
+            </div>
+          </div>
+
+          {total===0?(
+            <div style={{...styles.empty,background:"#F0F7F0",borderRadius:14,padding:"32px 20px"}}>
+              <CheckCircle size={28} color="#5C8A5C"/>
+              <p style={{...styles.emptyText,color:"#4A7A4A",fontWeight:600}}>Todos os estoques estão OK!</p>
+            </div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:20}}>
+              {lowSubscribers.length>0&&(
+                <div>
+                  <div style={styles.producaoSection}>
+                    <PawPrint size={14} color="#B8825A"/>
+                    <span style={styles.producaoSectionTitle}>Assinantes com saldo baixo</span>
+                  </div>
+                  <div style={styles.cardList}>
+                    {lowSubscribers.map(c=>{
+                      const atual=subscriberStock[c.id]??0;
+                      const min=c.units||0;
+                      const deficit=Math.max(0,min-atual);
+                      return (
+                        <div key={c.id} style={styles.producaoCard}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div>
+                              <div style={{fontWeight:700,fontSize:14.5,color:"#3E332A"}}>{c.dog}</div>
+                              <div style={{fontSize:12.5,color:"#8A7A6C"}}>{c.tutor}</div>
+                            </div>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{fontSize:13,color:"#C0594B",fontWeight:700}}>Saldo: {atual} / {min} mín</div>
+                              <div style={{fontSize:12,color:"#B8825A",fontWeight:600}}>Produzir: +{deficit} un.</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {lowShelf.length>0&&(
+                <div>
+                  <div style={styles.producaoSection}>
+                    <Package size={14} color="#B8825A"/>
+                    <span style={styles.producaoSectionTitle}>Avulsos com saldo baixo</span>
+                  </div>
+                  <div style={styles.cardList}>
+                    {lowShelf.map(p=>{
+                      const deficit=Math.max(0,(p.min_stock||0)-p.balance);
+                      return (
+                        <div key={p.id} style={styles.producaoCard}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div style={{fontWeight:700,fontSize:14.5,color:"#3E332A"}}>{p.name}</div>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{fontSize:13,color:"#C0594B",fontWeight:700}}>Saldo: {p.balance} / {p.min_stock||0} mín</div>
+                              <div style={{fontSize:12,color:"#B8825A",fontWeight:600}}>Produzir: +{deficit} un.</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {lowPetiscos.length>0&&(
+                <div>
+                  <div style={styles.producaoSection}>
+                    <Cookie size={14} color="#B8825A"/>
+                    <span style={styles.producaoSectionTitle}>Petiscos com saldo baixo</span>
+                  </div>
+                  <div style={styles.cardList}>
+                    {lowPetiscos.map(p=>{
+                      const deficit=Math.max(0,(p.min_stock||0)-p.balance);
+                      return (
+                        <div key={p.id} style={styles.producaoCard}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div style={{fontWeight:700,fontSize:14.5,color:"#3E332A"}}>{p.name}</div>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{fontSize:13,color:"#C0594B",fontWeight:700}}>Saldo: {p.balance} / {p.min_stock||0} mín</div>
+                              <div style={{fontSize:12,color:"#B8825A",fontWeight:600}}>Produzir: +{deficit} un.</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── ROTEIRO VIEW ─────────────────────────────────────────────────────────
+    function RoteiroView({ todayDeliveries, getStatus, getDeliveriesForRange }) {
+      const [rFilter, setRFilter] = useState("hoje");
+      const t = todayISO();
+      const tmrw = tomorrowISO();
+
+      const items = useMemo(()=>{
+        if (rFilter==="hoje")   return getDeliveriesForRange(t,t);
+        if (rFilter==="amanha") return getDeliveriesForRange(tmrw,tmrw);
+        return [];
+      },[rFilter,t,tmrw,getDeliveriesForRange]);
+
+      const copyWhatsApp = () => {
+        const dateLabel = rFilter==="hoje"?formatDateFull(t):formatDateFull(tmrw);
+        const lines = [`*Roteiro ObentōPet — ${dateLabel}*`,`Total: ${items.length} entrega${items.length!==1?"s":""}`,``];
+        items.forEach(({client,date},i)=>{
+          lines.push(`${i+1}. 🐾 *${client.dog}* (${client.tutor})`);
+          lines.push(`   📍 ${client.address}`);
+          if (client.units) lines.push(`   📦 ${client.units} unidade${client.units!==1?"s":""}`);
+          if (client.phone) lines.push(`   📱 ${client.phone}`);
+          lines.push("");
+        });
+        navigator.clipboard.writeText(lines.join("\n")).then(()=>{
+          alert("Roteiro copiado! Cole no WhatsApp.");
+        }).catch(()=>{
+          alert("Não foi possível copiar automaticamente. Selecione e copie manualmente.");
+        });
+      };
+
+      const handlePrint = () => {
+        const dateLabel = rFilter==="hoje"?formatDateFull(t):formatDateFull(tmrw);
+        const win = window.open("","_blank","width=700,height=600");
+        win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Roteiro ${dateLabel}</title>
+          <style>body{font-family:sans-serif;padding:24px;color:#3E332A}h1{font-size:18px;margin-bottom:4px}.sub{font-size:13px;color:#8A7A6C;margin-bottom:20px}.card{border:1px solid #E8DDD0;border-radius:10px;padding:14px 16px;margin-bottom:12px}.num{font-size:11px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:4px}.dog{font-size:16px;font-weight:700}.tutor{font-size:13px;color:#8A7A6C}.addr{font-size:13px;margin-top:6px;color:#3E332A}.info{font-size:12px;color:#A89A8C;margin-top:3px}@media print{body{padding:12px}}</style>
+          </head><body><h1>Roteiro ObentōPet</h1><p class="sub">${dateLabel} · ${items.length} entrega${items.length!==1?"s":""}</p>
+          ${items.map(({client},i)=>`<div class="card"><div class="num">Entrega ${i+1}</div><div class="dog">🐾 ${client.dog}</div><div class="tutor">${client.tutor}</div><div class="addr">📍 ${client.address}</div>${client.units?`<div class="info">📦 ${client.units} unidade${client.units!==1?"s":""}</div>`:""}${client.phone?`<div class="info">📱 ${client.phone}</div>`:""}</div>`).join("")}
+          </body></html>`);
+        win.document.close();
+        win.print();
+      };
+
+      return (
+        <div style={styles.section}>
+          <div style={styles.sectionHeadRow}>
+            <h2 style={styles.sectionTitle}>Roteiro</h2>
+            <span style={styles.countPill}>{items.length} entrega{items.length!==1?"s":""}</span>
+          </div>
+          <div style={styles.filterRow}>
+            {[["hoje","Hoje"],["amanha","Amanhã"]].map(([key,lbl])=>(
+              <button key={key} onClick={()=>setRFilter(key)}
+                style={{...styles.filterBtn,...(rFilter===key?styles.filterBtnActive:{})}}>{lbl}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8,marginBottom:16}}>
+            <button style={styles.batBtn} onClick={handlePrint}>
+              <Printer size={13} strokeWidth={2.5}/>Imprimir PDF
+            </button>
+            <button style={{...styles.batBtn,background:"#25A244"}} onClick={copyWhatsApp}>
+              <MessageCircle size={13} strokeWidth={2.5}/>Copiar WhatsApp
+            </button>
+          </div>
+          {items.length===0?<EmptyState text="Nenhuma entrega neste período."/>:(
+            <div style={styles.cardList}>
+              {items.map(({client,date,orderId},i)=>(
+                <div key={client.id+date+(orderId||"")} style={styles.roteiroCard}>
+                  <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:"#F6EEE3",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:"#B8825A"}}>{i+1}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                        <span style={styles.cardDog}>{client.dog}</span>
+                        <span style={{fontSize:12.5,color:"#8A7A6C"}}>· {client.tutor}</span>
+                        {getStatus(client.id,date)==="entregue"&&<span style={{fontSize:10.5,fontWeight:700,color:"#5C8A5C",background:"#E8F5E8",padding:"2px 7px",borderRadius:6}}>✓ Entregue</span>}
+                      </div>
+                      <div style={{fontSize:12.5,color:"#7A6C5E",marginTop:4,display:"flex",gap:4,alignItems:"center"}}>
+                        <MapPin size={11} color="#A89A8C" style={{flexShrink:0}}/>
+                        {client.address}
+                      </div>
+                      {client.phone&&<div style={{fontSize:12,color:"#A89A8C",marginTop:3,display:"flex",gap:4,alignItems:"center"}}><Phone size={11} color="#C9BBA8"/>{client.phone}</div>}
+                      {client.units&&<div style={{fontSize:11.5,color:"#B8825A",fontWeight:600,marginTop:3}}>{client.units} unidade{client.units!==1?"s":""}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+
+    // ─── RESCHEDULE MODAL ─────────────────────────────────────────────────────
+    function RescheduleModal({ info, onClose, onConfirm }) {
+      const [newDate, setNewDate] = useState("");
+      const [scope,   setScope]   = useState("only");
+      const isRecurring = info.frequency!=="avulsa";
+      const canConfirm  = newDate&&newDate!==info.date;
+      return (
+        <div style={styles.modalOverlay} onClick={onClose}>
+          <div style={styles.modal} onClick={e=>e.stopPropagation()}>
+            <div style={styles.modalHead}>
+              <h3 style={styles.modalTitle}>Reagendar entrega</h3>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C"/></button>
+            </div>
+            <div style={styles.formBody}>
+              <div style={styles.rescheduleInfo}>
+                <div style={styles.dogBadge}><PawPrint size={14} color="#B8825A"/></div>
+                <div>
+                  <div style={{fontSize:15.5,fontWeight:700,color:"#3E332A"}}>{info.dog}</div>
+                  <div style={{fontSize:12.5,color:"#A89A8C",marginTop:1}}>entrega original: {formatDateBR(info.date)}</div>
+                </div>
+              </div>
+              <Field label="Nova data de entrega">
+                <input type="date" style={styles.input} value={newDate} onChange={e=>setNewDate(e.target.value)}/>
+              </Field>
+              {isRecurring&&(
+                <Field label="O que alterar?">
+                  <div style={styles.freqGrid}>
+                    <button type="button" onClick={()=>setScope("only")}
+                      style={{...styles.freqOption,...(scope==="only"?styles.freqOptionActive:{}),textAlign:"center",lineHeight:1.35}}>
+                      Só esta entrega
+                    </button>
+                    <button type="button" onClick={()=>setScope("following")}
+                      style={{...styles.freqOption,...(scope==="following"?styles.freqOptionActive:{}),textAlign:"center",lineHeight:1.35}}>
+                      Esta e as seguintes
+                    </button>
+                  </div>
+                  <p style={{margin:"6px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>
+                    {scope==="only"?"A data original volta a aparecer normalmente nas próximas ocorrências.":"O dia fixo de entrega será alterado permanentemente a partir desta data."}
+                  </p>
+                </Field>
+              )}
+              <button style={{...styles.saveBtn,opacity:canConfirm?1:0.45}} disabled={!canConfirm}
+                onClick={()=>{if(canConfirm)onConfirm(info.clientId,info.date,newDate,scope,info.orderId);}}>
+                Confirmar reagendamento
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
 
     // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────
     function ClientFormModal({ initial, clients, onClose, onSave }) {
-      const initIsSubscriber = initial ? initial.frequency !== "avulsa" : true;
-      const [tutor,           setTutor]           = useState(initial?.tutor    || "");
-      const [dog,             setDog]             = useState(initial?.dog      || "");
-      const [address,         setAddress]         = useState(initial?.address  || "");
+      const initIsSubscriber = initial?initial.frequency!=="avulsa":true;
+      const [tutor,           setTutor]           = useState(initial?.tutor    ||"");
+      const [dog,             setDog]             = useState(initial?.dog      ||"");
+      const [address,         setAddress]         = useState(initial?.address  ||"");
+      const [phone,           setPhone]           = useState(initial?.phone    ||"");
       const [isSubscriber,    setIsSubscriber]    = useState(initIsSubscriber);
-      const [frequency,       setFrequency]       = useState(
-        initial?.frequency && initial.frequency !== "avulsa" ? initial.frequency : "semanal"
-      );
-      const [nextDate,        setNextDate]        = useState(initial?.nextDate || todayISO());
-      const [units,           setUnits]           = useState(initial?.units ? String(initial.units) : "");
-      const [notes,           setNotes]           = useState(initial?.notes    || "");
-      const [labelFile,       setLabelFile]       = useState(initial?.labelFile || "");
+      const [frequency,       setFrequency]       = useState(initial?.frequency&&initial.frequency!=="avulsa"?initial.frequency:"semanal");
+      const [nextDate,        setNextDate]        = useState(initial?.nextDate ||todayISO());
+      const [units,           setUnits]           = useState(initial?.units?String(initial.units):"");
+      const [notes,           setNotes]           = useState(initial?.notes    ||"");
+      const [labelFile,       setLabelFile]       = useState(initial?.labelFile||"");
       const [labelFileEdited, setLabelFileEdited] = useState(!!initial?.labelFile);
       const [error,           setError]           = useState("");
       const [saving,          setSaving]          = useState(false);
 
-      useEffect(() => {
-        if (!labelFileEdited) setLabelFile(suggestLabelFile(dog, tutor, clients, initial?.id));
-      }, [dog, tutor, labelFileEdited]);
+      useEffect(()=>{
+        if (!labelFileEdited) setLabelFile(suggestLabelFile(dog,tutor,clients,initial?.id));
+      },[dog,tutor,labelFileEdited]);
 
       const handleSubmit = async () => {
-        if (!tutor.trim() || !dog.trim() || !address.trim()) { setError("Preencha tutor, cão e endereço."); return; }
-        if (isSubscriber && !nextDate) { setError("Informe a data da próxima entrega."); return; }
-        const unitsNum = units ? parseInt(units, 10) : null;
-        if (isSubscriber && (!unitsNum || unitsNum < 1)) { setError("Informe a quantidade de unidades por entrega."); return; }
+        if (!tutor.trim()||!dog.trim()||!address.trim()) { setError("Preencha tutor, cão e endereço."); return; }
+        if (isSubscriber&&!nextDate) { setError("Informe a data da próxima entrega."); return; }
+        const unitsNum = units?parseInt(units,10):null;
+        if (isSubscriber&&(!unitsNum||unitsNum<1)) { setError("Informe a quantidade de unidades por entrega."); return; }
         setSaving(true);
         await onSave({
-          tutor: tutor.trim(), dog: dog.trim(), address: address.trim(),
-          frequency: isSubscriber ? frequency : "avulsa",
-          nextDate:  isSubscriber ? nextDate : (initial?.nextDate || null),
-          units:     unitsNum, notes,
-          labelFile: labelFile.trim(),
+          tutor:tutor.trim(), dog:dog.trim(), address:address.trim(), phone:phone.trim(),
+          frequency:isSubscriber?frequency:"avulsa",
+          nextDate: isSubscriber?nextDate:(initial?.nextDate||null),
+          units:unitsNum, notes,
+          labelFile:labelFile.trim(),
         });
         setSaving(false);
       };
 
       return (
         <div style={styles.modalOverlay} onClick={onClose}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+          <div style={styles.modal} onClick={e=>e.stopPropagation()}>
             <div style={styles.modalHead}>
-              <h3 style={styles.modalTitle}>{initial ? "Editar cliente" : "Novo cliente"}</h3>
-              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C" /></button>
+              <h3 style={styles.modalTitle}>{initial?"Editar cliente":"Novo cliente"}</h3>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C"/></button>
             </div>
             <div style={styles.formBody}>
               <Field label="Nome do tutor">
-                <input style={styles.input} value={tutor} onChange={e => setTutor(e.target.value)} placeholder="Ex: Marina Costa" />
+                <input style={styles.input} value={tutor} onChange={e=>setTutor(e.target.value)} placeholder="Ex: Marina Costa"/>
               </Field>
               <Field label="Nome do cão">
-                <input style={styles.input} value={dog} onChange={e => setDog(e.target.value)} placeholder="Ex: Mia" />
+                <input style={styles.input} value={dog} onChange={e=>setDog(e.target.value)} placeholder="Ex: Mia"/>
               </Field>
               <Field label="Endereço de entrega">
-                <input style={styles.input} value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro" />
+                <input style={styles.input} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Rua, número, bairro"/>
+              </Field>
+              <Field label="Telefone de contato (opcional)">
+                <input style={styles.input} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(11) 99999-9999" type="tel"/>
               </Field>
               <Field label="Tipo de cliente">
                 <div style={styles.subscriberToggle}>
-                  <button type="button" onClick={() => setIsSubscriber(true)}
-                    style={{ ...styles.subscriberOpt, ...(isSubscriber ? styles.subscriberOptActive : {}) }}>
-                    <span style={{ ...styles.subscriberOptTitle, color: isSubscriber ? "#8A6A48" : "#3E332A" }}>Assinante</span>
+                  <button type="button" onClick={()=>setIsSubscriber(true)}
+                    style={{...styles.subscriberOpt,...(isSubscriber?styles.subscriberOptActive:{})}}>
+                    <span style={{...styles.subscriberOptTitle,color:isSubscriber?"#8A6A48":"#3E332A"}}>Assinante</span>
                     <span style={styles.subscriberOptSub}>entrega recorrente</span>
                   </button>
-                  <button type="button" onClick={() => setIsSubscriber(false)}
-                    style={{ ...styles.subscriberOpt, ...(!isSubscriber ? styles.subscriberOptActive : {}) }}>
-                    <span style={{ ...styles.subscriberOptTitle, color: !isSubscriber ? "#8A6A48" : "#3E332A" }}>Avulso</span>
+                  <button type="button" onClick={()=>setIsSubscriber(false)}
+                    style={{...styles.subscriberOpt,...(!isSubscriber?styles.subscriberOptActive:{})}}>
+                    <span style={{...styles.subscriberOptTitle,color:!isSubscriber?"#8A6A48":"#3E332A"}}>Avulso</span>
                     <span style={styles.subscriberOptSub}>pedido por pedido</span>
                   </button>
                 </div>
               </Field>
-              {isSubscriber && (
+              {isSubscriber&&(
                 <Field label="Frequência">
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-                    {[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]].map(([key, label]) => (
-                      <button key={key} type="button" onClick={() => setFrequency(key)}
-                        style={{ ...styles.freqOption, ...(frequency===key ? styles.freqOptionActive : {}) }}>
-                        {label}
-                      </button>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                    {[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]].map(([key,label])=>(
+                      <button key={key} type="button" onClick={()=>setFrequency(key)}
+                        style={{...styles.freqOption,...(frequency===key?styles.freqOptionActive:{})}}>{label}</button>
                     ))}
                   </div>
                 </Field>
               )}
-              {isSubscriber && (
+              {isSubscriber&&(
                 <Field label="Próxima entrega">
-                  <input type="date" style={styles.input} value={nextDate} onChange={e => setNextDate(e.target.value)} />
+                  <input type="date" style={styles.input} value={nextDate} onChange={e=>setNextDate(e.target.value)}/>
                 </Field>
               )}
-              <Field label={isSubscriber ? "Unidades por entrega" : "Unidades por entrega (opcional)"}>
-                <input type="number" min="1" style={styles.input} value={units} onChange={e => setUnits(e.target.value)} placeholder="Ex: 4" />
+              <Field label={isSubscriber?"Unidades por entrega":"Unidades por entrega (opcional)"}>
+                <input type="number" min="1" style={styles.input} value={units} onChange={e=>setUnits(e.target.value)} placeholder="Ex: 4"/>
               </Field>
               <Field label="Arquivo de etiqueta (.btw)">
-                <div style={{ position:"relative" }}>
-                  <input style={{ ...styles.input, paddingRight: labelFileEdited ? 80 : 12 }}
+                <div style={{position:"relative"}}>
+                  <input style={{...styles.input,paddingRight:labelFileEdited?80:12}}
                     value={labelFile}
-                    onChange={e => { setLabelFile(e.target.value); setLabelFileEdited(true); }}
-                    placeholder="ex: mia  ou  mia - mc" />
-                  {labelFileEdited && (
+                    onChange={e=>{setLabelFile(e.target.value);setLabelFileEdited(true);}}
+                    placeholder="ex: mia  ou  mia - mc"/>
+                  {labelFileEdited&&(
                     <button type="button" style={styles.labelSuggestBtn}
-                      onClick={() => { setLabelFileEdited(false); setLabelFile(suggestLabelFile(dog, tutor, clients, initial?.id)); }}>
+                      onClick={()=>{setLabelFileEdited(false);setLabelFile(suggestLabelFile(dog,tutor,clients,initial?.id));}}>
                       ↺ sugerir
                     </button>
                   )}
                 </div>
-                <p style={{ margin:"4px 0 0", fontSize:11.5, color:"#A89A8C", lineHeight:1.4 }}>
+                <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>
                   Nome idêntico ao arquivo <strong>.btw</strong> salvo no OneDrive, sem a extensão.
-                  {!labelFile && dog && <span style={{ color:"#C0594B" }}> Configure para gerar o .bat do dia.</span>}
+                  {!labelFile&&dog&&<span style={{color:"#C0594B"}}> Configure para gerar o .bat do dia.</span>}
                 </p>
               </Field>
               <Field label="Observações (opcional)">
-                <textarea style={{ ...styles.input, minHeight:60, resize:"vertical", fontFamily:"inherit" }}
-                  value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex: portaria pede documento" />
+                <textarea style={{...styles.input,minHeight:60,resize:"vertical",fontFamily:"inherit"}}
+                  value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Ex: portaria pede documento"/>
               </Field>
-              {error && <p style={styles.errorText}>{error}</p>}
-              <button style={{ ...styles.saveBtn, opacity: saving ? 0.7 : 1 }} onClick={handleSubmit} disabled={saving}>
-                {saving ? "Salvando…" : initial ? "Salvar alterações" : "Adicionar cliente"}
+              {error&&<p style={styles.errorText}>{error}</p>}
+              <button style={{...styles.saveBtn,opacity:saving?0.7:1}} onClick={handleSubmit} disabled={saving}>
+                {saving?"Salvando…":initial?"Salvar alterações":"Adicionar cliente"}
               </button>
             </div>
           </div>
@@ -1258,15 +1719,15 @@
     function Field({ label, children }) {
       return <div style={styles.field}><label style={styles.fieldLabel}>{label}</label>{children}</div>;
     }
-
     function EmptyState({ text }) {
       return (
         <div style={styles.empty}>
-          <PawPrint size={26} color="#D9CBBC" />
+          <PawPrint size={26} color="#D9CBBC"/>
           <p style={styles.emptyText}>{text}</p>
         </div>
       );
     }
+
 
     // ─── Styles ───────────────────────────────────────────────────────────────
     const globalCss = `
@@ -1277,12 +1738,13 @@
       button { font-family: inherit; cursor: pointer; }
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-thumb { background: #E8DDD0; border-radius: 8px; }
+      @media print { .no-print { display: none !important; } }
     `;
 
     const styles = {
       app:              { minHeight:"100vh", background:"#FDF8F2", fontFamily:"'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif", color:"#3E332A", paddingBottom:40 },
       loadingScreen:    { minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#FDF8F2" },
-      toast:            { position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:8, background:"#5C8A5C", color:"#fff", fontSize:14, fontWeight:600, padding:"12px 20px", borderRadius:12, boxShadow:"0 4px 16px rgba(0,0,0,0.18)", zIndex:100, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"calc(100vw - 32px)" },
+      toast:            { position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:8, color:"#fff", fontSize:14, fontWeight:600, padding:"12px 20px", borderRadius:12, boxShadow:"0 4px 16px rgba(0,0,0,0.18)", zIndex:100, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"calc(100vw - 32px)" },
       header:           { background:"#3E332A", position:"sticky", top:0, zIndex:10 },
       headerInner:      { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 20px 14px", flexWrap:"wrap", gap:12 },
       brandRow:         { display:"flex", alignItems:"center", gap:10 },
@@ -1290,14 +1752,18 @@
       brandTitle:       { margin:0, fontSize:18, fontWeight:700, color:"#FBF1E8", letterSpacing:"0.2px" },
       brandSub:         { margin:0, fontSize:12, color:"#C9BBA8", fontWeight:500 },
       newBtn:           { display:"flex", alignItems:"center", gap:6, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:10, padding:"9px 14px", fontSize:13.5, fontWeight:600 },
-      tabRow:           { display:"flex", gap:4, padding:"0 16px" },
-      tab:              { background:"transparent", border:"none", color:"#9C8E7E", padding:"10px 14px", fontSize:14, fontWeight:600, borderBottom:"2px solid transparent" },
+      backupBtn:        { display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,0.1)", color:"#C9BBA8", border:"1px solid rgba(255,255,255,0.15)", borderRadius:9, width:34, height:34 },
+      tabRow:           { display:"flex", gap:2, padding:"0 12px", overflowX:"auto" },
+      tab:              { background:"transparent", border:"none", color:"#9C8E7E", padding:"10px 12px", fontSize:13.5, fontWeight:600, borderBottom:"2px solid transparent", whiteSpace:"nowrap" },
       tabActive:        { color:"#FBF1E8", borderBottom:"2px solid #B8825A" },
       main:             { maxWidth:640, margin:"0 auto", padding:"20px 16px" },
       section:          {},
       sectionHeadRow:   { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 },
       sectionTitle:     { margin:0, fontSize:19, fontWeight:700, textTransform:"capitalize", color:"#3E332A" },
       countPill:        { background:"#F1E6D8", color:"#8A6A48", fontSize:12.5, fontWeight:600, padding:"4px 10px", borderRadius:20 },
+      filterRow:        { display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" },
+      filterBtn:        { background:"#FFF", border:"1.5px solid #E8DDD0", borderRadius:9, padding:"7px 14px", fontSize:13, fontWeight:600, color:"#8A7A6C" },
+      filterBtnActive:  { background:"#3E332A", color:"#FBF1E8", borderColor:"#3E332A" },
       cardList:         { display:"flex", flexDirection:"column", gap:12 },
       card:             { background:"#FFFFFF", border:"1px solid #EFE4D6", borderRadius:14, padding:14 },
       cardTop:          { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 },
@@ -1349,7 +1815,7 @@
       freqOption:       { border:"1.5px solid #E8DDD0", borderRadius:10, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:"#8A7A6C", background:"#FFF" },
       freqOptionActive: { borderColor:"#B8825A", background:"#FBF1E8", color:"#8A6A48" },
       errorText:        { color:"#C0594B", fontSize:13, margin:0 },
-      saveBtn:          { background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:11, padding:"13px", fontSize:15, fontWeight:700, marginTop:4 },
+      saveBtn:          { background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:11, padding:13, fontSize:15, fontWeight:700, marginTop:4 },
       stockTabRow:      { display:"flex", gap:6, marginBottom:16, background:"#F1E6D8", padding:4, borderRadius:12 },
       stockTabBtn:      { flex:1, background:"transparent", border:"none", borderRadius:9, padding:"9px 8px", fontSize:13.5, fontWeight:600, color:"#8A7A6C" },
       stockTabBtnActive:{ background:"#FFF", color:"#3E332A", boxShadow:"0 1px 2px rgba(62,51,42,0.08)" },
@@ -1372,19 +1838,23 @@
       avulsaPickerEmpty:{ fontSize:12.5, color:"#C0594B", margin:0 },
       avulsaConfirmBtn: { flex:1, background:"#B8825A", color:"#FFF7EF", border:"none", borderRadius:9, padding:"9px 10px", fontSize:13, fontWeight:700 },
       avulsaCancelBtn:  { background:"#EFE4D6", color:"#8A7A6C", border:"none", borderRadius:9, padding:"9px 14px", fontSize:13, fontWeight:600 },
-      newProductTrigger:{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", background:"#FFF", border:"1.5px dashed #D9CBBC", borderRadius:12, padding:"12px", fontSize:13.5, fontWeight:600, color:"#B8825A" },
+      newProductTrigger:{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", background:"#FFF", border:"1.5px dashed #D9CBBC", borderRadius:12, padding:12, fontSize:13.5, fontWeight:600, color:"#B8825A" },
       newProductBox:    { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:12 },
       deleteProductBtn: { width:26, height:26, borderRadius:7, border:"1px solid #EFE4D6", background:"#FBF8F4", display:"flex", alignItems:"center", justifyContent:"center" },
       batBtn:           { display:"flex", alignItems:"center", gap:5, background:"#3E332A", color:"#FBF1E8", border:"none", borderRadius:9, padding:"6px 12px", fontSize:12.5, fontWeight:600, whiteSpace:"nowrap" },
       labelSuggestBtn:  { position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#B8825A", fontSize:11.5, fontWeight:600, cursor:"pointer", padding:"2px 6px" },
       subscriberToggle: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 },
       subscriberOpt:    { display:"flex", flexDirection:"column", alignItems:"center", gap:3, border:"1.5px solid #E8DDD0", borderRadius:12, padding:"13px 8px", background:"#FFF", cursor:"pointer" },
-      subscriberOptActive:  { borderColor:"#B8825A", background:"#FBF1E8" },
-      subscriberOptTitle:   { fontSize:14.5, fontWeight:700 },
-      subscriberOptSub:     { fontSize:11, fontWeight:500, color:"#A89A8C" },
+      subscriberOptActive:   { borderColor:"#B8825A", background:"#FBF1E8" },
+      subscriberOptTitle:    { fontSize:14.5, fontWeight:700 },
+      subscriberOptSub:      { fontSize:11, fontWeight:500, color:"#A89A8C" },
+      producaoSection:       { display:"flex", alignItems:"center", gap:8, marginBottom:8 },
+      producaoSectionTitle:  { fontSize:13, fontWeight:700, color:"#8A7A6C", textTransform:"uppercase", letterSpacing:"0.5px" },
+      producaoCard:          { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:"12px 14px" },
+      roteiroCard:           { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:"12px 14px" },
     };
 
-    createRoot(document.getElementById("root")).render(<App />);
+    createRoot(document.getElementById("root")).render(<App/>);
   </script>
 </body>
 </html>
