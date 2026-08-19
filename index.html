@@ -1522,7 +1522,7 @@
                         <div style={styles.stockEntryRow}>
                           <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades a adicionar"
                             value={stockInputs[p.id]||""} onChange={e=>setStockInputs(s=>({...s,[p.id]:e.target.value}))}/>
-                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}}))}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
+                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}))}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
                           <input type="number" min="0" style={{...styles.input,width:80,padding:"6px 8px",fontSize:12.5}} placeholder="Mín"
@@ -1588,7 +1588,7 @@
                         <div style={styles.stockEntryRow}>
                           <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades produzidas"
                             value={petiscoInputs[p.id]||""} onChange={e=>setPetiscoInputs(s=>({...s,[p.id]:e.target.value}))}/>
-                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(petiscoInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetiscoInputs(s=>({...s,[p.id]:""}}))}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
+                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(petiscoInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetiscoInputs(s=>({...s,[p.id]:""}))}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
                           <input type="number" min="0" style={{...styles.input,width:80,padding:"6px 8px",fontSize:12.5}} placeholder="Mín"
