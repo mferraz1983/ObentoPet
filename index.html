@@ -64,7 +64,7 @@
     // ─── Supabase ─────────────────────────────────────────────────────────────
     const SUPABASE_URL = "https://jyrujdfwdwkwynolpbni.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cnVqZGZ3ZHdrd3lub2xwYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ1NjIsImV4cCI6MjA5NzcyMDU2Mn0.qXI47InAtYkEspDp_cD34nOjaHk1mnKw2KU6y7MNL1A";
-    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
     const todayISO     = () => new Date().toISOString().split("T")[0];
@@ -307,7 +307,9 @@
           .on("postgres_changes",{event:"*",schema:"public",table:"avulsa_orders"},({eventType,new:n,old:o})=>{
             if (eventType==="INSERT") {
               setAvulsaOrders(prev=>{
-                const list=[...(prev[n.client_id]||[]),{id:n.id,date:n.date}];
+                const existing=prev[n.client_id]||[];
+                if(existing.some(o=>o.id===n.id))return prev;
+                const list=[...existing,{id:n.id,date:n.date}];
                 list.sort((a,b)=>a.date.localeCompare(b.date));
                 return {...prev,[n.client_id]:list};
               });
@@ -322,7 +324,7 @@
             }
           })
           .on("postgres_changes",{event:"*",schema:"public",table:"clients"},({eventType,new:n,old:o})=>{
-            if (eventType==="INSERT") setClients(prev=>[...prev,dbToClient(n)]);
+            if (eventType==="INSERT") setClients(prev=>{if(prev.some(c=>c.id===n.id))return prev;return [...prev,dbToClient(n)];});
             else if (eventType==="UPDATE") setClients(prev=>prev.map(c=>c.id===n.id?dbToClient(n):c));
             else if (eventType==="DELETE") setClients(prev=>prev.filter(c=>c.id!==o.id));
           })
@@ -344,6 +346,7 @@
           });
         return ()=>{ db.removeChannel(channel); };
       }, []);
+
 
       // ── Client operations ─────────────────────────────────────────────────
       // ── XLS Import / Export ───────────────────────────────────────────────
@@ -412,7 +415,7 @@
             const dbRow = clientToDb(clientData, id);
             const {error} = await db.from("clients").insert(dbRow);
             if (error) { skipped++; continue; }
-            setClients(prev=>[...prev,{...clientData,id}]);
+            setClients(prev=>{if(prev.some(c=>c.id===id))return prev;return [...prev,{...clientData,id}];});
             if (!isAvulsa) {
               await db.from("subscriber_stock").upsert({client_id:id,balance:0});
               setSubscriberStock(prev=>({...prev,[id]:0}));
@@ -423,7 +426,7 @@
             }
             added++;
           }
-          showToast(`${added} cliente${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}.`);
+          showToast(`${added} cliente${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}. `);
         } catch(e) {
           showToast(`Erro ao importar clientes: ${e.message}`,"error");
         }
@@ -452,7 +455,7 @@
             }
             added++;
           }
-          showToast(`${added} produto${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}.`);
+          showToast(`${added} produto${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}. `);
         } catch(e) {
           showToast(`Erro ao importar produtos: ${e.message}`,"error");
         }
@@ -481,7 +484,7 @@
             }
             added++;
           }
-          showToast(`${added} petisco${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}.`);
+          showToast(`${added} petisco${added!==1?"s":""} importado${added!==1?"s":""}${skipped?` (${skipped} ignorado${skipped!==1?"s":""})`:""}. `);
         } catch(e) {
           showToast(`Erro ao importar petiscos: ${e.message}`,"error");
         }
@@ -499,7 +502,7 @@
           } else {
             const {error} = await db.from("clients").insert(row);
             if (error) throw error;
-            setClients(prev=>[...prev,{...data,id}]);
+            setClients(prev=>{if(prev.some(c=>c.id===id))return prev;return [...prev,{...data,id}];});
             if (data.frequency!=="avulsa") {
               await db.from("subscriber_stock").upsert({client_id:id,balance:0});
               setSubscriberStock(prev=>({...prev,[id]:0}));
@@ -533,7 +536,9 @@
           const {error} = await db.from("avulsa_orders").insert({id,client_id:clientId,date});
           if (error) throw error;
           setAvulsaOrders(prev=>{
-            const list=[...(prev[clientId]||[]),{id,date}];
+            const existing=prev[clientId]||[];
+            if(existing.some(o=>o.id===id))return prev;
+            const list=[...existing,{id,date}];
             list.sort((a,b)=>a.date.localeCompare(b.date));
             return {...prev,[clientId]:list};
           });
@@ -711,6 +716,7 @@
         await db.from("snack_products").update({min_stock:minStock}).eq("id",productId);
       };
 
+
       // ── Reschedule ────────────────────────────────────────────────────────
       const rescheduleDelivery = async (clientId, originalDate, newDate, scope, orderId) => {
         const client = clients.find(c=>c.id===clientId);
@@ -727,7 +733,6 @@
               });
             }
           } else if (scope==="only") {
-            // DELETE então INSERT — evita conflito de id e funciona independente do schema
             await db.from("delivery_reschedules")
               .delete().eq("client_id",clientId).eq("original_date",originalDate);
             const {error} = await db.from("delivery_reschedules")
@@ -738,7 +743,6 @@
               return {...prev,[clientId]:[...existing,{original_date:originalDate,new_date:newDate}]};
             });
           } else {
-            // "Esta e as seguintes": muda o next_date permanentemente
             const {error} = await db.from("clients").update({next_date:newDate}).eq("id",clientId);
             if (error) throw error;
             setClients(prev=>prev.map(c=>c.id===clientId?{...c,nextDate:newDate}:c));
@@ -917,6 +921,7 @@
 
       if (!loaded) return <div style={styles.loadingScreen}><PawPrint size={32} color="#B8825A"/></div>;
 
+
       return (
         <div style={styles.app}>
           <style>{globalCss}</style>
@@ -1045,7 +1050,7 @@
       },[weekDays,t,tmrw]);
 
       const filterItems = useMemo(()=>{
-        if (filter==="semana"||filter==="proxima") return null; // use weekDeliveries
+        if (filter==="semana"||filter==="proxima") return null;
         const [s,e] = filterRanges[filter]||[t,t];
         return getDeliveriesForRange(s,e);
       },[filter,filterRanges,getDeliveriesForRange,t]);
@@ -1080,12 +1085,6 @@
           </div>
         );
       }
-
-      const isNextWeek = filter==="proxima";
-      const displayWeekDays = isNextWeek ? Array.from({length:7},(_,i)=>addDays(weekDays[6],i+1)) : weekDays;
-      const displayDeliveries = isNextWeek
-        ? (()=>{ const m=Object.fromEntries(displayWeekDays.map(d=>[d,[]])); /* simplified */; return m; })()
-        : weekDeliveries;
 
       return (
         <div style={styles.section}>
@@ -1140,6 +1139,7 @@
         </div>
       );
     }
+
 
     // ─── DELIVERY CARD ────────────────────────────────────────────────────────
     function DeliveryCard({ client, date, orderId, status, onStatusChange, shelfProducts, onReschedule, onCancelDelivery, showDate=false }) {
@@ -1522,7 +1522,7 @@
                         <div style={styles.stockEntryRow}>
                           <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades a adicionar"
                             value={stockInputs[p.id]||""} onChange={e=>setStockInputs(s=>({...s,[p.id]:e.target.value}))}/>
-                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}))}}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
+                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(stockInputs[p.id],10);if(a>0){onAddShelfStockEntry(p.id,a);setStockInputs(s=>({...s,[p.id]:""}}))}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
                           <input type="number" min="0" style={{...styles.input,width:80,padding:"6px 8px",fontSize:12.5}} placeholder="Mín"
@@ -1588,7 +1588,7 @@
                         <div style={styles.stockEntryRow}>
                           <input type="number" min="1" style={{...styles.input,flex:1}} placeholder="Unidades produzidas"
                             value={petiscoInputs[p.id]||""} onChange={e=>setPetiscoInputs(s=>({...s,[p.id]:e.target.value}))}/>
-                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(petiscoInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetiscoInputs(s=>({...s,[p.id]:""}))}}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
+                          <button style={styles.addStockBtn} onClick={()=>{const a=parseInt(petiscoInputs[p.id],10);if(a>0){onAddPetiscoStockEntry(p.id,a);setPetiscoInputs(s=>({...s,[p.id]:""}}))}}><Plus size={14} strokeWidth={2.5}/>Adicionar</button>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
                           <input type="number" min="0" style={{...styles.input,width:80,padding:"6px 8px",fontSize:12.5}} placeholder="Mín"
@@ -1630,6 +1630,7 @@
         </div>
       );
     }
+
 
     // ─── PRODUÇÃO VIEW ────────────────────────────────────────────────────────
     function ProducaoView({ clients, subscriberStock, shelfProducts, petiscoProducts }) {
