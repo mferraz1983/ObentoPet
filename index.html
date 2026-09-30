@@ -1464,9 +1464,19 @@
       const best = cands.filter(p=>tokensOf(p.name).length===min);
       return best.length===1 ? best[0].id : "";
     };
+    const prettyName = (x) => {
+      const t = String(x||"").trim();
+      const letters = t.replace(/\d+\s*(g|kg|ml)\b/gi,"").replace(/[^A-Za-zÀ-ÿ]/g,"");
+      if (!letters || letters !== letters.toUpperCase()) return t;
+      const small = new Set(["com","de","da","do","e"]);
+      return t.toLowerCase().replace(/(^|[\s\-\|\/])([a-zà-ÿ])/g,(m,p,c,off)=>{
+        const word = t.toLowerCase().slice(off+p.length).split(/[\s\-\|\/]/)[0];
+        return off>0 && small.has(word) ? m : p+c.toUpperCase();
+      });
+    };
     // END EAN HELPERS
 
-    function BarcodeImportModal({ kind, products, onClose, onSetBarcode }) {
+    function BarcodeImportModal({ kind, products, onClose, onSetBarcode, onCreate }) {
       const [rows, setRows]   = useState(null);
       const [sel, setSel]     = useState({});
       const [err, setErr]     = useState("");
@@ -1495,7 +1505,9 @@
 
       const pending = rows ? rows.map((r,i)=>({r,i,id:sel[i]||""})).filter(x=>!x.r.already) : [];
       const chosen  = pending.filter(x=>x.id);
-      const autoN   = rows ? rows.filter((r,i)=>!r.already && sel[i]).length : 0;
+      const autoN   = rows ? rows.filter((r,i)=>!r.already && sel[i] && sel[i]!=="__new__").length : 0;
+      const newN    = chosen.filter(x=>x.id==="__new__").length;
+      const linkN   = chosen.length - newN;
       const alreadyN = rows ? rows.filter(r=>r.already).length : 0;
       const view = rows ? [...rows.map((r,i)=>({r,i}))].sort((a,b)=>{
         const ka = a.r.already?2:(sel[a.i]?1:0), kb = b.r.already?2:(sel[b.i]?1:0);
@@ -1503,11 +1515,15 @@
       }) : [];
 
       const apply = async () => {
-        const ids = chosen.map(x=>x.id);
+        const ids = chosen.filter(x=>x.id!=="__new__").map(x=>x.id);
         if (new Set(ids).size !== ids.length) { setErr("Há produtos escolhidos para mais de um EAN. Ajuste antes de gravar."); return; }
+        if (newN>0 && !window.confirm(`Cadastrar ${newN} produto${newN===1?"":"s"} novo${newN===1?"":"s"} com saldo zero e vincular ${linkN} código${linkN===1?"":"s"}?`)) return;
         setErr(""); setBusy(true);
         let ok = 0;
-        for (const x of chosen) { if (await onSetBarcode(x.id, x.r.ean)) ok++; }
+        for (const x of chosen) {
+          if (x.id==="__new__") { const nid = await onCreate(prettyName(x.r.label), x.r.ean); if (nid) ok++; }
+          else if (await onSetBarcode(x.id, x.r.ean)) ok++;
+        }
         setBusy(false);
         setDone({ok, total: chosen.length});
       };
@@ -1529,8 +1545,13 @@
             {rows&&!done&&(
               <>
                 <div style={{fontSize:13,color:"#3E332A",margin:"12px 0 8px",fontWeight:600}}>
-                  {rows.length} códigos na planilha: {autoN} com produto sugerido, {rows.length-autoN-alreadyN} sem correspondência{alreadyN?`, ${alreadyN} já vinculados`:""}.
+                  {rows.length} códigos na planilha: {autoN} com produto sugerido, {rows.length-autoN-alreadyN-newN} sem correspondência{newN?`, ${newN} para cadastrar`:""}{alreadyN?`, ${alreadyN} já vinculados`:""}.
                 </div>
+                {rows.some((r,i)=>!r.already&&!sel[i])&&(
+                  <button style={{...styles.avulsaCancelBtn,width:"100%",marginBottom:8}} onClick={()=>setSel(s0=>{const n={...s0};rows.forEach((r,i)=>{if(!r.already&&!n[i])n[i]="__new__";});return n;})}>
+                    Marcar os {rows.filter((r,i)=>!r.already&&!sel[i]).length} sem correspondência para cadastrar como produtos novos
+                  </button>
+                )}
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {view.map(({r,i})=>(
                     <div key={i} style={{background:"#FFF",border:"1px solid "+(r.already?"#E3EDDD":(sel[i]?"#EFE4D6":"#F1D5CF")),borderRadius:10,padding:10}}>
@@ -1541,6 +1562,7 @@
                       ):(
                         <select style={{...styles.input,width:"100%",boxSizing:"border-box",padding:"7px 8px",fontSize:13}} value={sel[i]||""} onChange={e=>setSel(s=>({...s,[i]:e.target.value}))}>
                           <option value="">Não vincular</option>
+                          <option value="__new__">Cadastrar como produto novo</option>
                           {sorted.map(p=><option key={p.id} value={p.id}>{p.name}{p.barcode?` (substitui ${p.barcode})`:""}</option>)}
                         </select>
                       )}
@@ -1548,13 +1570,13 @@
                   ))}
                 </div>
                 <button style={{...styles.avulsaConfirmBtn,width:"100%",marginTop:12,opacity:(chosen.length&&!busy)?1:0.5}} disabled={!chosen.length||busy} onClick={apply}>
-                  {busy?"Gravando...":`Vincular ${chosen.length} código${chosen.length===1?"":"s"}`}
+                  {busy?"Gravando...":(newN?`Gravar (${linkN} vincular, ${newN} cadastrar)`:`Vincular ${chosen.length} código${chosen.length===1?"":"s"}`)}
                 </button>
               </>
             )}
             {done&&(
               <div style={{marginTop:12,padding:12,borderRadius:10,background:"#EAF3E6",color:"#4F7A42",fontSize:14,fontWeight:600}}>
-                {done.ok} de {done.total} códigos vinculados.{done.ok<done.total?" Os demais deram erro (veja os avisos na tela).":""}
+                {done.ok} de {done.total} concluídos.{done.ok<done.total?" Os demais deram erro (veja os avisos na tela).":""}
                 <div><button style={{...styles.avulsaCancelBtn,marginTop:10}} onClick={onClose}>Fechar</button></div>
               </div>
             )}
@@ -1830,7 +1852,7 @@
               <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:12,padding:"12px 14px",fontSize:14,fontWeight:700,marginBottom:10}} onClick={()=>setScanKind("shelf")}><ScanBarcode size={16} strokeWidth={2.5}/>Escanear código de barras</button>
               {scanKind==="shelf"&&<ScanModal kind="shelf" products={shelfProducts} onClose={()=>setScanKind(null)} onMove={onShelfMove} onSetBarcode={onSetShelfBarcode} onCreate={onAddShelfProduct}/>}
               <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:10,padding:"9px 12px",fontSize:12.5,fontWeight:600,marginBottom:10}} onClick={()=>setImportKind("shelf")}><FileSpreadsheet size={13} strokeWidth={2.5}/>Importar códigos de barras (planilha)</button>
-              {importKind==="shelf"&&<BarcodeImportModal kind="shelf" products={shelfProducts} onClose={()=>setImportKind(null)} onSetBarcode={onSetShelfBarcode}/>}
+              {importKind==="shelf"&&<BarcodeImportModal kind="shelf" products={shelfProducts} onClose={()=>setImportKind(null)} onSetBarcode={onSetShelfBarcode} onCreate={onAddShelfProduct}/>}
                             <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                 <ImportXlsBtn label="Importar XLS" onFile={onImportShelf}/>
                 <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
@@ -1900,7 +1922,7 @@
               <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:12,padding:"12px 14px",fontSize:14,fontWeight:700,marginBottom:10}} onClick={()=>setScanKind("snack")}><ScanBarcode size={16} strokeWidth={2.5}/>Escanear código de barras</button>
               {scanKind==="snack"&&<ScanModal kind="snack" products={petiscoProducts} onClose={()=>setScanKind(null)} onMove={onPetiscoMove} onSetBarcode={onSetPetiscoBarcode} onCreate={onAddPetiscoProduct}/>}
               <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:10,padding:"9px 12px",fontSize:12.5,fontWeight:600,marginBottom:10}} onClick={()=>setImportKind("snack")}><FileSpreadsheet size={13} strokeWidth={2.5}/>Importar códigos de barras (planilha)</button>
-              {importKind==="snack"&&<BarcodeImportModal kind="snack" products={petiscoProducts} onClose={()=>setImportKind(null)} onSetBarcode={onSetPetiscoBarcode}/>}
+              {importKind==="snack"&&<BarcodeImportModal kind="snack" products={petiscoProducts} onClose={()=>setImportKind(null)} onSetBarcode={onSetPetiscoBarcode} onCreate={onAddPetiscoProduct}/>}
                             <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                 <ImportXlsBtn label="Importar XLS" onFile={onImportPetisco}/>
                 <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
