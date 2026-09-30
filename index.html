@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script>
     window.onerror = function(msg, src, line) {
       var r = document.getElementById("root");
@@ -29,6 +30,7 @@
            stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
            style={style} dangerouslySetInnerHTML={{__html: d}} />
     );
+    const ScanBarcode     = _i('<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 7v10"/><path d="M12 7v10"/><path d="M16 7v10"/>');
     const Plus            = _i('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>');
     const Check           = _i('<polyline points="20 6 9 17 4 12"/>');
     const Clock           = _i('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>');
@@ -299,10 +301,10 @@
             setSubscriberStock(prev=>({...prev,[n.client_id]:n.balance}));
           })
           .on("postgres_changes",{event:"UPDATE",schema:"public",table:"shelf_products"},({new:n})=>{
-            setShelfProducts(prev=>prev.map(p=>p.id===n.id?{...p,balance:n.balance,min_stock:n.min_stock??p.min_stock}:p));
+            setShelfProducts(prev=>prev.map(p=>p.id===n.id?{...p,balance:n.balance,min_stock:n.min_stock??p.min_stock,barcode:("barcode" in n)?n.barcode:p.barcode}:p));
           })
           .on("postgres_changes",{event:"UPDATE",schema:"public",table:"snack_products"},({new:n})=>{
-            setPetiscoProducts(prev=>prev.map(p=>p.id===n.id?{...p,balance:n.balance,min_stock:n.min_stock??p.min_stock}:p));
+            setPetiscoProducts(prev=>prev.map(p=>p.id===n.id?{...p,balance:n.balance,min_stock:n.min_stock??p.min_stock,barcode:("barcode" in n)?n.barcode:p.barcode}:p));
           })
           .on("postgres_changes",{event:"*",schema:"public",table:"avulsa_orders"},({eventType,new:n,old:o})=>{
             if (eventType==="INSERT") {
@@ -652,12 +654,13 @@
         }
       };
 
-      const addShelfProduct = async (name) => {
+      const addShelfProduct = async (name, barcode) => {
         const id = genId();
+        const code = barcode ? String(barcode).trim() : "";
         try {
-          const {error} = await db.from("shelf_products").insert({id,name,balance:0,min_stock:0});
+          const {error} = await db.from("shelf_products").insert({id,name,balance:0,min_stock:0,...(code?{barcode:code}:{})});
           if (error) throw error;
-          setShelfProducts(prev=>[...prev,{id,name,balance:0,min_stock:0}]);
+          setShelfProducts(prev=>[...prev,{id,name,balance:0,min_stock:0,barcode:code||null}]);
           return id;
         } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
       };
@@ -668,6 +671,17 @@
           if (error) throw error;
           setShelfProducts(prev=>prev.filter(p=>p.id!==productId));
         } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
+      };
+      const setShelfBarcode = async (productId, barcode) => {
+        const code = barcode ? String(barcode).trim() : null;
+        if (code) {
+          const dup = shelfProducts.find(p=>p.id!==productId && (p.barcode||"").trim().toLowerCase()===code.toLowerCase());
+          if (dup) { showToast(`Esse código já está vinculado a "${dup.name}".`,"error"); return false; }
+        }
+        const {error} = await db.from("shelf_products").update({barcode:code}).eq("id",productId);
+        if (error) { showToast(`Erro ao salvar código: ${error.message}`,"error"); return false; }
+        setShelfProducts(prev=>prev.map(p=>p.id===productId?{...p,barcode:code}:p));
+        return true;
       };
       const updateShelfMinStock = async (productId, minStock) => {
         setShelfProducts(prev=>prev.map(p=>p.id===productId?{...p,min_stock:minStock}:p));
@@ -694,12 +708,13 @@
           showToast("Erro ao atualizar estoque de petiscos.", "error");
         }
       };
-      const addPetiscoProduct = async (name) => {
+      const addPetiscoProduct = async (name, barcode) => {
         const id = genId();
+        const code = barcode ? String(barcode).trim() : "";
         try {
-          const {error} = await db.from("snack_products").insert({id,name,balance:0,min_stock:0});
+          const {error} = await db.from("snack_products").insert({id,name,balance:0,min_stock:0,...(code?{barcode:code}:{})});
           if (error) throw error;
-          setPetiscoProducts(prev=>[...prev,{id,name,balance:0,min_stock:0}]);
+          setPetiscoProducts(prev=>[...prev,{id,name,balance:0,min_stock:0,barcode:code||null}]);
           return id;
         } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
       };
@@ -710,6 +725,17 @@
           if (error) throw error;
           setPetiscoProducts(prev=>prev.filter(p=>p.id!==productId));
         } catch(err) { showToast(`Erro: ${err.message}`,"error"); }
+      };
+      const setPetiscoBarcode = async (productId, barcode) => {
+        const code = barcode ? String(barcode).trim() : null;
+        if (code) {
+          const dup = petiscoProducts.find(p=>p.id!==productId && (p.barcode||"").trim().toLowerCase()===code.toLowerCase());
+          if (dup) { showToast(`Esse código já está vinculado a "${dup.name}".`,"error"); return false; }
+        }
+        const {error} = await db.from("snack_products").update({barcode:code}).eq("id",productId);
+        if (error) { showToast(`Erro ao salvar código: ${error.message}`,"error"); return false; }
+        setPetiscoProducts(prev=>prev.map(p=>p.id===productId?{...p,barcode:code}:p));
+        return true;
       };
       const updatePetiscoMinStock = async (productId, minStock) => {
         setPetiscoProducts(prev=>prev.map(p=>p.id===productId?{...p,min_stock:minStock}:p));
@@ -982,8 +1008,8 @@
                 onAddSubscriberProduction={addSubscriberProduction}
                 onUpdateClientUnits={updateClientUnits}
                 onSetSubscriberBalance={setSubscriberBalance}
-                onAddShelfProduct={addShelfProduct} onAddShelfStockEntry={addShelfStockEntry} onDeleteShelfProduct={deleteShelfProduct} onUpdateShelfMinStock={updateShelfMinStock}
-                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct} onUpdatePetiscoMinStock={updatePetiscoMinStock}
+                onAddShelfProduct={addShelfProduct} onAddShelfStockEntry={addShelfStockEntry} onDeleteShelfProduct={deleteShelfProduct} onUpdateShelfMinStock={updateShelfMinStock} onShelfMove={(id,d,r)=>applyShelfDelta(id,d,todayISO(),r)} onSetShelfBarcode={setShelfBarcode}
+                onAddPetiscoProduct={addPetiscoProduct} onAddPetiscoStockEntry={addPetiscoStockEntry} onDeletePetiscoProduct={deletePetiscoProduct} onUpdatePetiscoMinStock={updatePetiscoMinStock} onPetiscoMove={(id,d,r)=>applyPetiscoDelta(id,d,todayISO(),r)} onSetPetiscoBarcode={setPetiscoBarcode}
                 onEditClient={c=>{setEditingClient(c);setShowForm(true);}}
                 onImportShelf={importShelfProducts} onDownloadShelfTemplate={downloadShelfTemplate}
                 onImportPetisco={importPetiscoProducts} onDownloadPetiscoTemplate={downloadPetiscoTemplate}/>
@@ -1392,7 +1418,179 @@
 
 
     // ─── STOCK VIEW ───────────────────────────────────────────────────────────
-    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onUpdateClientUnits, onSetSubscriberBalance, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onUpdateShelfMinStock, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct, onUpdatePetiscoMinStock, onEditClient, onImportShelf, onDownloadShelfTemplate, onImportPetisco, onDownloadPetiscoTemplate }) {
+    function ScanModal({ kind, products, onClose, onMove, onSetBarcode, onCreate }) {
+      const [foundId, setFoundId] = useState(null);
+      const [unknown, setUnknown] = useState(null);
+      const [mode, setMode]       = useState("in");
+      const [qty, setQty]         = useState("1");
+      const [cam, setCam]         = useState(false);
+      const [camErr, setCamErr]   = useState("");
+      const [linkId, setLinkId]   = useState("");
+      const [newName, setNewName] = useState("");
+      const [msg, setMsg]         = useState("");
+      const inputRef   = React.useRef();
+      const scannerRef = React.useRef(null);
+      const lastRef    = React.useRef({code:"",t:0});
+      const handleRef  = React.useRef();
+      const isTouch = typeof window!=="undefined" && ("ontouchstart" in window);
+      const fp = foundId ? products.find(p=>p.id===foundId) : null;
+
+      const handleCode = (raw) => {
+        const c = String(raw||"").trim();
+        if (!c) return;
+        const now = Date.now();
+        if (lastRef.current.code===c && now-lastRef.current.t<1500) return;
+        lastRef.current = {code:c,t:now};
+        if (navigator.vibrate) navigator.vibrate(60);
+        setMsg("");
+        const p = products.find(x=>x.barcode && String(x.barcode).trim().toLowerCase()===c.toLowerCase());
+        if (p) {
+          if (foundId===p.id) { setQty(q=>String((parseInt(q,10)||0)+1)); }
+          else { setFoundId(p.id); setQty("1"); }
+          setUnknown(null);
+        } else {
+          try { if (scannerRef.current) scannerRef.current.pause(true); } catch(e) {}
+          setFoundId(null); setUnknown(c); setLinkId(""); setNewName("");
+        }
+      };
+      handleRef.current = handleCode;
+
+      const afterAction = () => {
+        setFoundId(null); setUnknown(null);
+        lastRef.current = {code:lastRef.current.code,t:Date.now()};
+        try { if (scannerRef.current) scannerRef.current.resume(); } catch(e) {}
+        if (inputRef.current && !cam) inputRef.current.focus();
+      };
+
+      const confirm = () => {
+        const q = parseInt(qty,10);
+        if (!fp || !(q>0)) return;
+        onMove(fp.id, mode==="in"?q:-q, mode==="in"?"Entrada (leitor)":"Saída (leitor)");
+        setMsg((mode==="in"?"+":"-")+q+" · "+fp.name);
+        afterAction();
+      };
+      const doLink = async () => {
+        if (!linkId || !unknown) return;
+        const ok = await onSetBarcode(linkId, unknown);
+        if (ok) { setFoundId(linkId); setUnknown(null); setQty("1"); }
+      };
+      const doCreate = async () => {
+        const n = newName.trim();
+        if (!n || !unknown) return;
+        const id = await onCreate(n, unknown);
+        if (id) { setFoundId(id); setUnknown(null); setQty("1"); }
+      };
+
+      // câmera
+      useEffect(()=>{
+        if (!cam) return;
+        if (!window.Html5Qrcode) { setCamErr("Leitor de câmera não carregou. Verifique a conexão e recarregue a página."); setCam(false); return; }
+        const F = window.Html5QrcodeSupportedFormats;
+        const s = new window.Html5Qrcode("barcode-reader", {
+          formatsToSupport: [F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.CODE_39,F.ITF,F.QR_CODE],
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          verbose: false,
+        });
+        scannerRef.current = s;
+        setCamErr("");
+        const startP = s.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: (w,h)=>({ width: Math.floor(w*0.85), height: Math.floor(Math.min(h*0.6,170)) }) },
+          (text)=>{ if (handleRef.current) handleRef.current(text); },
+          ()=>{}
+        );
+        startP.catch(()=>{ setCamErr("Não foi possível abrir a câmera. Permita o acesso à câmera no navegador."); setCam(false); });
+        return ()=>{
+          scannerRef.current = null;
+          startP.then(()=>s.stop()).then(()=>s.clear()).catch(()=>{});
+        };
+      },[cam]);
+
+      useEffect(()=>{ if (!isTouch && inputRef.current) inputRef.current.focus(); },[]);
+
+      const onKey = (e) => {
+        if (e.key!=="Enter") return;
+        e.preventDefault();
+        const v = e.target.value;
+        e.target.value = "";
+        if (v.trim()) handleCode(v);
+        else if (fp) confirm();
+      };
+
+      const label = kind==="shelf" ? "produto de prateleira" : "petisco";
+      const free = products.filter(p=>!p.barcode).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+      const qn = parseInt(qty,10)||0;
+      const seg = (active) => ({ flex:1, border:"none", borderRadius:9, padding:"9px 8px", fontSize:13, fontWeight:700, background: active?"#3E332A":"#EFE4D6", color: active?"#FBF1E8":"#8A7A6C" });
+
+      return (
+        <div style={styles.modalOverlay} onClick={onClose}>
+          <div style={{...styles.modal,padding:16}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,fontWeight:700,fontSize:16,color:"#3E332A"}}><ScanBarcode size={18} strokeWidth={2.5}/>Escanear {label}</div>
+              <button style={{background:"none",border:"none",padding:4}} onClick={onClose}><X size={18} color="#8A7A6C"/></button>
+            </div>
+
+            <input ref={inputRef} style={{...styles.input,width:"100%",boxSizing:"border-box"}} placeholder="Bipe com o leitor ou digite o código e Enter" onKeyDown={onKey}/>
+
+            <button style={{...styles.avulsaCancelBtn,width:"100%",marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={()=>{setCamErr("");setCam(c=>!c);}}>
+              <ScanBarcode size={14} strokeWidth={2.5}/>{cam?"Fechar câmera":"Usar câmera do celular"}
+            </button>
+            {camErr&&<div style={{color:"#C0594B",fontSize:12.5,marginTop:6}}>{camErr}</div>}
+            {cam&&<div id="barcode-reader" style={{width:"100%",marginTop:8,borderRadius:12,overflow:"hidden",background:"#000"}}/>}
+
+            {msg&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:9,background:"#EAF3E6",color:"#4F7A42",fontSize:13,fontWeight:600}}>Registrado: {msg}</div>}
+
+            {fp&&(
+              <div style={{marginTop:12,padding:12,borderRadius:12,background:"#FFF",border:"1px solid #EFE4D6"}}>
+                <div style={{fontWeight:700,color:"#3E332A"}}>{fp.name}</div>
+                <div style={{fontSize:12.5,color:"#8A7A6C",marginBottom:10}}>Em estoque: {fp.balance} · código {fp.barcode}</div>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  <button style={seg(mode==="in")} onClick={()=>setMode("in")}>Entrada</button>
+                  <button style={seg(mode==="out")} onClick={()=>setMode("out")}>Saída</button>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <button style={{...styles.avulsaCancelBtn,padding:"9px 16px",fontSize:16}} onClick={()=>setQty(String(Math.max(1,qn-1)))}>-</button>
+                  <input type="number" inputMode="numeric" min="1" style={{...styles.input,flex:1,textAlign:"center"}} value={qty} onChange={e=>setQty(e.target.value)}/>
+                  <button style={{...styles.avulsaCancelBtn,padding:"9px 16px",fontSize:16}} onClick={()=>setQty(String(qn+1))}>+</button>
+                </div>
+                {mode==="out"&&qn>fp.balance&&<div style={{color:"#C0594B",fontSize:12.5,marginBottom:8}}>Atenção: a saída é maior que o saldo atual ({fp.balance}).</div>}
+                <div style={{display:"flex",gap:8}}>
+                  <button style={styles.avulsaConfirmBtn} onClick={confirm}>Confirmar {mode==="in"?"entrada":"saída"}</button>
+                  <button style={styles.avulsaCancelBtn} onClick={afterAction}>Cancelar</button>
+                </div>
+                <div style={{fontSize:11.5,color:"#A89A8C",marginTop:8}}>Dica: bipar o mesmo produto de novo soma +1. Enter com o campo vazio confirma.</div>
+              </div>
+            )}
+
+            {unknown&&(
+              <div style={{marginTop:12,padding:12,borderRadius:12,background:"#FFF",border:"1px solid #EFE4D6"}}>
+                <div style={{fontWeight:700,color:"#3E332A"}}>Código não cadastrado</div>
+                <div style={{fontSize:13,color:"#8A7A6C",marginBottom:10,wordBreak:"break-all"}}>{unknown}</div>
+                {free.length>0&&(
+                  <>
+                    <div style={{fontSize:12.5,fontWeight:600,color:"#8A7A6C",marginBottom:4}}>Vincular a um produto existente (sem código)</div>
+                    <select style={{...styles.input,width:"100%",boxSizing:"border-box"}} value={linkId} onChange={e=>setLinkId(e.target.value)}>
+                      <option value="">Escolha o produto…</option>
+                      {free.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <button style={{...styles.avulsaConfirmBtn,width:"100%",marginTop:8,opacity:linkId?1:0.5}} disabled={!linkId} onClick={doLink}>Vincular código</button>
+                  </>
+                )}
+                <div style={{fontSize:12.5,fontWeight:600,color:"#8A7A6C",margin:"12px 0 4px"}}>Ou cadastrar um novo</div>
+                <input style={{...styles.input,width:"100%",boxSizing:"border-box"}} placeholder="Nome do novo produto" value={newName} onChange={e=>setNewName(e.target.value)}/>
+                <div style={{display:"flex",gap:8,marginTop:8}}>
+                  <button style={{...styles.avulsaConfirmBtn,opacity:newName.trim()?1:0.5}} disabled={!newName.trim()} onClick={doCreate}>Cadastrar e vincular</button>
+                  <button style={styles.avulsaCancelBtn} onClick={afterAction}>Ignorar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onUpdateClientUnits, onSetSubscriberBalance, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onUpdateShelfMinStock, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct, onUpdatePetiscoMinStock, onEditClient, onImportShelf, onDownloadShelfTemplate, onImportPetisco, onDownloadPetiscoTemplate, onShelfMove, onSetShelfBarcode, onPetiscoMove, onSetPetiscoBarcode }) {
+      const [scanKind, setScanKind] = useState(null);
       const [tab, setTab]                       = useState("assinantes");
       const [expandedClient,  setExpandedClient]= useState(null);
       const [productionInputs,setProductionInputs]=useState({});
@@ -1483,6 +1681,8 @@
 
           {tab==="avulsos"&&(
             <>
+              <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:12,padding:"12px 14px",fontSize:14,fontWeight:700,marginBottom:10}} onClick={()=>setScanKind("shelf")}><ScanBarcode size={16} strokeWidth={2.5}/>Escanear código de barras</button>
+              {scanKind==="shelf"&&<ScanModal kind="shelf" products={shelfProducts} onClose={()=>setScanKind(null)} onMove={onShelfMove} onSetBarcode={onSetShelfBarcode} onCreate={onAddShelfProduct}/>}
               <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                 <ImportXlsBtn label="Importar XLS" onFile={onImportShelf}/>
                 <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
@@ -1515,7 +1715,7 @@
                     return (
                       <div key={p.id} style={styles.stockCard}>
                         <div style={styles.stockCardTop}>
-                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Package size={14} color="#B8825A"/></div><div style={styles.cardDog}>{p.name}</div></div>
+                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Package size={14} color="#B8825A"/></div><div><div style={styles.cardDog}>{p.name}</div><button style={{background:"none",border:"none",padding:0,fontSize:11.5,color:"#A89A8C",display:"flex",alignItems:"center",gap:4}} onClick={()=>{const v=window.prompt("Código de barras (deixe vazio para remover):",p.barcode||"");if(v!==null)onSetShelfBarcode(p.id,v.trim()||null);}}><ScanBarcode size={11}/>{p.barcode||"Vincular código"}</button></div></div>
                           <div style={{textAlign:"right"}}><div style={{...styles.balanceNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
                         </div>
                         {isLow&&<div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B"/><span>{p.balance<=0?"Sem saldo disponível":`Estoque baixo (mín: ${p.min_stock})`}</span></div>}
@@ -1549,6 +1749,8 @@
 
           {tab==="petiscos"&&(
             <>
+              <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#3E332A",color:"#FBF1E8",border:"none",borderRadius:12,padding:"12px 14px",fontSize:14,fontWeight:700,marginBottom:10}} onClick={()=>setScanKind("snack")}><ScanBarcode size={16} strokeWidth={2.5}/>Escanear código de barras</button>
+              {scanKind==="snack"&&<ScanModal kind="snack" products={petiscoProducts} onClose={()=>setScanKind(null)} onMove={onPetiscoMove} onSetBarcode={onSetPetiscoBarcode} onCreate={onAddPetiscoProduct}/>}
               <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                 <ImportXlsBtn label="Importar XLS" onFile={onImportPetisco}/>
                 <button style={{display:"flex",alignItems:"center",gap:5,background:"#F6EEE3",color:"#8A6A48",border:"1px solid #DDD0BE",borderRadius:9,padding:"6px 12px",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap"}}
@@ -1581,7 +1783,7 @@
                     return (
                       <div key={p.id} style={styles.stockCard}>
                         <div style={styles.stockCardTop}>
-                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Cookie size={14} color="#B8825A"/></div><div style={styles.cardDog}>{p.name}</div></div>
+                          <div style={styles.cardIdentity}><div style={styles.dogBadge}><Cookie size={14} color="#B8825A"/></div><div><div style={styles.cardDog}>{p.name}</div><button style={{background:"none",border:"none",padding:0,fontSize:11.5,color:"#A89A8C",display:"flex",alignItems:"center",gap:4}} onClick={()=>{const v=window.prompt("Código de barras (deixe vazio para remover):",p.barcode||"");if(v!==null)onSetPetiscoBarcode(p.id,v.trim()||null);}}><ScanBarcode size={11}/>{p.barcode||"Vincular código"}</button></div></div>
                           <div style={{textAlign:"right"}}><div style={{...styles.balanceNum,color:isLow?"#C0594B":"#3E332A"}}>{p.balance}</div><div style={styles.balanceLabel}>em estoque</div></div>
                         </div>
                         {isLow&&<div style={styles.lowStockWarning}><AlertTriangle size={13} color="#C0594B"/><span>{p.balance<=0?"Sem saldo disponível":`Estoque baixo (mín: ${p.min_stock})`}</span></div>}
