@@ -1759,6 +1759,7 @@
     function StockView({ clients, subscriberStock, subscriberStockLog, shelfProducts, shelfStockLog, petiscoProducts, petiscoStockLog, onAddSubscriberProduction, onUpdateClientUnits, onSetSubscriberBalance, onAddShelfProduct, onAddShelfStockEntry, onDeleteShelfProduct, onUpdateShelfMinStock, onAddPetiscoProduct, onAddPetiscoStockEntry, onDeletePetiscoProduct, onUpdatePetiscoMinStock, onEditClient, onImportShelf, onDownloadShelfTemplate, onImportPetisco, onDownloadPetiscoTemplate, onShelfMove, onSetShelfBarcode, onPetiscoMove, onSetPetiscoBarcode }) {
       const [scanKind, setScanKind] = useState(null);
       const [importKind, setImportKind] = useState(null);
+      const [q, setQ] = useState("");
       const [tab, setTab]                       = useState("assinantes");
       const [expandedClient,  setExpandedClient]= useState(null);
       const [productionInputs,setProductionInputs]=useState({});
@@ -1776,6 +1777,13 @@
       const [petiscoMinInputs,setPetiscoMinInputs]=useState({});
 
       const subscribers = clients.filter(c=>c.frequency!=="avulsa");
+      const qTokens = normText(q).split(" ").filter(Boolean);
+      const hit = (...parts) => { if (!qTokens.length) return true; const h = normText(parts.filter(Boolean).join(" ")); return qTokens.every(t=>h.includes(t)); };
+      const subsView    = subscribers.filter(c=>hit(c.dog,c.tutor));
+      const shelfView   = shelfProducts.filter(p=>hit(p.name,p.barcode));
+      const petiscoView = petiscoProducts.filter(p=>hit(p.name,p.barcode));
+      const viewCount   = tab==="assinantes" ? subsView.length : (tab==="avulsos" ? shelfView.length : petiscoView.length);
+      const searchHint  = tab==="assinantes" ? "Buscar assinante por cão ou tutor…" : "Buscar produto por nome ou código de barras…";
 
       return (
         <div style={styles.section}>
@@ -1783,14 +1791,22 @@
           <div style={styles.stockTabRow}>
             {[["assinantes","Assinantes"],["avulsos","Avulsos"],["petiscos","Petiscos"]].map(([key,label])=>(
               <button key={key} style={{...styles.stockTabBtn,...(tab===key?styles.stockTabBtnActive:{})}}
-                onClick={()=>setTab(key)}>{label}</button>
+                onClick={()=>{setTab(key);setQ("");}}>{label}</button>
             ))}
           </div>
+
+          <div style={{...styles.searchBar,marginBottom:q?6:16}}>
+            <Search size={16} color="#A89A8C"/>
+            <input style={styles.searchInput} placeholder={searchHint} value={q} onChange={e=>setQ(e.target.value)}/>
+            {q&&<button style={{background:"none",border:"none",padding:2,display:"flex"}} onClick={()=>setQ("")}><X size={15} color="#A89A8C"/></button>}
+          </div>
+          {q&&<div style={{fontSize:12,color:"#8A7A6C",margin:"0 2px 12px"}}>{viewCount} resultado{viewCount===1?"":"s"}</div>}
 
           {tab==="assinantes"&&(
             subscribers.length===0?<EmptyState text="Nenhum cliente assinante cadastrado ainda."/>:(
               <div style={styles.cardList}>
-                {subscribers.map(c=>{
+                {q&&subsView.length===0&&<EmptyState text="Nenhum assinante encontrado."/>}
+                {subsView.map(c=>{
                   const balance=subscriberStock[c.id]??0;
                   const isLow=balance<=(c.units||0);
                   const log=subscriberStockLog[c.id]||[];
@@ -1878,7 +1894,8 @@
               </div>
               {shelfProducts.length===0?<EmptyState text="Nenhum produto de prateleira cadastrado ainda."/>:(
                 <div style={styles.cardList}>
-                  {shelfProducts.map(p=>{
+                  {q&&shelfView.length===0&&<EmptyState text="Nenhum produto encontrado."/>}
+                  {shelfView.map(p=>{
                     const log=shelfStockLog[p.id]||[];
                     const exp=expandedProduct===p.id;
                     const isLow=p.balance<=(p.min_stock||0);
@@ -1948,7 +1965,8 @@
               </div>
               {petiscoProducts.length===0?<EmptyState text="Nenhum petisco cadastrado ainda."/>:(
                 <div style={styles.cardList}>
-                  {petiscoProducts.map(p=>{
+                  {q&&petiscoView.length===0&&<EmptyState text="Nenhum petisco encontrado."/>}
+                  {petiscoView.map(p=>{
                     const log=petiscoStockLog[p.id]||[];
                     const exp=expandedPetisco===p.id;
                     const isLow=p.balance<=(p.min_stock||0);
