@@ -142,7 +142,7 @@
     const LABEL_LOGO_RATIO = 0.828; // largura / altura do logo
     const LABEL_FONTS = "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;800&display=swap";
     const escHtml = (s) => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    const LABEL_DEFAULTS = { w:65, h:30, showLogo:true, tutorFirstName:false, showObs:true, showCep:false, showPhone:false, showDate:false, copiesByVolumes:false };
+    const LABEL_DEFAULTS = { w:65, h:30, showLogo:true, tutorFirstName:false, showObs:true, showCep:false, showPhone:false, showDate:false, copiesByVolumes:false, gap:0, offsetY:0 };
     const LABEL_STORE_KEY = "obentopet_label_settings_v2";
     function loadLabelSettings() {
       try { const raw = localStorage.getItem(LABEL_STORE_KEY); if (raw) return {...LABEL_DEFAULTS, ...JSON.parse(raw)}; } catch(e) {}
@@ -225,11 +225,14 @@
 
     function labelsCss(o, preview) {
       const g = labelGeom(o);
-      return `@page{size:${o.w}mm ${o.h}mm;margin:0}
+      const gap = Math.max(0, Number(o.gap)||0), offY = Math.max(-3, Math.min(3, Number(o.offsetY)||0));
+      const pageH = (Number(o.h)+gap).toFixed(2);
+      const padTop = Math.max(0, g.pad+offY).toFixed(2), padBot = Math.max(0, g.pad+gap-offY).toFixed(2), padX = g.pad.toFixed(2);
+      return `@page{size:${o.w}mm ${pageH}mm;margin:0}
         *{box-sizing:border-box}
         html,body{margin:0;padding:0;background:#fff}
         body{font-family:"Poppins","Montserrat","Segoe UI",Arial,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        .label{width:${o.w}mm;height:${o.h}mm;padding:${g.pad.toFixed(2)}mm;display:flex;flex-direction:row;align-items:center;gap:${g.gap.toFixed(2)}mm;overflow:hidden;page-break-after:always;break-after:page}
+        .label{width:${o.w}mm;height:${pageH}mm;padding:${padTop}mm ${padX}mm ${padBot}mm ${padX}mm;display:flex;flex-direction:row;align-items:center;gap:${g.gap.toFixed(2)}mm;overflow:hidden;page-break-after:always;break-after:page}
         .label:last-child{page-break-after:auto;break-after:auto}
         .logo{flex:0 0 auto;width:${g.logoW.toFixed(2)}mm;height:${g.logoH.toFixed(2)}mm;background:url(${LABEL_LOGO}) center/contain no-repeat}
         .txt{flex:1 1 auto;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:center;gap:${(0.5*g.sc).toFixed(2)}mm;overflow:hidden}
@@ -2278,6 +2281,8 @@
       const [showCfg,    setShowCfg]    = useState(false);
       const [wIn, setWIn] = useState(String(settings.w));
       const [hIn, setHIn] = useState(String(settings.h));
+      const [gapIn, setGapIn] = useState(String(settings.gap||0));
+      const [offIn, setOffIn] = useState(String(settings.offsetY||0));
       const t = todayISO(), tmrw = tomorrowISO();
       const activeDate = rFilter==="hoje" ? t : rFilter==="amanha" ? tmrw : customDate;
 
@@ -2335,6 +2340,11 @@
               onClick={()=>previewItem&&onPrint([previewItem],activeDate)}>
               Imprimir só a da prévia
             </button>
+            <button style={{...styles.batBtn,background:"#7A6C5E",opacity:previewItem?1:0.45}} disabled={!previewItem}
+              onClick={()=>previewItem&&onPrint([previewItem,previewItem,previewItem],activeDate)}
+              title="Imprime 3 etiquetas iguais para conferir o alinhamento no rolo">
+              Teste de alinhamento (3)
+            </button>
             <button style={{...styles.batBtn,background:"#9C8E7E"}} onClick={()=>setShowCfg(v=>!v)}>
               {showCfg?"Fechar ajustes":"Ajustes da etiqueta"}
             </button>
@@ -2352,6 +2362,19 @@
                     onChange={e=>{setHIn(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(v>=15&&v<=110)onSettings({h:v});}}/>
                 </Field>
               </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                <Field label="Intervalo entre etiquetas (mm)">
+                  <input style={styles.input} inputMode="decimal" value={gapIn}
+                    onChange={e=>{setGapIn(e.target.value);const x=parseFloat(e.target.value.replace(",","."));if(x>=0&&x<=10)onSettings({gap:x});}}/>
+                </Field>
+                <Field label="Ajuste vertical (mm)">
+                  <input style={styles.input} inputMode="decimal" value={offIn}
+                    onChange={e=>{setOffIn(e.target.value);const x=parseFloat(e.target.value.replace(",","."));if(x>=-3&&x<=3)onSettings({offsetY:x});}}/>
+                </Field>
+              </div>
+              <p style={{margin:"-4px 0 10px",fontSize:11.5,color:"#8A7A6C",lineHeight:1.5}}>
+                Se as etiquetas saírem desalinhadas (o conteúdo vai "subindo" a cada etiqueta), coloque aqui o espaço vazio entre uma etiqueta e outra no rolo (geralmente 2 a 3 mm). O ajuste vertical move o conteúdo para cima (−) ou para baixo (+).
+              </p>
               {optRow("showLogo","Mostrar o logo da marca")}
               {optRow("showObs","Mostrar observações (horário, referência e observações do cliente)")}
               {optRow("tutorFirstName","Usar só o primeiro nome do tutor")}
