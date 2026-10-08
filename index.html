@@ -232,7 +232,7 @@
 
     function labelsCss(o, preview) {
       const g = labelGeom(o);
-      const gap = Math.max(0, Number(o.gap)||0), offY = Math.max(-3, Math.min(3, Number(o.offsetY)||0));
+      const gap = Math.max(0, Number(o.gap)||0), offY = Math.max(-10, Math.min(10, Number(o.offsetY)||0));
       const pageH = (Number(o.h)+gap).toFixed(2);
       const padTop = Math.max(0, g.pad+offY).toFixed(2), padBot = Math.max(0, g.pad+gap-offY).toFixed(2), padX = g.pad.toFixed(2);
       return `@page{size:${o.w}mm ${pageH}mm;margin:0}
@@ -2484,7 +2484,7 @@
               <div style={styles.formGrid2}>
                 <NumField key={activeId+"g"+settings.gap} label="Intervalo entre etiquetas (mm)" value={settings.gap||0} min={0} max={10} onCommit={n=>onSettings({gap:n})}
                   hint="Espaço vazio entre uma etiqueta e a próxima. Se o conteúdo vai 'subindo' a cada etiqueta, aumente (2 a 3 mm)."/>
-                <NumField key={activeId+"o"+settings.offsetY} label="Ajuste vertical (mm)" value={settings.offsetY||0} min={-3} max={3} onCommit={n=>onSettings({offsetY:n})}
+                <NumField key={activeId+"o"+settings.offsetY} label="Ajuste vertical (mm)" value={settings.offsetY||0} min={-10} max={10} onCommit={n=>onSettings({offsetY:n})}
                   hint="Move o conteúdo para cima (−) ou para baixo (+)."/>
               </div>
 
