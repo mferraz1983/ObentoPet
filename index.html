@@ -143,7 +143,7 @@
     const LABEL_LOGO_RATIO = 0.828; // largura / altura do logo
     const LABEL_FONTS = "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;800&display=swap";
     const escHtml = (s) => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    const LABEL_DEFAULTS = { w:65, h:30, showLogo:true, tutorFirstName:false, showObs:true, showCep:false, showPhone:false, showDate:false, copiesByVolumes:false, gap:0, offsetY:0 };
+    const LABEL_DEFAULTS = { w:65, h:30, showLogo:true, tutorFirstName:true, showObs:true, showCep:false, showPhone:false, showDate:false, copiesByVolumes:false, gap:0, offsetY:0 };
     const LABEL_STORE_KEY = "obentopet_label_profiles_v3";
     function loadLabelStore() {
       try {
@@ -191,7 +191,7 @@
       const nPet = Math.max(pet.length,1);
       const petLs = nPet<=8 ? 0.30 : nPet<=12 ? 0.16 : 0.06;
       const petFs = Math.min(5.0*sc, (g.txtW-2.4*sc)/(nPet*(0.70+petLs)));
-      const tutFs = Math.min(5.0*sc, g.txtW/(Math.max(tutor.length,1)*0.76));
+      const tutFs = Math.min(3.8*sc, g.txtW/(Math.max(tutor.length,1)*0.76));
       const obsFs = 2.3*sc;
       const obsCpl = g.txtW/(obsFs*0.64);
       const obsWanted = obs ? Math.min(2, Math.ceil(obs.length/obsCpl)) : 0;
@@ -244,7 +244,7 @@
         .logo{flex:0 0 auto;width:${g.logoW.toFixed(2)}mm;height:${g.logoH.toFixed(2)}mm;background:url(${LABEL_LOGO}) center/contain no-repeat}
         .txt{flex:1 1 auto;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:center;gap:${(0.5*g.sc).toFixed(2)}mm;overflow:hidden}
         .pet{display:inline-block;align-self:flex-start;max-width:100%;background:#000;color:#fff;font-weight:500;line-height:1.1;padding:0.25mm 1.2mm 0.25mm 1.2mm;white-space:nowrap;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        .tutor{font-weight:800;line-height:1.12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .tutor{font-weight:600;line-height:1.12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .addr{font-weight:400;line-height:1.16}
         .addr div{overflow-wrap:anywhere}
         .obs{border:0.25mm solid #000;border-radius:0.8mm;padding:0.2mm 0.8mm;overflow:hidden}
