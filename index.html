@@ -62,6 +62,7 @@
     const Upload          = _i('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>');
     const FileSpreadsheet = _i('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/>');
     const Users           = _i('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>');
+    const Settings        = _i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>');
     const UserPlus        = _i('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>');
 
     // ─── Supabase ─────────────────────────────────────────────────────────────
@@ -143,12 +144,18 @@
     const LABEL_FONTS = "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;800&display=swap";
     const escHtml = (s) => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     const LABEL_DEFAULTS = { w:65, h:30, showLogo:true, tutorFirstName:false, showObs:true, showCep:false, showPhone:false, showDate:false, copiesByVolumes:false, gap:0, offsetY:0 };
-    const LABEL_STORE_KEY = "obentopet_label_settings_v2";
-    function loadLabelSettings() {
-      try { const raw = localStorage.getItem(LABEL_STORE_KEY); if (raw) return {...LABEL_DEFAULTS, ...JSON.parse(raw)}; } catch(e) {}
-      return {...LABEL_DEFAULTS};
+    const LABEL_STORE_KEY = "obentopet_label_profiles_v3";
+    function loadLabelStore() {
+      try {
+        const raw = localStorage.getItem(LABEL_STORE_KEY);
+        if (raw) { const s = JSON.parse(raw); if (s && Array.isArray(s.profiles) && s.profiles.length) return s; }
+      } catch(e) {}
+      let base = {...LABEL_DEFAULTS};
+      try { const old = localStorage.getItem("obentopet_label_settings_v2"); if (old) base = {...base, ...JSON.parse(old)}; } catch(e) {}
+      return { activeId:"default", profiles:[{ ...base, id:"default", name:"Endereço "+base.w+"×"+base.h+" mm" }] };
     }
-    function saveLabelSettings(st) { try { localStorage.setItem(LABEL_STORE_KEY, JSON.stringify(st)); } catch(e) {} }
+    function saveLabelStore(s) { try { localStorage.setItem(LABEL_STORE_KEY, JSON.stringify(s)); } catch(e) {} }
+    function activeLabelSettings(s) { const p = s.profiles.find(x=>x.id===s.activeId) || s.profiles[0]; return {...LABEL_DEFAULTS, ...p}; }
     const maskCep = (v) => { const d = String(v||"").replace(/\D/g,"").slice(0,8); return d.length>5 ? d.slice(0,5)+"-"+d.slice(5) : d; };
 
     function labelCopies(c, o) { return o.copiesByVolumes && c.volumes>1 ? c.volumes : 1; }
@@ -381,7 +388,9 @@
       const [loaded,             setLoaded]             = useState(false);
       const [statusLog,          setStatusLog]          = useState({});
       const [view,               setView]               = useState("home");
-      const [labelSettings,      setLabelSettings]      = useState(loadLabelSettings);
+      const [labelStore, setLabelStore] = useState(loadLabelStore);
+      const [showLabelCfg, setShowLabelCfg] = useState(false);
+      const labelSettings = useMemo(()=>activeLabelSettings(labelStore),[labelStore]);
       const [weekOffset,         setWeekOffset]         = useState(0);
       const [entregasFilter,     setEntregasFilter]     = useState("hoje");
       const [search,             setSearch]             = useState("");
@@ -1106,7 +1115,19 @@
       };
 
       // ── Etiquetas de endereço (impressão direta) ────────────────────────────
-      const updateLabelSettings = (patch) => setLabelSettings(prev=>{ const n={...prev,...patch}; saveLabelSettings(n); return n; });
+      const commitLabelStore = (fn) => setLabelStore(prev=>{ const n=fn(prev); saveLabelStore(n); return n; });
+      const updateLabelSettings = (patch) => commitLabelStore(st=>({...st,profiles:st.profiles.map(p=>p.id===st.activeId?{...p,...patch}:p)}));
+      const selectLabelProfile = (id) => commitLabelStore(st=>st.profiles.some(p=>p.id===id)?{...st,activeId:id}:st);
+      const addLabelProfile = (name) => commitLabelStore(st=>{
+        const cur = activeLabelSettings(st);
+        const id = genId();
+        return {activeId:id, profiles:[...st.profiles,{...cur,id,name:name||("Formato "+(st.profiles.length+1))}]};
+      });
+      const removeLabelProfile = (id) => commitLabelStore(st=>{
+        if (st.profiles.length<=1) return st;
+        const profiles = st.profiles.filter(p=>p.id!==id);
+        return {activeId: st.activeId===id?profiles[0].id:st.activeId, profiles};
+      });
       const printLabels = (items, date) => {
         const list = items.map(it=>({client:it.client, date:it.date||date}));
         if (!list.length) { showToast("Nenhuma entrega para imprimir.","info"); return; }
@@ -1212,7 +1233,8 @@
             )}
             {view==="etiquetas"&&(
               <LabelsView getDeliveriesForRange={getDeliveriesForRange} settings={labelSettings}
-                onSettings={updateLabelSettings} onPrint={printLabels} onGenerateBat={generateBat}/>
+                profiles={labelStore.profiles} activeId={labelStore.activeId} onSelectProfile={selectLabelProfile}
+                onOpenSettings={()=>setShowLabelCfg(true)} onPrint={printLabels} onGenerateBat={generateBat}/>
             )}
             {view==="hoje"&&(
               <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus}
@@ -1221,7 +1243,7 @@
             {view==="entregas"&&(
               <EntregasView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset}
                 setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus}
-                shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery} onGenerateBat={generateBat} onPrintLabels={printLabels}
+                shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery} onGenerateBat={generateBat} onPrintLabels={printLabels} onOpenLabelSettings={()=>setShowLabelCfg(true)}
                 filter={entregasFilter} setFilter={setEntregasFilter}
                 getDeliveriesForRange={getDeliveriesForRange}/>
             )}
@@ -1261,6 +1283,11 @@
             <ClientFormModal initial={editingClient} clients={clients}
               onClose={()=>{setShowForm(false);setEditingClient(null);}} onSave={saveClient}/>
           )}
+          {showLabelCfg&&(
+            <LabelSettingsModal settings={labelSettings} profiles={labelStore.profiles} activeId={labelStore.activeId}
+              onClose={()=>setShowLabelCfg(false)} onSettings={updateLabelSettings} onSelectProfile={selectLabelProfile}
+              onAddProfile={addLabelProfile} onRemoveProfile={removeLabelProfile} onPrint={printLabels}/>
+          )}
           {rescheduleModal&&(
             <RescheduleModal info={rescheduleModal}
               onClose={()=>setRescheduleModal(null)} onConfirm={rescheduleDelivery}/>
@@ -1298,7 +1325,7 @@
     }
 
     // ─── ENTREGAS VIEW ────────────────────────────────────────────────────────
-    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onCancelDelivery, onGenerateBat, onPrintLabels, filter, setFilter, getDeliveriesForRange }) {
+    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onCancelDelivery, onGenerateBat, onPrintLabels, onOpenLabelSettings, filter, setFilter, getDeliveriesForRange }) {
       const [activeDay, setActiveDay] = useState(null);
       const t = todayISO();
       const tmrw = tomorrowISO();
@@ -1387,6 +1414,9 @@
                 <button style={{...styles.batBtn,background:"#9C8E7E"}} onClick={()=>onGenerateBat(activeDate,activeDayItems)}
                   title={`Método antigo: gera .bat para o BarTender (${comEtiqueta} de ${activeDayItems.length} com arquivo .btw)`}>
                   .bat
+                </button>
+                <button style={{...styles.batBtn,background:"#9C8E7E"}} onClick={onOpenLabelSettings} title="Configurar etiquetas (tamanho, alinhamento)">
+                  <Settings size={13} strokeWidth={2.5}/>
                 </button>
               </div>
             )}
@@ -2273,16 +2303,11 @@
 
 
     // ─── ETIQUETAS VIEW (impressão direta) ────────────────────────────────────
-    function LabelsView({ getDeliveriesForRange, settings, onSettings, onPrint, onGenerateBat }) {
+    function LabelsView({ getDeliveriesForRange, settings, profiles, activeId, onSelectProfile, onOpenSettings, onPrint, onGenerateBat }) {
       const [rFilter,    setRFilter]    = useState("amanha");
       const [customDate, setCustomDate] = useState(()=>tomorrowISO());
       const [excluded,   setExcluded]   = useState({});
       const [previewKey, setPreviewKey] = useState(null);
-      const [showCfg,    setShowCfg]    = useState(false);
-      const [wIn, setWIn] = useState(String(settings.w));
-      const [hIn, setHIn] = useState(String(settings.h));
-      const [gapIn, setGapIn] = useState(String(settings.gap||0));
-      const [offIn, setOffIn] = useState(String(settings.offsetY||0));
       const t = todayISO(), tmrw = tomorrowISO();
       const activeDate = rFilter==="hoje" ? t : rFilter==="amanha" ? tmrw : customDate;
 
@@ -2296,14 +2321,9 @@
       const previewDoc = previewItem
         ? labelDoc(buildLabelHTML(previewItem.client, previewItem.date, settings, 1, copiesOf(previewItem)), settings, true)
         : "";
-      const ZOOM = 1.6;
-
+      const pageH = (Number(settings.h)||30) + Math.max(0, Number(settings.gap)||0);
+      const ZOOM = Math.max(0.8, Math.min(1.6, 330/((Number(settings.w)||65)*3.7795)));
       const toggle = (it) => setExcluded(p=>({...p,[keyOf(it)]:!p[keyOf(it)]}));
-      const optRow = (key,label) => (
-        <label key={key} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#3E332A",padding:"4px 0"}}>
-          <input type="checkbox" checked={!!settings[key]} onChange={e=>onSettings({[key]:e.target.checked})}/>{label}
-        </label>
-      );
 
       return (
         <div style={styles.section}>
@@ -2311,6 +2331,17 @@
             <h2 style={styles.sectionTitle}>Etiquetas</h2>
             <span style={styles.countPill}>{items.length} entrega{items.length!==1?"s":""}</span>
           </div>
+
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14,flexWrap:"wrap"}}>
+            <select style={{...styles.input,flex:1,minWidth:160,padding:"8px 10px",fontSize:13.5}} value={activeId}
+              onChange={e=>onSelectProfile(e.target.value)} title="Formato de etiqueta em uso">
+              {profiles.map(p=><option key={p.id} value={p.id}>{p.name} ({p.w}×{p.h} mm)</option>)}
+            </select>
+            <button style={{...styles.batBtn,background:"#7A6C5E"}} onClick={onOpenSettings}>
+              <Settings size={13} strokeWidth={2.5}/>Configurar etiquetas
+            </button>
+          </div>
+
           <div style={styles.filterRow}>
             {[["hoje","Hoje"],["amanha","Amanhã"],["data","Outra data"]].map(([key,lbl])=>(
               <button key={key} onClick={()=>{setRFilter(key);setExcluded({});setPreviewKey(null);}}
@@ -2321,11 +2352,11 @@
 
           {previewItem&&(
             <div style={{marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#8A7A6C",marginBottom:6}}>Pré-visualização ({settings.w}×{settings.h} mm){previewItem?` — ${previewItem.client.dog}`:""}</div>
+              <div style={{fontSize:12,fontWeight:600,color:"#8A7A6C",marginBottom:6}}>Pré-visualização ({settings.w}×{settings.h} mm) — {previewItem.client.dog}</div>
               <div style={{background:"#E9E1D6",borderRadius:12,padding:14,display:"flex",justifyContent:"center",overflowX:"auto"}}>
                 <div style={{width:`${settings.w*ZOOM}mm`,height:`${settings.h*ZOOM}mm`,background:"#fff",borderRadius:`${2*ZOOM}mm`,boxShadow:"0 2px 8px rgba(62,51,42,0.25)",overflow:"hidden",flexShrink:0}}>
                   <iframe title="Prévia da etiqueta" srcDoc={previewDoc} scrolling="no"
-                    style={{width:`${settings.w}mm`,height:`${settings.h}mm`,border:0,transform:`scale(${ZOOM})`,transformOrigin:"top left",display:"block"}}/>
+                    style={{width:`${settings.w}mm`,height:`${pageH}mm`,border:0,transform:`scale(${ZOOM})`,transformOrigin:"top left",display:"block"}}/>
                 </div>
               </div>
             </div>
@@ -2340,53 +2371,7 @@
               onClick={()=>previewItem&&onPrint([previewItem],activeDate)}>
               Imprimir só a da prévia
             </button>
-            <button style={{...styles.batBtn,background:"#7A6C5E",opacity:previewItem?1:0.45}} disabled={!previewItem}
-              onClick={()=>previewItem&&onPrint([previewItem,previewItem,previewItem],activeDate)}
-              title="Imprime 3 etiquetas iguais para conferir o alinhamento no rolo">
-              Teste de alinhamento (3)
-            </button>
-            <button style={{...styles.batBtn,background:"#9C8E7E"}} onClick={()=>setShowCfg(v=>!v)}>
-              {showCfg?"Fechar ajustes":"Ajustes da etiqueta"}
-            </button>
           </div>
-
-          {showCfg&&(
-            <div style={{...styles.avulsaPicker,marginTop:0,marginBottom:16}}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-                <Field label="Largura (mm)">
-                  <input style={styles.input} inputMode="decimal" value={wIn}
-                    onChange={e=>{setWIn(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(v>=20&&v<=110)onSettings({w:v});}}/>
-                </Field>
-                <Field label="Altura (mm)">
-                  <input style={styles.input} inputMode="decimal" value={hIn}
-                    onChange={e=>{setHIn(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(v>=15&&v<=110)onSettings({h:v});}}/>
-                </Field>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-                <Field label="Intervalo entre etiquetas (mm)">
-                  <input style={styles.input} inputMode="decimal" value={gapIn}
-                    onChange={e=>{setGapIn(e.target.value);const x=parseFloat(e.target.value.replace(",","."));if(x>=0&&x<=10)onSettings({gap:x});}}/>
-                </Field>
-                <Field label="Ajuste vertical (mm)">
-                  <input style={styles.input} inputMode="decimal" value={offIn}
-                    onChange={e=>{setOffIn(e.target.value);const x=parseFloat(e.target.value.replace(",","."));if(x>=-3&&x<=3)onSettings({offsetY:x});}}/>
-                </Field>
-              </div>
-              <p style={{margin:"-4px 0 10px",fontSize:11.5,color:"#8A7A6C",lineHeight:1.5}}>
-                Se as etiquetas saírem desalinhadas (o conteúdo vai "subindo" a cada etiqueta), coloque aqui o espaço vazio entre uma etiqueta e outra no rolo (geralmente 2 a 3 mm). O ajuste vertical move o conteúdo para cima (−) ou para baixo (+).
-              </p>
-              {optRow("showLogo","Mostrar o logo da marca")}
-              {optRow("showObs","Mostrar observações (horário, referência e observações do cliente)")}
-              {optRow("tutorFirstName","Usar só o primeiro nome do tutor")}
-              {optRow("showCep","Mostrar cidade e CEP")}
-              {optRow("showPhone","Mostrar telefone")}
-              {optRow("showDate","Mostrar data da entrega")}
-              {optRow("copiesByVolumes","Uma etiqueta por volume (Vol. 1/2, 2/2…)")}
-              <p style={{margin:"10px 0 0",fontSize:11.5,color:"#8A7A6C",lineHeight:1.5}}>
-                As configurações ficam salvas neste computador. Para imprimir sem a janela de confirmação do Chrome, abra o app por um atalho do Chrome com <b>--kiosk-printing</b> no destino e deixe a Elgin L42 Pro como impressora padrão do Windows.
-              </p>
-            </div>
-          )}
 
           {items.length===0?<EmptyState text="Nenhuma entrega neste dia."/>:(
             <div style={styles.cardList}>
@@ -2414,6 +2399,130 @@
               onClick={()=>onGenerateBat(activeDate,selected)}>
               Método antigo: gerar .bat do BarTender
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── CONFIGURAÇÃO DE ETIQUETAS (janela) ───────────────────────────────────
+    const LABEL_SAMPLE = {id:"sample",dog:"Alecrim",tutor:"Thaira Souza",address:"Rua José Tavares de Miranda, 50",complemento:"Apt. 62",bairro:"Pompéia",cidade:"São Paulo",cep:"05001-000",phone:"(11) 99999-0000",notes:"Portaria pede documento",janelaEntrega:"só após 14h",referencia:"",volumes:2};
+    const LABEL_SIZE_PRESETS = [[65,30],[60,40],[50,30],[100,50],[100,70]];
+
+    function NumField({ label, value, min, max, onCommit, hint }) {
+      const [txt, setTxt] = useState(String(value));
+      return (
+        <Field label={label}>
+          <input style={{...styles.input,minWidth:0,width:"100%",boxSizing:"border-box"}} inputMode="decimal" value={txt}
+            onChange={e=>{ setTxt(e.target.value); const n=parseFloat(e.target.value.replace(",",".")); if(!isNaN(n)&&n>=min&&n<=max) onCommit(n); }}
+            onBlur={()=>setTxt(String(value))}/>
+          {hint&&<p style={{margin:"4px 0 0",fontSize:11,color:"#A89A8C",lineHeight:1.35}}>{hint}</p>}
+        </Field>
+      );
+    }
+
+    function LabelSettingsModal({ settings, profiles, activeId, onClose, onSettings, onSelectProfile, onAddProfile, onRemoveProfile, onPrint }) {
+      const [adding, setAdding] = useState(false);
+      const [newName, setNewName] = useState("");
+      const [confirmDel, setConfirmDel] = useState(false);
+      const w = Number(settings.w)||65, h = Number(settings.h)||30, gap = Math.max(0,Number(settings.gap)||0);
+      const ZOOM = Math.max(0.8, Math.min(1.6, 400/(w*3.7795)));
+      const previewDoc = labelDoc(buildLabelHTML(LABEL_SAMPLE, todayISO(), settings, 1, labelCopies(LABEL_SAMPLE, settings)), settings, true);
+      const opt = (key,label) => (
+        <label key={key} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#3E332A",padding:"4px 0"}}>
+          <input type="checkbox" checked={!!settings[key]} onChange={e=>onSettings({[key]:e.target.checked})}/>{label}
+        </label>
+      );
+      const sectionTitle = (txt) => <div style={{fontSize:12,fontWeight:700,color:"#8A6A48",textTransform:"uppercase",letterSpacing:"0.5px",marginTop:6}}>{txt}</div>;
+      return (
+        <div style={styles.modalOverlay} onClick={onClose}>
+          <div style={styles.modal} onClick={e=>e.stopPropagation()}>
+            <div style={styles.modalHead}>
+              <h3 style={styles.modalTitle}>Configurar etiquetas</h3>
+              <button style={styles.modalClose} onClick={onClose}><X size={18} color="#8A7A6C"/></button>
+            </div>
+            <div style={styles.formBody}>
+              <div style={{background:"#E9E1D6",borderRadius:12,padding:12,display:"flex",justifyContent:"center",overflowX:"auto"}}>
+                <div style={{width:`${w*ZOOM}mm`,height:`${(h+gap)*ZOOM}mm`,background:"#fff",boxShadow:"0 2px 8px rgba(62,51,42,0.25)",overflow:"hidden",flexShrink:0,
+                    backgroundImage:gap>0?`linear-gradient(to bottom, transparent ${(h/(h+gap))*100}%, #F3DCD6 ${(h/(h+gap))*100}%)`:"none"}}>
+                  <iframe title="Prévia" srcDoc={previewDoc} scrolling="no"
+                    style={{width:`${w}mm`,height:`${h+gap}mm`,border:0,transform:`scale(${ZOOM})`,transformOrigin:"top left",display:"block",background:"transparent"}}/>
+                </div>
+              </div>
+              <p style={{margin:"-6px 0 0",fontSize:11,color:"#A89A8C",textAlign:"center"}}>Exemplo de etiqueta {w}×{h} mm{gap>0?` + ${gap} mm de intervalo (faixa rosa)`:""}</p>
+
+              {sectionTitle("Formato salvo")}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <select style={{...styles.input,flex:1,minWidth:150,padding:"9px 10px",fontSize:13.5}} value={activeId} onChange={e=>{onSelectProfile(e.target.value);setConfirmDel(false);}}>
+                  {profiles.map(p=><option key={p.id} value={p.id}>{p.name} ({p.w}×{p.h} mm)</option>)}
+                </select>
+                <button type="button" style={styles.avulsaCancelBtn} onClick={()=>{setAdding(true);setNewName("");}}>+ Novo formato</button>
+              </div>
+              {adding&&(
+                <div style={{display:"flex",gap:8}}>
+                  <input style={{...styles.input,flex:1}} placeholder="Nome (ex: Endereço 100×50)" value={newName} onChange={e=>setNewName(e.target.value)} autoFocus/>
+                  <button type="button" style={styles.avulsaConfirmBtn} onClick={()=>{ if(!newName.trim())return; onAddProfile(newName.trim()); setAdding(false); }}>Criar</button>
+                  <button type="button" style={styles.avulsaCancelBtn} onClick={()=>setAdding(false)}>Cancelar</button>
+                </div>
+              )}
+              <Field label="Nome deste formato">
+                <input style={styles.input} value={settings.name||""} onChange={e=>onSettings({name:e.target.value})}/>
+              </Field>
+
+              {sectionTitle("Tamanho da etiqueta")}
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {LABEL_SIZE_PRESETS.map(([pw,ph])=>(
+                  <button key={pw+"x"+ph} type="button" onClick={()=>onSettings({w:pw,h:ph})}
+                    style={{...styles.freqOption,padding:"6px 10px",fontSize:12.5,...((w===pw&&h===ph)?styles.freqOptionActive:{})}}>{pw}×{ph}</button>
+                ))}
+              </div>
+              <div style={styles.formGrid2}>
+                <NumField key={activeId+"w"+w} label="Largura (mm)" value={w} min={20} max={110} onCommit={n=>onSettings({w:n})}/>
+                <NumField key={activeId+"h"+h} label="Altura (mm)" value={h} min={15} max={150} onCommit={n=>onSettings({h:n})}/>
+              </div>
+
+              {sectionTitle("Alinhamento no rolo")}
+              <div style={styles.formGrid2}>
+                <NumField key={activeId+"g"+settings.gap} label="Intervalo entre etiquetas (mm)" value={settings.gap||0} min={0} max={10} onCommit={n=>onSettings({gap:n})}
+                  hint="Espaço vazio entre uma etiqueta e a próxima. Se o conteúdo vai 'subindo' a cada etiqueta, aumente (2 a 3 mm)."/>
+                <NumField key={activeId+"o"+settings.offsetY} label="Ajuste vertical (mm)" value={settings.offsetY||0} min={-3} max={3} onCommit={n=>onSettings({offsetY:n})}
+                  hint="Move o conteúdo para cima (−) ou para baixo (+)."/>
+              </div>
+
+              {sectionTitle("O que sai na etiqueta")}
+              <div>
+                {opt("showLogo","Logo da marca")}
+                {opt("showObs","Observações (horário, referência e observações do cliente)")}
+                {opt("tutorFirstName","Só o primeiro nome do tutor")}
+                {opt("showCep","Cidade e CEP")}
+                {opt("showPhone","Telefone")}
+                {opt("showDate","Data da entrega")}
+                {opt("copiesByVolumes","Uma etiqueta por volume (Vol. 1/2, 2/2…)")}
+              </div>
+
+              <button type="button" style={{...styles.saveBtn,background:"#3E332A"}}
+                onClick={()=>onPrint([1,2,3].map(()=>({client:LABEL_SAMPLE,date:todayISO()})), todayISO())}>
+                Imprimir teste de alinhamento (3 etiquetas)
+              </button>
+
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                {profiles.length>1?(
+                  confirmDel?(
+                    <span style={{display:"flex",gap:8,alignItems:"center",fontSize:12.5,color:"#8A7A6C"}}>
+                      Excluir este formato?
+                      <button type="button" style={{...styles.avulsaConfirmBtn,flex:"none",background:"#C0594B"}} onClick={()=>{onRemoveProfile(activeId);setConfirmDel(false);}}>Sim</button>
+                      <button type="button" style={styles.avulsaCancelBtn} onClick={()=>setConfirmDel(false)}>Não</button>
+                    </span>
+                  ):(
+                    <button type="button" style={{background:"none",border:"none",color:"#C0594B",fontSize:12.5,fontWeight:600}} onClick={()=>setConfirmDel(true)}>Excluir este formato</button>
+                  )
+                ):<span/>}
+              </div>
+
+              <p style={{margin:0,fontSize:11.5,color:"#8A7A6C",lineHeight:1.5}}>
+                As configurações ficam salvas neste computador. Para imprimir sem a janela de confirmação do Chrome, abra o app por um atalho do Chrome com <b>--kiosk-printing</b> no destino e deixe a impressora de etiquetas como padrão do Windows. No driver, use papel personalizado do mesmo tamanho e mídia "etiqueta com gap".
+              </p>
+              <button type="button" style={styles.saveBtn} onClick={onClose}>Concluir</button>
+            </div>
           </div>
         </div>
       );
@@ -3240,7 +3349,7 @@
       moduleTitle:      { fontSize:16, fontWeight:800, color:"#3E332A", marginTop:4 },
       moduleDesc:       { fontSize:12, color:"#8A7A6C", lineHeight:1.35 },
       moduleBadge:      { position:"absolute", top:12, right:12, fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:20, background:"#F1E6D8", color:"#8A6A48" },
-      formGrid2:        { display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
+      formGrid2:        { display:"grid", gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)", gap:10 },
       roteiroCard:           { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:"12px 14px" },
     };
 
