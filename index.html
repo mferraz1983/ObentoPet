@@ -61,6 +61,7 @@
     const WifiOff         = _i('<line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>');
     const Upload          = _i('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>');
     const FileSpreadsheet = _i('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/>');
+    const Users           = _i('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>');
     const UserPlus        = _i('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>');
 
     // ─── Supabase ─────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@
     const db = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
-    const todayISO     = () => new Date().toISOString().split("T")[0];
+    const todayISO     = () => { const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
     const weekdayNames = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
     const weekdayShort = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
     const monthNames   = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -88,6 +89,10 @@
       frequency: r.frequency, nextDate: r.next_date,
       units: r.units, volumes: r.volumes||null, notes: r.notes || "",
       labelFile: r.label_file || "",
+      email: r.email || "", cep: r.cep || "", bairro: r.bairro || "", cidade: r.cidade || "",
+      complemento: r.complemento || "", referencia: r.referencia || "",
+      janelaEntrega: r.janela_entrega || "", contatoAlt: r.contato_alt || "",
+      receita: r.receita || "",
     });
     const clientToDb = (data, id) => ({
       id, tutor: data.tutor, dog: data.dog, address: data.address,
@@ -95,6 +100,10 @@
       frequency: data.frequency, next_date: data.nextDate,
       units: data.units, volumes: data.volumes||null, notes: data.notes,
       label_file: data.labelFile || null,
+      email: data.email || null, cep: data.cep || null, bairro: data.bairro || null, cidade: data.cidade || null,
+      complemento: data.complemento || null, referencia: data.referencia || null,
+      janela_entrega: data.janelaEntrega || null, contato_alt: data.contatoAlt || null,
+      receita: data.receita || null,
     });
 
     function getOccurrencesInRange(client, startISO, endISO, clientReschedules = []) {
@@ -127,6 +136,142 @@
     }
 
     const PASTA_ETIQUETAS = "C:\\Users\\ObentoPet\\OneDrive\\ObentōPet\\OPERAÇÃO\\ETIQUETAS & RÓTULOS\\ELGIN\\ENDEREÇOS";
+
+    // ─── Etiquetas de endereço (impressão direta) ─────────────────────────────
+    const LABEL_LOGO = "data:image/png;base64,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";
+    const LABEL_LOGO_RATIO = 0.828; // largura / altura do logo
+    const LABEL_FONTS = "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;800&display=swap";
+    const escHtml = (s) => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    const LABEL_DEFAULTS = { w:65, h:30, showLogo:true, tutorFirstName:false, showObs:true, showCep:false, showPhone:false, showDate:false, copiesByVolumes:false };
+    const LABEL_STORE_KEY = "obentopet_label_settings_v2";
+    function loadLabelSettings() {
+      try { const raw = localStorage.getItem(LABEL_STORE_KEY); if (raw) return {...LABEL_DEFAULTS, ...JSON.parse(raw)}; } catch(e) {}
+      return {...LABEL_DEFAULTS};
+    }
+    function saveLabelSettings(st) { try { localStorage.setItem(LABEL_STORE_KEY, JSON.stringify(st)); } catch(e) {} }
+    const maskCep = (v) => { const d = String(v||"").replace(/\D/g,"").slice(0,8); return d.length>5 ? d.slice(0,5)+"-"+d.slice(5) : d; };
+
+    function labelCopies(c, o) { return o.copiesByVolumes && c.volumes>1 ? c.volumes : 1; }
+
+    // Geometria comum (mm) usada pelo CSS e pelo cálculo de fontes
+    function labelGeom(o) {
+      const sc = Math.min(o.w/65, o.h/30);
+      const pad = 1.8*sc;
+      const innerW = o.w-2*pad, innerH = o.h-2*pad;
+      const logoH = o.showLogo ? innerH*0.74 : 0;
+      const logoW = logoH*LABEL_LOGO_RATIO;
+      const gap = o.showLogo ? 2.5*sc : 0;
+      const txtW = innerW - logoW - gap;
+      return { sc, pad, innerW, innerH, logoH, logoW, gap, txtW };
+    }
+
+    function buildLabelHTML(c, date, o, idx=1, total=1) {
+      const g = labelGeom(o);
+      const sc = g.sc;
+      const pet = (c.dog||"").toUpperCase().trim();
+      const tutorRaw = (c.tutor||"").trim();
+      const tutor = (o.tutorFirstName ? tutorRaw.split(/\s+/)[0] : tutorRaw).toUpperCase();
+      const a1 = c.address || "";
+      const a2 = [c.complemento, c.bairro].filter(Boolean).join(" - ");
+      const a3 = o.showCep ? [c.cidade, c.cep].filter(Boolean).join(" · ") : "";
+      const obsParts = o.showObs ? [c.janelaEntrega?("Horário: "+c.janelaEntrega):"", c.referencia?("Ref.: "+c.referencia):"", (c.notes||"").trim()].filter(Boolean) : [];
+      const obs = obsParts.join(" | ");
+      const bottomLeft = [o.showPhone && c.phone ? c.phone : "", o.showDate && date ? formatDateBR(date) : ""].filter(Boolean).join("  ·  ");
+      const bottomRight = total>1 ? ("Vol. "+idx+"/"+total) : "";
+      const hasBottom = !!(bottomLeft||bottomRight);
+
+      // fontes (mm) ajustadas ao comprimento do texto e à largura útil
+      const nPet = Math.max(pet.length,1);
+      const petLs = nPet<=8 ? 0.30 : nPet<=12 ? 0.16 : 0.06;
+      const petFs = Math.min(5.0*sc, (g.txtW-2.4*sc)/(nPet*(0.70+petLs)));
+      const tutFs = Math.min(5.0*sc, g.txtW/(Math.max(tutor.length,1)*0.76));
+      const obsFs = 2.3*sc;
+      const obsCpl = g.txtW/(obsFs*0.64);
+      const obsWanted = obs ? Math.min(2, Math.ceil(obs.length/obsCpl)) : 0;
+      const botFs = 2.2*sc, botH = hasBottom ? botFs*1.25 : 0;
+      const petH = petFs*1.0 + 1.0*sc, tutH = tutFs*1.15;
+      const parts = [a1,a2,a3].filter(Boolean);
+      const fitAddr = (obsLines) => {
+        const oh = obs ? obsLines*obsFs*1.2 + 1.2*sc : 0;
+        const addrMax = g.innerH - petH - tutH - oh - botH - 1.6*sc;
+        // 1) preferir cada linha do endereço inteira, sem quebrar
+        for (let fs=3.0*sc; fs>=2.4*sc-0.001; fs-=0.1*sc) {
+          const cpl = g.txtW/(fs*0.56);
+          if (parts.every(x=>x.length<=cpl) && parts.length*fs*1.16<=addrMax) return {fs, ok:true};
+        }
+        // 2) permitir quebra de linha
+        for (let fs=3.0*sc; fs>=2.0*sc-0.001; fs-=0.1*sc) {
+          const cpl = g.txtW/(fs*0.60);
+          const lines = parts.reduce((s,x)=>s+Math.max(1,Math.ceil(x.length/cpl)),0);
+          if (lines*fs*1.16<=addrMax) return {fs, ok:true};
+        }
+        return {fs:2.0*sc, ok:false};
+      };
+      let obsLines = obsWanted;
+      let fit = fitAddr(obsLines);
+      if (!fit.ok && obsLines>1) { obsLines = 1; fit = fitAddr(1); }
+      const addrFs = fit.fs;
+      const f = (n) => n.toFixed(2)+"mm";
+      return `<div class="label">`
+        + (o.showLogo ? `<div class="logo"></div>` : ``)
+        + `<div class="txt">`
+        +   `<div class="pet" style="font-size:${f(petFs)};letter-spacing:${petLs}em">${escHtml(pet)}</div>`
+        +   `<div class="tutor" style="font-size:${f(tutFs)}">${escHtml(tutor)}</div>`
+        +   `<div class="addr" style="font-size:${f(addrFs)}"><div>${escHtml(a1)}</div>${a2?`<div>${escHtml(a2)}</div>`:""}${a3?`<div>${escHtml(a3)}</div>`:""}</div>`
+        +   (obs ? `<div class="obs" style="font-size:${f(obsFs)}"><div class="obs-in" style="-webkit-line-clamp:${obsLines}"><b>OBS:</b> ${escHtml(obs)}</div></div>` : ``)
+        +   (hasBottom ? `<div class="bot" style="font-size:${f(botFs)}"><span>${escHtml(bottomLeft)}</span><span>${escHtml(bottomRight)}</span></div>` : ``)
+        + `</div></div>`;
+    }
+
+    function labelsCss(o, preview) {
+      const g = labelGeom(o);
+      return `@page{size:${o.w}mm ${o.h}mm;margin:0}
+        *{box-sizing:border-box}
+        html,body{margin:0;padding:0;background:#fff}
+        body{font-family:"Poppins","Montserrat","Segoe UI",Arial,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .label{width:${o.w}mm;height:${o.h}mm;padding:${g.pad.toFixed(2)}mm;display:flex;flex-direction:row;align-items:center;gap:${g.gap.toFixed(2)}mm;overflow:hidden;page-break-after:always;break-after:page}
+        .label:last-child{page-break-after:auto;break-after:auto}
+        .logo{flex:0 0 auto;width:${g.logoW.toFixed(2)}mm;height:${g.logoH.toFixed(2)}mm;background:url(${LABEL_LOGO}) center/contain no-repeat}
+        .txt{flex:1 1 auto;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:center;gap:${(0.5*g.sc).toFixed(2)}mm;overflow:hidden}
+        .pet{display:inline-block;align-self:flex-start;max-width:100%;background:#000;color:#fff;font-weight:500;line-height:1.1;padding:0.25mm 1.2mm 0.25mm 1.2mm;white-space:nowrap;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .tutor{font-weight:800;line-height:1.12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .addr{font-weight:400;line-height:1.16}
+        .addr div{overflow-wrap:anywhere}
+        .obs{border:0.25mm solid #000;border-radius:0.8mm;padding:0.2mm 0.8mm;overflow:hidden}
+        .obs-in{line-height:1.16;font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
+        .bot{display:flex;justify-content:space-between;gap:2mm;font-weight:600;white-space:nowrap}`;
+    }
+
+    function labelDoc(bodyHtml, o, preview) {
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas ObentōPet</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="${LABEL_FONTS}" rel="stylesheet"><style>${labelsCss(o,preview)}</style></head><body>${bodyHtml}</body></html>`;
+    }
+
+    function printHtmlDoc(html) {
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:210mm;height:297mm;border:0;";
+      document.body.appendChild(iframe);
+      const w = iframe.contentWindow;
+      w.document.open(); w.document.write(html); w.document.close();
+      setTimeout(()=>{
+        const fontsReady = (w.document.fonts && w.document.fonts.ready) ? Promise.race([w.document.fonts.ready, new Promise(r=>setTimeout(r,2500))]) : Promise.resolve();
+        fontsReady.then(()=>setTimeout(()=>{
+          try { w.focus(); w.print(); } catch(e) { console.error("Erro ao imprimir:", e); }
+          setTimeout(()=>{ try { iframe.remove(); } catch(e) {} }, 60000);
+        }, 150));
+      }, 200);
+    }
+
+    function printLabelsNow(items, settings) {
+      const o = {...LABEL_DEFAULTS, ...settings};
+      const pages = [];
+      items.forEach(({client, date})=>{
+        const n = labelCopies(client, o);
+        for (let i=1;i<=n;i++) pages.push(buildLabelHTML(client, date, o, i, n));
+      });
+      printHtmlDoc(labelDoc(pages.join(""), o, false));
+      return pages.length;
+    }
+
 
     function normLabel(s) {
       return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9\s-]/g,"").trim();
@@ -174,12 +319,66 @@
     }
 
 
+    // ─── Módulos ──────────────────────────────────────────────────────────────
+    const MODULES = [
+      { key:"hoje",      title:"Hoje",      sub:"entregas do dia",       icon:Truck,         desc:"Entregas de hoje e status em tempo real" },
+      { key:"entregas",  title:"Entregas",  sub:"agenda e calendário",   icon:Calendar,      desc:"Agenda da semana, reagendamentos e cancelamentos" },
+      { key:"roteiro",   title:"Roteiro",   sub:"para o entregador",     icon:Route,         desc:"Lista do dia em PDF ou WhatsApp" },
+      { key:"etiquetas", title:"Etiquetas", sub:"impressão de endereços",icon:Printer,       desc:"Imprime direto na Elgin L42 Pro" },
+      { key:"clientes",  title:"Clientes",  sub:"cadastro",              icon:Users,         desc:"Tutores, pets, endereços e contatos" },
+      { key:"estoque",   title:"Estoque",   sub:"saldos e códigos",      icon:Package,       desc:"Assinantes, avulsos, petiscos e leitor de código" },
+      { key:"producao",  title:"Produção",  sub:"o que produzir",        icon:ClipboardList, desc:"Lista de sexta para a semana seguinte" },
+    ];
+
+    function HomeView({ onOpen, todayItems, getStatus, clientsCount }) {
+      const pend = todayItems.filter(({client,date})=>getStatus(client.id,date)!=="entregue").length;
+      const isFriday = new Date().getDay()===5;
+      const badge = (key) => {
+        if (key==="hoje" && pend>0) return { text:`${pend} pendente${pend!==1?"s":""}`, warn:true };
+        if (key==="clientes" && clientsCount>0) return { text:`${clientsCount}`, warn:false };
+        if (key==="producao" && isFriday) return { text:"sexta!", warn:true };
+        return null;
+      };
+      return (
+        <div style={styles.section}>
+          <div style={styles.homeSummary}>
+            <div style={{fontSize:13,color:"#8A7A6C",fontWeight:600}}>{formatDateFull(todayISO())}</div>
+            <div style={{fontSize:20,fontWeight:800,color:"#3E332A",marginTop:2}}>
+              {todayItems.length} entrega{todayItems.length!==1?"s":""} hoje
+              {todayItems.length>0&&<span style={{fontSize:13,fontWeight:600,color:pend>0?"#A8412F":"#5C8A5C",marginLeft:8}}>{pend>0?`${pend} pendente${pend!==1?"s":""}`:"tudo entregue"}</span>}
+            </div>
+          </div>
+          {isFriday&&(
+            <button style={styles.fridayBanner} onClick={()=>onOpen("producao")}>
+              <ClipboardList size={18} color="#8A6A48"/>
+              <span style={{flex:1,textAlign:"left"}}><b>Hoje é sexta-feira.</b> A lista de produção da semana que vem está pronta.</span>
+              <ChevronRight size={16} color="#8A6A48"/>
+            </button>
+          )}
+          <div style={styles.moduleGrid}>
+            {MODULES.map(m=>{
+              const Icon = m.icon; const b = badge(m.key);
+              return (
+                <button key={m.key} style={styles.moduleCard} onClick={()=>onOpen(m.key)}>
+                  <div style={styles.moduleIcon}><Icon size={22} color="#B8825A" strokeWidth={2.2}/></div>
+                  <div style={styles.moduleTitle}>{m.title}</div>
+                  <div style={styles.moduleDesc}>{m.desc}</div>
+                  {b&&<span style={{...styles.moduleBadge,...(b.warn?{background:"#FBEAE6",color:"#A8412F"}:{})}}>{b.text}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     // ─── App ──────────────────────────────────────────────────────────────────
     function App() {
       const [clients,            setClients]            = useState([]);
       const [loaded,             setLoaded]             = useState(false);
       const [statusLog,          setStatusLog]          = useState({});
-      const [view,               setView]               = useState("hoje");
+      const [view,               setView]               = useState("home");
+      const [labelSettings,      setLabelSettings]      = useState(loadLabelSettings);
       const [weekOffset,         setWeekOffset]         = useState(0);
       const [entregasFilter,     setEntregasFilter]     = useState("hoje");
       const [search,             setSearch]             = useState("");
@@ -365,8 +564,8 @@
 
       const downloadClientsTemplate = () => {
         downloadTemplate(
-          ["Tutor","Cachorro","Endereço","Telefone","Tipo","Frequência","Data de Entrega (AAAA-MM-DD)","Unidades","Volumes","Etiqueta (.btw)","Observações"],
-          ["Maria Silva","Rex","Rua A, 10, Centro","(11) 98765-4321","Assinante","semanal",todayISO(),"4","2","rex - ms","Portaria solicita documento"],
+          ["Tutor","Cachorro","Endereço","Telefone","Tipo","Frequência","Data de Entrega (AAAA-MM-DD)","Unidades","Volumes","Etiqueta (.btw)","Observações","CEP","Bairro","Cidade","Complemento","Referência","Janela de entrega","E-mail","Contato alternativo","Receita / cardápio"],
+          ["Maria Silva","Rex","Rua A, 10, Centro","(11) 98765-4321","Assinante","semanal",todayISO(),"4","2","rex - ms","Portaria solicita documento","01234-567","Centro","São Paulo","Apto 12","Próximo à padaria","Seg a sex 9h-12h","maria@email.com","João (11) 91234-5678","Frango com batata"],
           "template_clientes.xlsx", "Clientes"
         );
       };
@@ -413,6 +612,15 @@
               frequency: freq, nextDate, units, volumes,
               notes:     String(row["Observações"]||"").trim(),
               labelFile: String(row["Etiqueta (.btw)"]||"").trim(),
+              cep:           maskCep(row["CEP"]),
+              bairro:        String(row["Bairro"]||"").trim(),
+              cidade:        String(row["Cidade"]||"").trim(),
+              complemento:   String(row["Complemento"]||"").trim(),
+              referencia:    String(row["Referência"]||"").trim(),
+              janelaEntrega: String(row["Janela de entrega"]||"").trim(),
+              email:         String(row["E-mail"]||"").trim(),
+              contatoAlt:    String(row["Contato alternativo"]||"").trim(),
+              receita:       String(row["Receita / cardápio"]||"").trim(),
             };
             const dbRow = clientToDb(clientData, id);
             const {error} = await db.from("clients").insert(dbRow);
@@ -894,6 +1102,15 @@
         showToast("Arquivo .bat gerado!");
       };
 
+      // ── Etiquetas de endereço (impressão direta) ────────────────────────────
+      const updateLabelSettings = (patch) => setLabelSettings(prev=>{ const n={...prev,...patch}; saveLabelSettings(n); return n; });
+      const printLabels = (items, date) => {
+        const list = items.map(it=>({client:it.client, date:it.date||date}));
+        if (!list.length) { showToast("Nenhuma entrega para imprimir.","info"); return; }
+        const n = printLabelsNow(list, labelSettings);
+        showToast(`${n} etiqueta${n!==1?"s":""} enviada${n!==1?"s":""} para impressão.`,"info");
+      };
+
       // ── Computed deliveries ────────────────────────────────────────────────
       const weekStart = useMemo(()=>{
         const d=new Date(); d.setDate(d.getDate()+weekOffset*7-d.getDay()); return dateToISO(d);
@@ -942,7 +1159,7 @@
 
       const filteredClients = useMemo(()=>{
         const q=search.trim().toLowerCase();
-        return q?clients.filter(c=>c.tutor.toLowerCase().includes(q)||c.dog.toLowerCase().includes(q)||c.address.toLowerCase().includes(q)):clients;
+        return q?clients.filter(c=>c.tutor.toLowerCase().includes(q)||c.dog.toLowerCase().includes(q)||c.address.toLowerCase().includes(q)||(c.bairro||"").toLowerCase().includes(q)||(c.cep||"").includes(q)||(c.email||"").toLowerCase().includes(q)):clients;
       },[clients,search]);
 
       if (!loaded) return <div style={styles.loadingScreen}><PawPrint size={32} color="#B8825A"/></div>;
@@ -956,13 +1173,25 @@
           ))}
           <header style={styles.header}>
             <div style={styles.headerInner}>
-              <div style={styles.brandRow}>
-                <div style={styles.brandMark}><PawPrint size={20} color="#FBF1E8" strokeWidth={2.5}/></div>
-                <div>
-                  <h1 style={styles.brandTitle}>ObentōPet</h1>
-                  <p style={styles.brandSub}>Controle de Entregas</p>
+              {view==="home"?(
+                <div style={styles.brandRow}>
+                  <div style={styles.brandMark}><PawPrint size={20} color="#FBF1E8" strokeWidth={2.5}/></div>
+                  <div>
+                    <h1 style={styles.brandTitle}>ObentōPet</h1>
+                    <p style={styles.brandSub}>Gestão de entregas e produção</p>
+                  </div>
                 </div>
-              </div>
+              ):(
+                <div style={styles.brandRow}>
+                  <button style={styles.homeBtn} onClick={()=>setView("home")} title="Voltar ao início">
+                    <ChevronLeft size={20} color="#FBF1E8" strokeWidth={2.5}/>
+                  </button>
+                  <div>
+                    <h1 style={styles.brandTitle}>{(MODULES.find(m=>m.key===view)||{}).title||"ObentōPet"}</h1>
+                    <p style={styles.brandSub}>ObentōPet · {(MODULES.find(m=>m.key===view)||{}).sub||""}</p>
+                  </div>
+                </div>
+              )}
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <ConnBadge online={realtimeOnline}/>
                 <button style={styles.backupBtn} onClick={exportBackup} title="Exportar backup JSON">
@@ -973,14 +1202,15 @@
                 </button>
               </div>
             </div>
-            <nav style={styles.tabRow}>
-              {[["hoje","Hoje"],["entregas","Entregas"],["clientes","Clientes"],["estoque","Estoque"],["producao","Produção"],["roteiro","Roteiro"]].map(([key,label])=>(
-                <button key={key} onClick={()=>setView(key)}
-                  style={{...styles.tab,...(view===key?styles.tabActive:{})}}>{label}</button>
-              ))}
-            </nav>
           </header>
           <main style={styles.main}>
+            {view==="home"&&(
+              <HomeView onOpen={setView} todayItems={todayDeliveries} getStatus={getStatus} clientsCount={clients.length}/>
+            )}
+            {view==="etiquetas"&&(
+              <LabelsView getDeliveriesForRange={getDeliveriesForRange} settings={labelSettings}
+                onSettings={updateLabelSettings} onPrint={printLabels} onGenerateBat={generateBat}/>
+            )}
             {view==="hoje"&&(
               <TodayView items={todayDeliveries} getStatus={getStatus} setStatus={setStatus}
                 shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery}/>
@@ -988,7 +1218,7 @@
             {view==="entregas"&&(
               <EntregasView weekDays={weekDays} weekDeliveries={weekDeliveries} weekOffset={weekOffset}
                 setWeekOffset={setWeekOffset} getStatus={getStatus} setStatus={setStatus}
-                shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery} onGenerateBat={generateBat}
+                shelfProducts={shelfProducts} onReschedule={openReschedule} onCancelDelivery={cancelDelivery} onGenerateBat={generateBat} onPrintLabels={printLabels}
                 filter={entregasFilter} setFilter={setEntregasFilter}
                 getDeliveriesForRange={getDeliveriesForRange}/>
             )}
@@ -1016,7 +1246,8 @@
             )}
             {view==="producao"&&(
               <ProducaoView clients={clients} subscriberStock={subscriberStock}
-                shelfProducts={shelfProducts} petiscoProducts={petiscoProducts}/>
+                shelfProducts={shelfProducts} petiscoProducts={petiscoProducts}
+                getDeliveriesForRange={getDeliveriesForRange} getStatus={getStatus} showToast={showToast}/>
             )}
             {view==="roteiro"&&(
               <RoteiroView todayDeliveries={todayDeliveries} getStatus={getStatus}
@@ -1064,7 +1295,7 @@
     }
 
     // ─── ENTREGAS VIEW ────────────────────────────────────────────────────────
-    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onCancelDelivery, onGenerateBat, filter, setFilter, getDeliveriesForRange }) {
+    function EntregasView({ weekDays, weekDeliveries, weekOffset, setWeekOffset, getStatus, setStatus, shelfProducts, onReschedule, onCancelDelivery, onGenerateBat, onPrintLabels, filter, setFilter, getDeliveriesForRange }) {
       const [activeDay, setActiveDay] = useState(null);
       const t = todayISO();
       const tmrw = tomorrowISO();
@@ -1144,11 +1375,15 @@
           </div>
           <div style={{marginTop:20}}>
             {activeDayItems.length>0&&(
-              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-                <button style={styles.batBtn} onClick={()=>onGenerateBat(activeDate,activeDayItems)}
-                  title={`${comEtiqueta} de ${activeDayItems.length} com etiqueta configurada`}>
+              <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12}}>
+                <button style={styles.batBtn} onClick={()=>onPrintLabels(activeDayItems,activeDate)}
+                  title="Imprime as etiquetas de endereço direto na impressora padrão">
                   <Printer size={13} strokeWidth={2.5}/>
-                  Etiquetas{comEtiqueta<activeDayItems.length?` (${comEtiqueta}/${activeDayItems.length})`:""}
+                  Etiquetas ({activeDayItems.length})
+                </button>
+                <button style={{...styles.batBtn,background:"#9C8E7E"}} onClick={()=>onGenerateBat(activeDate,activeDayItems)}
+                  title={`Método antigo: gera .bat para o BarTender (${comEtiqueta} de ${activeDayItems.length} com arquivo .btw)`}>
+                  .bat
                 </button>
               </div>
             )}
@@ -1207,6 +1442,13 @@
             <MapPin size={13} color="#A89A8C" style={{flexShrink:0,marginTop:2}}/>
             <span>{client.address}</span>
           </div>
+          {(client.complemento||client.referencia||client.janelaEntrega)&&(
+            <div style={{fontSize:11.5,color:"#7A6C5E",marginTop:4,lineHeight:1.45,paddingLeft:19}}>
+              {client.complemento&&<div>Compl.: {client.complemento}</div>}
+              {client.referencia&&<div>Ref.: {client.referencia}</div>}
+              {client.janelaEntrega&&<div style={{color:"#A8412F",fontWeight:600}}>Horário: {client.janelaEntrega}</div>}
+            </div>
+          )}
           {client.phone&&(
             <div style={{display:"flex",gap:6,fontSize:12,color:"#A89A8C",marginTop:4,alignItems:"center"}}>
               <Phone size={11} color="#A89A8C" style={{flexShrink:0}}/>
@@ -1343,6 +1585,9 @@
                         </div>
                         <div style={styles.cardTutor}>{c.tutor}</div>
                         {c.phone&&<div style={{fontSize:11,color:"#A89A8C",display:"flex",alignItems:"center",gap:4,marginTop:2}}><Phone size={10} color="#C9BBA8"/>{c.phone}</div>}
+                        {(c.bairro||c.cidade||c.cep)&&<div style={{fontSize:11,color:"#A89A8C",marginTop:2}}>{[c.bairro,c.cidade,c.cep].filter(Boolean).join(" · ")}</div>}
+                        {c.janelaEntrega&&<div style={{fontSize:11,color:"#A8412F",fontWeight:600,marginTop:2}}>Horário: {c.janelaEntrega}</div>}
+                        {c.receita&&<div style={{fontSize:11,color:"#8A6A48",marginTop:2}}>Receita: {c.receita}</div>}
                         <div style={styles.clientMeta}>
                           {isAvulsa?getAvulsaMeta(c):`${frequencyLabel[c.frequency]} · próxima: ${formatDateBR(c.nextDate)}${c.volumes?` · ${c.volumes} vol.`:""}${c.units?` · ${c.units} un.`:""}`}
                         </div>
@@ -2024,8 +2269,350 @@
     }
 
 
-    // ─── PRODUÇÃO VIEW ────────────────────────────────────────────────────────
-    function ProducaoView({ clients, subscriberStock, shelfProducts, petiscoProducts }) {
+    // ─── ETIQUETAS VIEW (impressão direta) ────────────────────────────────────
+    function LabelsView({ getDeliveriesForRange, settings, onSettings, onPrint, onGenerateBat }) {
+      const [rFilter,    setRFilter]    = useState("amanha");
+      const [customDate, setCustomDate] = useState(()=>tomorrowISO());
+      const [excluded,   setExcluded]   = useState({});
+      const [previewKey, setPreviewKey] = useState(null);
+      const [showCfg,    setShowCfg]    = useState(false);
+      const [wIn, setWIn] = useState(String(settings.w));
+      const [hIn, setHIn] = useState(String(settings.h));
+      const t = todayISO(), tmrw = tomorrowISO();
+      const activeDate = rFilter==="hoje" ? t : rFilter==="amanha" ? tmrw : customDate;
+
+      const items = useMemo(()=>getDeliveriesForRange(activeDate, activeDate),[activeDate,getDeliveriesForRange]);
+      const keyOf = (it) => it.client.id+it.date+(it.orderId||"");
+      const selected = items.filter(it=>!excluded[keyOf(it)]);
+      const previewItem = items.find(it=>keyOf(it)===previewKey) || selected[0] || items[0] || null;
+      const copiesOf = (it) => labelCopies(it.client, settings);
+      const totalLabels = selected.reduce((s,it)=>s+copiesOf(it),0);
+
+      const previewDoc = previewItem
+        ? labelDoc(buildLabelHTML(previewItem.client, previewItem.date, settings, 1, copiesOf(previewItem)), settings, true)
+        : "";
+      const ZOOM = 1.6;
+
+      const toggle = (it) => setExcluded(p=>({...p,[keyOf(it)]:!p[keyOf(it)]}));
+      const optRow = (key,label) => (
+        <label key={key} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#3E332A",padding:"4px 0"}}>
+          <input type="checkbox" checked={!!settings[key]} onChange={e=>onSettings({[key]:e.target.checked})}/>{label}
+        </label>
+      );
+
+      return (
+        <div style={styles.section}>
+          <div style={styles.sectionHeadRow}>
+            <h2 style={styles.sectionTitle}>Etiquetas</h2>
+            <span style={styles.countPill}>{items.length} entrega{items.length!==1?"s":""}</span>
+          </div>
+          <div style={styles.filterRow}>
+            {[["hoje","Hoje"],["amanha","Amanhã"],["data","Outra data"]].map(([key,lbl])=>(
+              <button key={key} onClick={()=>{setRFilter(key);setExcluded({});setPreviewKey(null);}}
+                style={{...styles.filterBtn,...(rFilter===key?styles.filterBtnActive:{})}}>{lbl}</button>
+            ))}
+          </div>
+          {rFilter==="data"&&(<div style={{marginBottom:16}}><input type="date" style={{...styles.input,maxWidth:200}} value={customDate} onChange={e=>{setCustomDate(e.target.value);setExcluded({});setPreviewKey(null);}}/></div>)}
+
+          {previewItem&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#8A7A6C",marginBottom:6}}>Pré-visualização ({settings.w}×{settings.h} mm){previewItem?` — ${previewItem.client.dog}`:""}</div>
+              <div style={{background:"#E9E1D6",borderRadius:12,padding:14,display:"flex",justifyContent:"center",overflowX:"auto"}}>
+                <div style={{width:`${settings.w*ZOOM}mm`,height:`${settings.h*ZOOM}mm`,background:"#fff",borderRadius:`${2*ZOOM}mm`,boxShadow:"0 2px 8px rgba(62,51,42,0.25)",overflow:"hidden",flexShrink:0}}>
+                  <iframe title="Prévia da etiqueta" srcDoc={previewDoc} scrolling="no"
+                    style={{width:`${settings.w}mm`,height:`${settings.h}mm`,border:0,transform:`scale(${ZOOM})`,transformOrigin:"top left",display:"block"}}/>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+            <button style={{...styles.batBtn,opacity:totalLabels>0?1:0.45}} disabled={totalLabels===0}
+              onClick={()=>onPrint(selected,activeDate)}>
+              <Printer size={13} strokeWidth={2.5}/>Imprimir {totalLabels} etiqueta{totalLabels!==1?"s":""}
+            </button>
+            <button style={{...styles.batBtn,background:"#B8825A",opacity:previewItem?1:0.45}} disabled={!previewItem}
+              onClick={()=>previewItem&&onPrint([previewItem],activeDate)}>
+              Imprimir só a da prévia
+            </button>
+            <button style={{...styles.batBtn,background:"#9C8E7E"}} onClick={()=>setShowCfg(v=>!v)}>
+              {showCfg?"Fechar ajustes":"Ajustes da etiqueta"}
+            </button>
+          </div>
+
+          {showCfg&&(
+            <div style={{...styles.avulsaPicker,marginTop:0,marginBottom:16}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                <Field label="Largura (mm)">
+                  <input style={styles.input} inputMode="decimal" value={wIn}
+                    onChange={e=>{setWIn(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(v>=20&&v<=110)onSettings({w:v});}}/>
+                </Field>
+                <Field label="Altura (mm)">
+                  <input style={styles.input} inputMode="decimal" value={hIn}
+                    onChange={e=>{setHIn(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(v>=15&&v<=110)onSettings({h:v});}}/>
+                </Field>
+              </div>
+              {optRow("showLogo","Mostrar o logo da marca")}
+              {optRow("showObs","Mostrar observações (horário, referência e observações do cliente)")}
+              {optRow("tutorFirstName","Usar só o primeiro nome do tutor")}
+              {optRow("showCep","Mostrar cidade e CEP")}
+              {optRow("showPhone","Mostrar telefone")}
+              {optRow("showDate","Mostrar data da entrega")}
+              {optRow("copiesByVolumes","Uma etiqueta por volume (Vol. 1/2, 2/2…)")}
+              <p style={{margin:"10px 0 0",fontSize:11.5,color:"#8A7A6C",lineHeight:1.5}}>
+                As configurações ficam salvas neste computador. Para imprimir sem a janela de confirmação do Chrome, abra o app por um atalho do Chrome com <b>--kiosk-printing</b> no destino e deixe a Elgin L42 Pro como impressora padrão do Windows.
+              </p>
+            </div>
+          )}
+
+          {items.length===0?<EmptyState text="Nenhuma entrega neste dia."/>:(
+            <div style={styles.cardList}>
+              {items.map(it=>{
+                const k = keyOf(it); const on = !excluded[k]; const isPrev = previewItem && keyOf(previewItem)===k;
+                return (
+                  <div key={k} style={{...styles.roteiroCard,display:"flex",alignItems:"center",gap:10,borderColor:isPrev?"#B8825A":"#EFE4D6"}}>
+                    <input type="checkbox" checked={on} onChange={()=>toggle(it)} style={{width:18,height:18,flexShrink:0}}/>
+                    <button style={{background:"none",border:"none",textAlign:"left",flex:1,minWidth:0,padding:0}} onClick={()=>setPreviewKey(k)}>
+                      <div style={{display:"flex",gap:6,alignItems:"baseline",flexWrap:"wrap"}}>
+                        <span style={styles.cardDog}>{it.client.dog}</span>
+                        <span style={{fontSize:12.5,color:"#8A7A6C"}}>· {it.client.tutor}</span>
+                      </div>
+                      <div style={{fontSize:12,color:"#7A6C5E",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.client.address}</div>
+                      {(it.client.janelaEntrega||it.client.notes)&&<div style={{fontSize:11.5,color:"#A8412F",fontWeight:600,marginTop:2}}>OBS: {[it.client.janelaEntrega,it.client.notes].filter(Boolean).join(" | ")}</div>}
+                    </button>
+                    {copiesOf(it)>1&&<span style={styles.countPill}>{copiesOf(it)} etiq.</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{marginTop:18,textAlign:"right"}}>
+            <button style={{background:"none",border:"none",color:"#A89A8C",fontSize:12,fontWeight:600,textDecoration:"underline"}}
+              onClick={()=>onGenerateBat(activeDate,selected)}>
+              Método antigo: gerar .bat do BarTender
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── PRODUÇÃO · SEMANA SEGUINTE (lista de sexta-feira) ────────────────────
+    const dowShort = (iso) => weekdayShort[new Date(iso+"T00:00:00").getDay()];
+
+    function ProducaoSemanaView({ clients, subscriberStock, shelfProducts, petiscoProducts, getDeliveriesForRange, getStatus, showToast }) {
+      const [offset, setOffset] = useState(1);
+      const [onlyNeeded, setOnlyNeeded] = useState(false);
+      const t = todayISO();
+      const weekStart = useMemo(()=>{ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset*7-d.getDay()); return dateToISO(d); },[offset]);
+      const weekEnd = addDays(weekStart,6);
+      const rangeLabel = `${formatDateBR(weekStart)} a ${formatDateBR(weekEnd)}`;
+
+      const data = useMemo(()=>{
+        const pending = getDeliveriesForRange(t, weekEnd).filter(({client,date})=>getStatus(client.id,date)!=="entregue");
+        const per = {};
+        const avulsos = [];
+        pending.forEach(({client,date})=>{
+          if (client.frequency==="avulsa") { if (date>=weekStart) avulsos.push({client,date}); return; }
+          const p = per[client.id] || (per[client.id]={client,dates:[],need:0,committed:0});
+          const u = client.units||0;
+          if (date>=weekStart) { p.need+=u; p.dates.push(date); }
+          else p.committed+=u;
+        });
+        const rows = Object.values(per).filter(p=>p.dates.length>0).map(p=>{
+          const saldo = subscriberStock[p.client.id]??0;
+          return {...p, saldo, produzir: Math.max(0, p.need+p.committed-saldo)};
+        }).sort((a,b)=>(a.dates[0]||"").localeCompare(b.dates[0]||"")||a.client.dog.localeCompare(b.client.dog));
+        const groups = {};
+        rows.forEach(r=>{
+          const raw = (r.client.receita||"").trim();
+          const key = raw ? normLabel(raw) : "__sem__";
+          const g = groups[key] || (groups[key]={label:raw||"Sem receita definida", sem:!raw, pets:0, need:0, produzir:0});
+          g.pets++; g.need+=r.need; g.produzir+=r.produzir;
+        });
+        const groupList = Object.values(groups).sort((a,b)=>(a.sem-b.sem)||(b.produzir-a.produzir)||a.label.localeCompare(b.label));
+        const lowOf = (arr) => arr.filter(p=>(p.min_stock||0)>0&&p.balance<p.min_stock).map(p=>({name:p.name,balance:p.balance,min:p.min_stock,produzir:p.min_stock-p.balance}));
+        return { rows, groups:groupList, lowShelf:lowOf(shelfProducts), lowSnack:lowOf(petiscoProducts), avulsos };
+      },[getDeliveriesForRange,getStatus,t,weekStart,weekEnd,subscriberStock,shelfProducts,petiscoProducts]);
+
+      const totalProduzir = data.rows.reduce((s,r)=>s+r.produzir,0);
+      const shown = onlyNeeded ? data.rows.filter(r=>r.produzir>0) : data.rows;
+
+      const buildText = () => {
+        const L = [`*Produção ObentōPet — semana ${rangeLabel}*`, `Total a produzir: ${totalProduzir} un. (${data.rows.filter(r=>r.produzir>0).length} pets)`, ``, `*Resumo por receita*`];
+        data.groups.forEach(g=>L.push(`• ${g.label}: ${g.produzir} un. (${g.pets} pet${g.pets!==1?"s":""})`));
+        L.push("", "*Por pet*");
+        shown.forEach((r,i)=>L.push(`${i+1}. ${r.client.dog} (${r.client.tutor}) — produzir ${r.produzir} un.${r.client.receita?` · ${r.client.receita}`:""} · entregas: ${r.dates.map(d=>dowShort(d).toLowerCase()+" "+formatDateBR(d)).join(", ")}`));
+        if (data.lowShelf.length) { L.push("", "*Avulsos abaixo do mínimo*"); data.lowShelf.forEach(p=>L.push(`• ${p.name}: +${p.produzir}`)); }
+        if (data.lowSnack.length) { L.push("", "*Petiscos abaixo do mínimo*"); data.lowSnack.forEach(p=>L.push(`• ${p.name}: +${p.produzir}`)); }
+        return L.join("\n");
+      };
+      const copyWhatsApp = () => {
+        const txt = buildText();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(()=>showToast("Lista copiada! Cole no WhatsApp.")).catch(()=>showToast("Não foi possível copiar automaticamente.","error"));
+        } else showToast("Não foi possível copiar automaticamente.","error");
+      };
+
+      const handlePrint = () => {
+        const tbl = (head, rowsHtml) => `<table><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr>${rowsHtml}</table>`;
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Produção ${rangeLabel}</title>
+          <style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#3E332A;font-size:12px}h1{font-size:19px;margin:0 0 4px}h2{font-size:12px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.5px;color:#8A6A48}.sub{color:#8A7A6C;margin-bottom:8px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:5px 8px;text-align:left}th{background:#F6EEE3}td.n{text-align:right}.big{font-weight:700;color:#A8412F}tr{page-break-inside:avoid}</style></head><body>
+          <h1>Lista de produção — semana ${rangeLabel}</h1><div class="sub">Emitida em ${formatDateBR(t)} · ${totalProduzir} un. a produzir</div>
+          <h2>Resumo por receita</h2>
+          ${tbl(["Receita","Pets","Necessário","Produzir"], data.groups.map(g=>`<tr><td>${escHtml(g.label)}</td><td class="n">${g.pets}</td><td class="n">${g.need}</td><td class="n big">${g.produzir}</td></tr>`).join(""))}
+          <h2>Detalhe por pet</h2>
+          ${tbl(["Pet","Tutor","Receita","Entregas","Necess.","Saldo","Produzir"], shown.map(r=>`<tr><td><b>${escHtml(r.client.dog)}</b></td><td>${escHtml(r.client.tutor)}</td><td>${escHtml(r.client.receita||"—")}</td><td>${r.dates.map(d=>dowShort(d)+" "+formatDateBR(d)).join(", ")}</td><td class="n">${r.need+r.committed}</td><td class="n">${r.saldo}</td><td class="n big">${r.produzir}</td></tr>`).join(""))}
+          ${data.lowShelf.length?`<h2>Avulsos abaixo do mínimo</h2>${tbl(["Produto","Saldo","Mín","Produzir"], data.lowShelf.map(p=>`<tr><td>${escHtml(p.name)}</td><td class="n">${p.balance}</td><td class="n">${p.min}</td><td class="n big">+${p.produzir}</td></tr>`).join(""))}`:""}
+          ${data.lowSnack.length?`<h2>Petiscos abaixo do mínimo</h2>${tbl(["Petisco","Saldo","Mín","Produzir"], data.lowSnack.map(p=>`<tr><td>${escHtml(p.name)}</td><td class="n">${p.balance}</td><td class="n">${p.min}</td><td class="n big">+${p.produzir}</td></tr>`).join(""))}`:""}
+          </body></html>`;
+        printHtmlDoc(html);
+      };
+
+      const Section = ({icon:Icon, title, children}) => (
+        <div style={{marginTop:22}}>
+          <div style={styles.producaoSection}><Icon size={14} color="#B8825A"/><span style={styles.producaoSectionTitle}>{title}</span></div>
+          {children}
+        </div>
+      );
+
+      return (
+        <div>
+          <div style={styles.weekNav}>
+            <button style={styles.navArrow} onClick={()=>setOffset(o=>Math.max(0,o-1))} disabled={offset<=0}><ChevronLeft size={18}/></button>
+            <div style={{textAlign:"center"}}>
+              <div style={styles.weekLabel}>{rangeLabel}</div>
+              <div style={{fontSize:10.5,color:"#A89A8C",fontWeight:600}}>{offset===1?"Semana seguinte":offset===0?"Semana atual":`+${offset} semanas`} · semana {getWeekNumber(weekStart)}</div>
+            </div>
+            <button style={styles.navArrow} onClick={()=>setOffset(o=>o+1)}><ChevronRight size={18}/></button>
+          </div>
+
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:6}}>
+            <span style={{...styles.countPill,background:totalProduzir>0?"#FBEAE6":"#E8F5E8",color:totalProduzir>0?"#A8412F":"#4A7A4A"}}>{totalProduzir} un. a produzir</span>
+            <span style={styles.countPill}>{data.rows.length} pet{data.rows.length!==1?"s":""} com entrega</span>
+            <div style={{flex:1}}/>
+            <button style={styles.batBtn} onClick={handlePrint}><Printer size={13} strokeWidth={2.5}/>Imprimir PDF</button>
+            <button style={{...styles.batBtn,background:"#25A244"}} onClick={copyWhatsApp}><MessageCircle size={13} strokeWidth={2.5}/>Copiar WhatsApp</button>
+          </div>
+          <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.45}}>
+            Produzir = unidades das entregas da semana + entregas pendentes até lá − saldo atual em estoque.
+          </p>
+
+          <Section icon={ClipboardList} title="Resumo por receita">
+            {data.groups.length===0?<EmptyState text="Nenhuma entrega de assinante nesta semana."/>:(
+              <div style={styles.cardList}>
+                {data.groups.map(g=>(
+                  <div key={g.label} style={styles.producaoCard}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:14.5,color:g.sem?"#A89A8C":"#3E332A"}}>{g.label}</div>
+                        <div style={{fontSize:12,color:"#8A7A6C"}}>{g.pets} pet{g.pets!==1?"s":""} · necessário {g.need} un.</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:22,fontWeight:800,color:g.produzir>0?"#A8412F":"#5C8A5C",lineHeight:1}}>{g.produzir}</div>
+                        <div style={{fontSize:10.5,color:"#A89A8C",fontWeight:600}}>a produzir</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          <Section icon={PawPrint} title="Detalhe por pet">
+            <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12.5,color:"#8A7A6C",marginBottom:10}}>
+              <input type="checkbox" checked={onlyNeeded} onChange={e=>setOnlyNeeded(e.target.checked)}/>Mostrar só quem precisa produzir
+            </label>
+            {shown.length===0?<EmptyState text={onlyNeeded?"Todos os pets já têm estoque suficiente.":"Nenhuma entrega de assinante nesta semana."}/>:(
+              <div style={styles.cardList}>
+                {shown.map(r=>(
+                  <div key={r.client.id} style={styles.producaoCard}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14.5,color:"#3E332A"}}>{r.client.dog} <span style={{fontWeight:500,fontSize:12.5,color:"#8A7A6C"}}>· {r.client.tutor}</span></div>
+                        {r.client.receita&&<div style={{fontSize:12,color:"#8A6A48",marginTop:2}}>{r.client.receita}</div>}
+                        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
+                          {r.dates.map(d=><span key={d} style={{fontSize:10.5,fontWeight:700,color:"#8A6A48",background:"#F6EEE3",padding:"2px 7px",borderRadius:6}}>{dowShort(d)} {formatDateBR(d)}</span>)}
+                        </div>
+                        <div style={{fontSize:11.5,color:"#A89A8C",marginTop:6}}>
+                          necessário {r.need}{r.committed>0?` + ${r.committed} já agendadas`:""} − saldo {r.saldo}
+                        </div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:22,fontWeight:800,color:r.produzir>0?"#A8412F":"#5C8A5C",lineHeight:1}}>{r.produzir>0?`+${r.produzir}`:"OK"}</div>
+                        <div style={{fontSize:10.5,color:"#A89A8C",fontWeight:600}}>{r.produzir>0?"produzir":"em estoque"}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {data.lowShelf.length>0&&(
+            <Section icon={Package} title="Avulsos abaixo do mínimo">
+              <div style={styles.cardList}>
+                {data.lowShelf.map(p=>(
+                  <div key={p.name} style={styles.producaoCard}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontWeight:700,fontSize:14.5}}>{p.name}</div>
+                      <div style={{textAlign:"right"}}><div style={{fontSize:12.5,color:"#C0594B",fontWeight:700}}>Saldo {p.balance} / mín {p.min}</div><div style={{fontSize:12,color:"#B8825A",fontWeight:600}}>Produzir: +{p.produzir} un.</div></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+          {data.lowSnack.length>0&&(
+            <Section icon={Cookie} title="Petiscos abaixo do mínimo">
+              <div style={styles.cardList}>
+                {data.lowSnack.map(p=>(
+                  <div key={p.name} style={styles.producaoCard}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontWeight:700,fontSize:14.5}}>{p.name}</div>
+                      <div style={{textAlign:"right"}}><div style={{fontSize:12.5,color:"#C0594B",fontWeight:700}}>Saldo {p.balance} / mín {p.min}</div><div style={{fontSize:12,color:"#B8825A",fontWeight:600}}>Produzir: +{p.produzir} un.</div></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+          {data.avulsos.length>0&&(
+            <Section icon={Truck} title="Pedidos avulsos na semana (informativo)">
+              <div style={styles.cardList}>
+                {data.avulsos.map(({client,date})=>(
+                  <div key={client.id+date} style={styles.producaoCard}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontWeight:700,fontSize:14}}>{client.dog} <span style={{fontWeight:500,fontSize:12.5,color:"#8A7A6C"}}>· {client.tutor}</span></div>
+                      <span style={{fontSize:11.5,fontWeight:700,color:"#8A6A48"}}>{dowShort(date)} {formatDateBR(date)}{client.units?` · ${client.units} un.`:""}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+        </div>
+      );
+    }
+
+    // ─── PRODUÇÃO (módulo com abas) ───────────────────────────────────────────
+    function ProducaoView(props) {
+      const [tab, setTab] = useState("semana");
+      return (
+        <div style={styles.section}>
+          <div style={styles.stockTabRow}>
+            {[["semana","Semana seguinte"],["estoque","Estoque baixo"]].map(([key,label])=>(
+              <button key={key} style={{...styles.stockTabBtn,...(tab===key?styles.stockTabBtnActive:{})}} onClick={()=>setTab(key)}>{label}</button>
+            ))}
+          </div>
+          {tab==="semana"
+            ? <ProducaoSemanaView {...props}/>
+            : <ProducaoEstoqueView clients={props.clients} subscriberStock={props.subscriberStock} shelfProducts={props.shelfProducts} petiscoProducts={props.petiscoProducts}/>}
+        </div>
+      );
+    }
+
+    // ─── PRODUÇÃO · ESTOQUE BAIXO ─────────────────────────────────────────────
+    function ProducaoEstoqueView({ clients, subscriberStock, shelfProducts, petiscoProducts }) {
       const subscribers = clients.filter(c=>c.frequency!=="avulsa");
       const lowSubscribers = subscribers.filter(c=>(subscriberStock[c.id]??0)<=(c.units||0));
       const lowShelf       = shelfProducts.filter(p=>p.balance<=(p.min_stock||0));
@@ -2172,6 +2759,9 @@
           lines.push(`   📍 ${client.address}`);
           if (client.volumes) lines.push(`   📦 ${client.volumes} volume${client.volumes!==1?"s":""}${client.units?` · ${client.units} un.`:""}`);
           else if (client.units) lines.push(`   📦 ${client.units} unidade${client.units!==1?"s":""}`);
+          if (client.complemento) lines.push(`   🏢 ${client.complemento}`);
+          if (client.referencia) lines.push(`   🧭 ${client.referencia}`);
+          if (client.janelaEntrega) lines.push(`   🕒 ${client.janelaEntrega}`);
           if (client.phone) lines.push(`   📱 ${client.phone}`);
           lines.push("");
         });
@@ -2188,7 +2778,7 @@
         win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Roteiro ${dateLabel}</title>
           <style>body{font-family:sans-serif;padding:24px;color:#3E332A}h1{font-size:18px;margin-bottom:4px}.sub{font-size:13px;color:#8A7A6C;margin-bottom:20px}.card{border:1px solid #E8DDD0;border-radius:10px;padding:14px 16px;margin-bottom:12px}.num{font-size:11px;font-weight:700;color:#B8825A;text-transform:uppercase;margin-bottom:4px}.dog{font-size:16px;font-weight:700}.tutor{font-size:13px;color:#8A7A6C}.addr{font-size:13px;margin-top:6px;color:#3E332A}.info{font-size:12px;color:#A89A8C;margin-top:3px}@media print{body{padding:12px}}</style>
           </head><body><h1>Roteiro ObentōPet</h1><p class="sub">${dateLabel} · ${items.length} entrega${items.length!==1?"s":""}</p>
-          ${items.map(({client},i)=>`<div class="card"><div class="num">Entrega ${i+1}</div><div class="dog">🐾 ${client.dog}</div><div class="tutor">${client.tutor}</div><div class="addr">📍 ${client.address}</div>${client.volumes?`<div class="info">📦 ${client.volumes} volume${client.volumes!==1?"s":""}${client.units?` · ${client.units} un.`:""}</div>`:client.units?`<div class="info">📦 ${client.units} unidade${client.units!==1?"s":""}</div>`:""}${client.phone?`<div class="info">📱 ${client.phone}</div>`:""}</div>`).join("")}
+          ${items.map(({client},i)=>`<div class="card"><div class="num">Entrega ${i+1}</div><div class="dog">🐾 ${client.dog}</div><div class="tutor">${client.tutor}</div><div class="addr">📍 ${client.address}</div>${client.volumes?`<div class="info">📦 ${client.volumes} volume${client.volumes!==1?"s":""}${client.units?` · ${client.units} un.`:""}</div>`:client.units?`<div class="info">📦 ${client.units} unidade${client.units!==1?"s":""}</div>`:""}${client.complemento?`<div class="info">🏢 ${client.complemento}</div>`:""}${client.referencia?`<div class="info">🧭 ${client.referencia}</div>`:""}${client.janelaEntrega?`<div class="info" style="color:#A8412F;font-weight:700">🕒 ${client.janelaEntrega}</div>`:""}${client.phone?`<div class="info">📱 ${client.phone}</div>`:""}</div>`).join("")}
           </body></html>`);
         win.document.close();
         win.print();
@@ -2231,7 +2821,11 @@
                         <MapPin size={11} color="#A89A8C" style={{flexShrink:0}}/>
                         {client.address}
                       </div>
+                      {client.complemento&&<div style={{fontSize:12,color:"#7A6C5E",marginTop:3}}>Compl.: {client.complemento}</div>}
+                      {client.referencia&&<div style={{fontSize:12,color:"#7A6C5E",marginTop:2}}>Ref.: {client.referencia}</div>}
+                      {client.janelaEntrega&&<div style={{fontSize:12,color:"#A8412F",fontWeight:700,marginTop:2}}>Horário: {client.janelaEntrega}</div>}
                       {client.phone&&<div style={{fontSize:12,color:"#A89A8C",marginTop:3,display:"flex",gap:4,alignItems:"center"}}><Phone size={11} color="#C9BBA8"/>{client.phone}</div>}
+                      {client.contatoAlt&&<div style={{fontSize:12,color:"#A89A8C",marginTop:2}}>Contato alt.: {client.contatoAlt}</div>}
                       {(client.volumes||client.units)&&<div style={{fontSize:11.5,color:"#B8825A",fontWeight:600,marginTop:3,display:"flex",gap:10}}>
                         {client.volumes&&<span>📦 {client.volumes} vol.</span>}
                         {client.units&&<span>{client.units} un.</span>}
@@ -2305,6 +2899,15 @@
       const [dog,             setDog]             = useState(initial?.dog      ||"");
       const [address,         setAddress]         = useState(initial?.address  ||"");
       const [phone,           setPhone]           = useState(initial?.phone    ||"");
+      const [email,           setEmail]           = useState(initial?.email    ||"");
+      const [contatoAlt,      setContatoAlt]      = useState(initial?.contatoAlt||"");
+      const [cep,             setCep]             = useState(initial?.cep      ||"");
+      const [bairro,          setBairro]          = useState(initial?.bairro   ||"");
+      const [cidade,          setCidade]          = useState(initial?.cidade   ||"");
+      const [complemento,     setComplemento]     = useState(initial?.complemento||"");
+      const [referencia,      setReferencia]      = useState(initial?.referencia||"");
+      const [janelaEntrega,   setJanelaEntrega]   = useState(initial?.janelaEntrega||"");
+      const [receita,         setReceita]         = useState(initial?.receita  ||"");
       const [isSubscriber,    setIsSubscriber]    = useState(initIsSubscriber);
       const [frequency,       setFrequency]       = useState(initial?.frequency&&initial.frequency!=="avulsa"?initial.frequency:"semanal");
       const [nextDate,        setNextDate]        = useState(initial?.nextDate ||todayISO());
@@ -2330,6 +2933,8 @@
         setSaving(true);
         await onSave({
           tutor:tutor.trim(), dog:dog.trim(), address:address.trim(), phone:phone.trim(),
+          email:email.trim(), contatoAlt:contatoAlt.trim(), cep:cep.trim(), bairro:bairro.trim(), cidade:cidade.trim(),
+          complemento:complemento.trim(), referencia:referencia.trim(), janelaEntrega:janelaEntrega.trim(), receita:receita.trim(),
           frequency:isSubscriber?frequency:"avulsa",
           nextDate: isSubscriber?nextDate:(initial?.nextDate||null),
           units:unitsNum, volumes:volumesNum, notes,
@@ -2356,8 +2961,37 @@
               <Field label="Endereço de entrega">
                 <input style={styles.input} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Rua, número, bairro"/>
               </Field>
+              <div style={styles.formGrid2}>
+                <Field label="CEP (opcional)">
+                  <input style={styles.input} value={cep} onChange={e=>setCep(maskCep(e.target.value))} placeholder="00000-000" inputMode="numeric"/>
+                </Field>
+                <Field label="Bairro (opcional)">
+                  <input style={styles.input} value={bairro} onChange={e=>setBairro(e.target.value)} placeholder="Ex: Vila Mariana"/>
+                </Field>
+              </div>
+              <div style={styles.formGrid2}>
+                <Field label="Cidade (opcional)">
+                  <input style={styles.input} value={cidade} onChange={e=>setCidade(e.target.value)} placeholder="Ex: São Paulo"/>
+                </Field>
+                <Field label="Complemento (opcional)">
+                  <input style={styles.input} value={complemento} onChange={e=>setComplemento(e.target.value)} placeholder="Apto, bloco, casa 2…"/>
+                </Field>
+              </div>
+              <Field label="Ponto de referência (opcional)">
+                <input style={styles.input} value={referencia} onChange={e=>setReferencia(e.target.value)} placeholder="Ex: ao lado da padaria"/>
+              </Field>
+              <Field label="Janela / restrição de horário de entrega (opcional)">
+                <input style={styles.input} value={janelaEntrega} onChange={e=>setJanelaEntrega(e.target.value)} placeholder="Ex: só após as 14h · seg a sex 9h-12h"/>
+                <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>Aparece no card da entrega, no roteiro e na etiqueta.</p>
+              </Field>
               <Field label="Telefone de contato (opcional)">
                 <input style={styles.input} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(11) 99999-9999" type="tel"/>
+              </Field>
+              <Field label="Contato alternativo (opcional)">
+                <input style={styles.input} value={contatoAlt} onChange={e=>setContatoAlt(e.target.value)} placeholder="Nome e telefone de outra pessoa"/>
+              </Field>
+              <Field label="E-mail (opcional)">
+                <input style={styles.input} value={email} onChange={e=>setEmail(e.target.value)} placeholder="tutor@email.com" type="email"/>
               </Field>
               <Field label="Tipo de cliente">
                 <div style={styles.subscriberToggle}>
@@ -2404,6 +3038,10 @@
                 <input type="number" min="1" style={styles.input} value={volumes} onChange={e=>setVolumes(e.target.value)} placeholder="Ex: 2"/>
                 <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>Caixas ou sacolas entregues à transportadora por entrega.</p>
               </Field>
+              <Field label="Receita / cardápio (opcional)">
+                <input style={styles.input} value={receita} onChange={e=>setReceita(e.target.value)} placeholder="Ex: Frango com batata-doce"/>
+                <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>Usada na lista de produção de sexta para somar o total por receita. Escreva sempre igual.</p>
+              </Field>
               <Field label="Arquivo de etiqueta (.btw)">
                 <div style={{position:"relative"}}>
                   <input style={{...styles.input,paddingRight:labelFileEdited?80:12}}
@@ -2418,11 +3056,10 @@
                   )}
                 </div>
                 <p style={{margin:"4px 0 0",fontSize:11.5,color:"#A89A8C",lineHeight:1.4}}>
-                  Nome idêntico ao arquivo <strong>.btw</strong> salvo no OneDrive, sem a extensão.
-                  {!labelFile&&dog&&<span style={{color:"#C0594B"}}> Configure para gerar o .bat do dia.</span>}
+                  Só necessário para o método antigo (.bat/BarTender): nome idêntico ao arquivo <strong>.btw</strong>, sem a extensão. A impressão direta não usa este campo.
                 </p>
               </Field>
-              <Field label="Observações (opcional)">
+              <Field label="Observações (saem na etiqueta)">
                 <textarea style={{...styles.input,minHeight:60,resize:"vertical",fontFamily:"inherit"}}
                   value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Ex: portaria pede documento"/>
               </Field>
@@ -2571,6 +3208,16 @@
       producaoSection:       { display:"flex", alignItems:"center", gap:8, marginBottom:8 },
       producaoSectionTitle:  { fontSize:13, fontWeight:700, color:"#8A7A6C", textTransform:"uppercase", letterSpacing:"0.5px" },
       producaoCard:          { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:"12px 14px" },
+      homeBtn:          { display:"flex", alignItems:"center", justifyContent:"center", width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.18)", flexShrink:0 },
+      homeSummary:      { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:14, padding:"14px 16px", marginBottom:14 },
+      fridayBanner:     { display:"flex", alignItems:"center", gap:10, width:"100%", background:"#FBF1E8", border:"1.5px solid #D4A574", borderRadius:12, padding:"12px 14px", marginBottom:14, fontSize:13, color:"#5A4632", lineHeight:1.35 },
+      moduleGrid:       { display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))", gap:12 },
+      moduleCard:       { position:"relative", display:"flex", flexDirection:"column", alignItems:"flex-start", gap:6, textAlign:"left", background:"#FFF", border:"1px solid #EFE4D6", borderRadius:16, padding:"16px 14px 14px", minHeight:132, boxShadow:"0 1px 2px rgba(62,51,42,0.04)" },
+      moduleIcon:       { width:42, height:42, borderRadius:12, background:"#FBF1E8", display:"flex", alignItems:"center", justifyContent:"center" },
+      moduleTitle:      { fontSize:16, fontWeight:800, color:"#3E332A", marginTop:4 },
+      moduleDesc:       { fontSize:12, color:"#8A7A6C", lineHeight:1.35 },
+      moduleBadge:      { position:"absolute", top:12, right:12, fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:20, background:"#F1E6D8", color:"#8A6A48" },
+      formGrid2:        { display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
       roteiroCard:           { background:"#FFF", border:"1px solid #EFE4D6", borderRadius:12, padding:"12px 14px" },
     };
 
