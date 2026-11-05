@@ -1,1 +1,1 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/ObentoPet/v2/sw.js', { scope: '/ObentoPet/v2/' })})}
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/ObentoPet/sw.js', { scope: '/ObentoPet/' })})}
